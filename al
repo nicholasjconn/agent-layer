@@ -6,7 +6,26 @@ set -euo pipefail
 # Edit this file to choose a single default behavior.
 # Uncomment exactly one option below (leave the rest commented).
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+if [[ ! -f "$PATHS_SH" ]]; then
+  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+fi
+if [[ ! -f "$PATHS_SH" ]]; then
+  echo "ERROR: Missing lib/paths.sh (expected near .agentlayer/)." >&2
+  exit 2
+fi
+# shellcheck disable=SC1090
+source "$PATHS_SH"
+
+WORKING_ROOT="$(resolve_working_root "$PWD" "$SCRIPT_DIR" || true)"
+
+if [[ -z "$WORKING_ROOT" ]]; then
+  echo "ERROR: Missing .agentlayer/ directory in this path or any parent." >&2
+  exit 2
+fi
+
+ROOT="$WORKING_ROOT"
 cd "$ROOT"
 
 # If launching Codex, force repo-local CODEX_HOME unless the caller already set it.

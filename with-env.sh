@@ -7,8 +7,27 @@ set -euo pipefail
 #   ./.agentlayer/with-env.sh codex
 #   ./.agentlayer/with-env.sh --project-env gemini
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Keep the caller's working directory; use ROOT only for env file paths.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+if [[ ! -f "$PATHS_SH" ]]; then
+  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+fi
+if [[ ! -f "$PATHS_SH" ]]; then
+  echo "ERROR: Missing lib/paths.sh (expected near .agentlayer/)." >&2
+  exit 2
+fi
+# shellcheck disable=SC1090
+source "$PATHS_SH"
+
+WORKING_ROOT="$(resolve_working_root "$PWD" "$SCRIPT_DIR" || true)"
+
+if [[ -z "$WORKING_ROOT" ]]; then
+  echo "ERROR: Missing .agentlayer/ directory in this path or any parent." >&2
+  exit 2
+fi
+
+AGENTLAYER_ROOT="$WORKING_ROOT/.agentlayer"
+# Keep the caller's working directory; use WORKING_ROOT only for env file paths.
 
 INCLUDE_PROJECT_ENV=0
 
@@ -29,7 +48,7 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
-AGENT_ENV="$ROOT/.agentlayer/.env"
+AGENT_ENV="$AGENTLAYER_ROOT/.env"
 
 if [[ -f "$AGENT_ENV" ]]; then
   set -a
@@ -38,8 +57,8 @@ if [[ -f "$AGENT_ENV" ]]; then
   set +a
 fi
 
-PROJECT_ENV="$ROOT/.env"
-if [[ "$INCLUDE_PROJECT_ENV" -eq 1 && -f "$PROJECT_ENV" ]]; then
+PROJECT_ENV="$WORKING_ROOT/.env"
+if [[ "$INCLUDE_PROJECT_ENV" -eq 1 && -f "$PROJECT_ENV" && "$PROJECT_ENV" != "$AGENT_ENV" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "$PROJECT_ENV"

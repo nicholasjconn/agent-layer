@@ -10,7 +10,7 @@ description: proactive code quality audit to find over-engineering, bad practice
    - Find places where best practices are not followed or abstractions are poor.
    - Find places where fallbacks or defaults are used.
    - Identify "band-aids" or quick-and-dirty fixes.
-   - Compare findings to `README.md` and `ROADMAP.md` to ensure future development goals are respected.
+   - Compare findings to `README.md` and `docs/ROADMAP.md` to ensure future development goals are respected.
 
 2. **Deep Dive**
    - Dig one layer deeper based on initial findings, looking across the entire codebase.
@@ -24,7 +24,7 @@ description: proactive code quality audit to find over-engineering, bad practice
    - Find places where best practices are not followed or abstractions are poor.
    - Find places where fallbacks or defaults are used.
    - Identify "band-aids" or quick-and-dirty fixes.
-   - Compare findings to `README.md` and `ROADMAP.md` to ensure future development goals are respected.
+   - Compare findings to `README.md` and `docs/ROADMAP.md` to ensure future development goals are respected.
 
 4. **Report and Review**
    - Present findings to the user for review.

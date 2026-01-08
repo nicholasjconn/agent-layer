@@ -2,7 +2,7 @@
 /**
  * Agentlayer sync (Node-based generator)
  *
- * Generates per-client shim files from `.agentlayer/` sources:
+ * Generates per-client shim files from `.agentlayer/instructions/` sources:
  * - AGENTS.md
  * - CLAUDE.md
  * - GEMINI.md
@@ -30,6 +30,7 @@
 
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { REGEN_COMMAND } from "./constants.mjs";
 import { banner, concatInstructions } from "./instructions.mjs";
 import { buildMcpConfigs, loadServerCatalog } from "./mcp.mjs";
@@ -75,11 +76,11 @@ function parseArgs(argv) {
 }
 
 /**
- * Find the repo root containing .agentlayer.
+ * Find the working repo root containing .agentlayer/.
  * @param {string} startDir
  * @returns {string | null}
  */
-function findRepoRoot(startDir) {
+function findWorkingRoot(startDir) {
   let dir = path.resolve(startDir);
   for (let i = 0; i < 50; i++) {
     if (fileExists(path.join(dir, ".agentlayer"))) return dir;
@@ -91,21 +92,33 @@ function findRepoRoot(startDir) {
 }
 
 /**
+ * Resolve the working repo root by searching for .agentlayer/.
+ * @returns {string | null}
+ */
+function resolveWorkingRoot() {
+  const cwdRoot = findWorkingRoot(process.cwd());
+  if (cwdRoot) return cwdRoot;
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  return findWorkingRoot(scriptDir);
+}
+
+/**
  * Entry point.
  * @returns {void}
  */
 function main() {
   const args = parseArgs(process.argv);
-  const repoRoot = findRepoRoot(process.cwd());
-  if (!repoRoot) {
-    console.error("agentlayer sync: could not find repo root containing .agentlayer/");
+  const workingRoot = resolveWorkingRoot();
+  if (!workingRoot || !fileExists(path.join(workingRoot, ".agentlayer"))) {
+    console.error("agentlayer sync: could not find working repo root containing .agentlayer/");
     process.exit(2);
   }
 
-  const instructionsDir = path.join(repoRoot, ".agentlayer", "instructions");
-  const workflowsDir = path.join(repoRoot, ".agentlayer", "workflows");
+  const agentlayerRoot = path.join(workingRoot, ".agentlayer");
+  const instructionsDir = path.join(agentlayerRoot, "instructions");
+  const workflowsDir = path.join(agentlayerRoot, "workflows");
 
-  const policy = loadCommandPolicy(repoRoot);
+  const policy = loadCommandPolicy(agentlayerRoot);
   const prefixes = commandPrefixes(policy);
   const geminiAllowed = buildGeminiAllowed(prefixes);
   const claudeAllowed = buildClaudeAllow(prefixes);
@@ -116,23 +129,23 @@ function main() {
     concatInstructions(instructionsDir);
 
   const outputs = [
-    [path.join(repoRoot, "AGENTS.md"), unified],
-    [path.join(repoRoot, "CLAUDE.md"), unified],
-    [path.join(repoRoot, "GEMINI.md"), unified],
-    [path.join(repoRoot, ".github", "copilot-instructions.md"), unified],
+    [path.join(workingRoot, "AGENTS.md"), unified],
+    [path.join(workingRoot, "CLAUDE.md"), unified],
+    [path.join(workingRoot, "GEMINI.md"), unified],
+    [path.join(workingRoot, ".github", "copilot-instructions.md"), unified],
   ];
 
-  const catalog = loadServerCatalog(repoRoot);
+  const catalog = loadServerCatalog(agentlayerRoot);
   const mcpConfigs = buildMcpConfigs(catalog);
   outputs.push(
     [
-      path.join(repoRoot, ".vscode", "mcp.json"),
+      path.join(workingRoot, ".vscode", "mcp.json"),
       JSON.stringify(mcpConfigs.vscode, null, 2) + "\n",
     ],
-    [path.join(repoRoot, ".mcp.json"), JSON.stringify(mcpConfigs.claude, null, 2) + "\n"]
+    [path.join(workingRoot, ".mcp.json"), JSON.stringify(mcpConfigs.claude, null, 2) + "\n"]
   );
 
-  const geminiSettingsPath = path.join(repoRoot, ".gemini", "settings.json");
+  const geminiSettingsPath = path.join(workingRoot, ".gemini", "settings.json");
   const geminiExisting = readJsonRelaxed(geminiSettingsPath, {});
   const geminiMerged = mergeGeminiSettings(
     geminiExisting,
@@ -142,12 +155,12 @@ function main() {
   );
   outputs.push([geminiSettingsPath, JSON.stringify(geminiMerged, null, 2) + "\n"]);
 
-  const claudeSettingsPath = path.join(repoRoot, ".claude", "settings.json");
+  const claudeSettingsPath = path.join(workingRoot, ".claude", "settings.json");
   const claudeExisting = readJsonRelaxed(claudeSettingsPath, {});
   const claudeMerged = mergeClaudeSettings(claudeExisting, claudeAllowed, claudeSettingsPath);
   outputs.push([claudeSettingsPath, JSON.stringify(claudeMerged, null, 2) + "\n"]);
 
-  const vscodeSettingsPath = path.join(repoRoot, ".vscode", "settings.json");
+  const vscodeSettingsPath = path.join(workingRoot, ".vscode", "settings.json");
   const vscodeExisting = readJsonRelaxed(vscodeSettingsPath, {});
   const vscodeMerged = mergeVscodeSettings(
     vscodeExisting,
@@ -156,11 +169,11 @@ function main() {
   );
   outputs.push([vscodeSettingsPath, JSON.stringify(vscodeMerged, null, 2) + "\n"]);
 
-  const codexRulesPath = path.join(repoRoot, ".codex", "rules", "agentlayer.rules");
+  const codexRulesPath = path.join(workingRoot, ".codex", "rules", "agentlayer.rules");
   outputs.push([codexRulesPath, renderCodexRules(policy.allowed)]);
 
-  diffOrWrite(outputs, args, repoRoot);
-  generateCodexSkills(repoRoot, workflowsDir, args);
+  diffOrWrite(outputs, args, workingRoot);
+  generateCodexSkills(workingRoot, workflowsDir, args);
 
   if (!args.check) {
     console.log("agentlayer sync: updated shims + MCP configs + allowlists + Codex skills");

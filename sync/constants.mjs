@@ -11,4 +11,5 @@ export const REGEN_COMMAND = "node .agentlayer/sync/sync.mjs";
 export const LEGACY_REGEN_COMMANDS = [
   "node .agentlayer/sync.mjs",
   "node sync/sync.mjs",
+  "node ./sync/sync.mjs",
 ];

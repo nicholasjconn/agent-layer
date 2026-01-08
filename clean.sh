@@ -10,11 +10,24 @@ say() { printf "%s\n" "$*"; }
 die() { printf "ERROR: %s\n" "$*" >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+if [[ ! -f "$PATHS_SH" ]]; then
+  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+fi
+if [[ ! -f "$PATHS_SH" ]]; then
+  die "Missing lib/paths.sh (expected near .agentlayer/)."
+fi
+# shellcheck disable=SC1090
+source "$PATHS_SH"
 
-cd "$REPO_ROOT"
+WORKING_ROOT="$(resolve_working_root "$PWD" "$SCRIPT_DIR" || true)"
 
-[[ -d ".agentlayer" ]] || die "Missing .agentlayer/ directory."
+[[ -n "$WORKING_ROOT" ]] || die "Missing .agentlayer/ directory in this path or any parent."
+AGENTLAYER_ROOT="$WORKING_ROOT/.agentlayer"
+
+cd "$WORKING_ROOT"
+
+[[ -f "$AGENTLAYER_ROOT/sync/sync.mjs" ]] || die "Missing .agentlayer/sync/sync.mjs."
 
 generated_files=(
   "AGENTS.md"

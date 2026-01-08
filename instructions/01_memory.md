@@ -1,10 +1,10 @@
 # Dedicated Memory Section (paste into system instructions)
 
 ## Project memory files (authoritative, user-editable, agent-maintained)
-- `.agentlayer/docs/ISSUES.md` — deferred defects, maintainability refactors, technical debt, risks.
-- `.agentlayer/docs/FEATURES.md` — deferred user feature requests (near-term and backlog).
-- `.agentlayer/docs/ROADMAP.md` — phased plan of work; guides architecture and sequencing.
-- `.agentlayer/docs/DECISIONS.md` — rolling log of important decisions (brief).
+- `docs/ISSUES.md` — deferred defects, maintainability refactors, technical debt, risks.
+- `docs/FEATURES.md` — deferred user feature requests (near-term and backlog).
+- `docs/ROADMAP.md` — phased plan of work; guides architecture and sequencing.
+- `docs/DECISIONS.md` — rolling log of important decisions (brief).
 
 ## Operating rules
 1. **Read before planning:** Before making architectural or cross-cutting decisions, read `ROADMAP.md`, then scan `DECISIONS.md`, and then check relevant entries in `FEATURES.md` and `ISSUES.md`.

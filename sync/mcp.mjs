@@ -95,11 +95,11 @@ export function validateServerCatalog(parsed, filePath) {
 
 /**
  * Load and validate the MCP server catalog.
- * @param {string} repoRoot
+ * @param {string} agentlayerRoot
  * @returns {{ defaults: Record<string, unknown>, servers: unknown[] }}
  */
-export function loadServerCatalog(repoRoot) {
-  const filePath = path.join(repoRoot, ".agentlayer", "mcp", "servers.json");
+export function loadServerCatalog(agentlayerRoot) {
+  const filePath = path.join(agentlayerRoot, "mcp", "servers.json");
   if (!fileExists(filePath)) return { defaults: {}, servers: [] };
   const parsed = JSON.parse(readUtf8(filePath));
   validateServerCatalog(parsed, filePath);

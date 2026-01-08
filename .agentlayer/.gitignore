@@ -1,0 +1,7 @@
+
+.env
+.agentlayer/.env.*
+!.agentlayer/.env.example
+
+tmp
+node_modules

@@ -1,0 +1,30 @@
+{
+  "servers": {
+    "agentlayer": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./.agentlayer/mcp/agentlayer-prompts/server.mjs"
+      ],
+      "envFile": "${workspaceFolder}/.agentlayer/.env"
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "envFile": "${workspaceFolder}/.agentlayer/.env"
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "envFile": "${workspaceFolder}/.agentlayer/.env"
+    }
+  }
+}

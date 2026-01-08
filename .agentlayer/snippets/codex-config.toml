@@ -1,0 +1,17 @@
+# Add to your ~/.codex/config.toml (or manage via `codex mcp` CLI commands).
+#
+# Notes:
+# - Codex stores MCP configuration in ~/.codex/config.toml and the CLI and IDE extension share it.
+# - Codex clients currently surface MCP **tools**. They do not expose MCP **prompts** as first-class slash commands.
+#   Use the generated repo-local Skills under `.codex/skills/` for workflow invocation.
+#
+# Example MCP tool servers (edit to match what you actually use):
+#
+# [mcp_servers.context7]
+# command = "npx"
+# args = ["-y", "@upstash/context7-mcp"]
+#
+# [mcp_servers.github]
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-github"]
+# env_vars = ["GITHUB_TOKEN"]

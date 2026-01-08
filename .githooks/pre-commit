@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ensure generated agentlayer files are up to date before commit.
+node .agentlayer/sync.mjs --check

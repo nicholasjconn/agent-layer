@@ -1,0 +1,14 @@
+{
+  "name": "agentlayer-dev",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  },
+  "scripts": {
+    "dev:check": "./dev/check.sh",
+    "dev:format": "./dev/format.sh"
+  }
+}

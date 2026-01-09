@@ -59,22 +59,7 @@ else
 fi
 
 if [[ "$IN_GIT_REPO" == "1" ]]; then
-  say "==> Enabling git hooks (core.hooksPath=.agentlayer/.githooks)"
-  git config core.hooksPath .agentlayer/.githooks
-
-  if [[ -f "$AGENTLAYER_ROOT/.githooks/pre-commit" ]]; then
-    chmod +x "$AGENTLAYER_ROOT/.githooks/pre-commit" 2>/dev/null || true
-  else
-    die "Missing .agentlayer/.githooks/pre-commit"
-  fi
-
-  if [[ "${AGENTLAYER_SKIP_HOOK_TEST:-}" == "1" ]]; then
-    say "==> Skipping pre-commit hook test (AGENTLAYER_SKIP_HOOK_TEST=1)"
-  else
-    say "==> Testing pre-commit hook"
-    # Run hook directly from repo root.
-    "$AGENTLAYER_ROOT/.githooks/pre-commit"
-  fi
+  say "Skipping hook enable/test (dev-only; run .agentlayer/dev/bootstrap.sh)."
 else
   say "Skipping hook enable/test (not a git repo)."
 fi

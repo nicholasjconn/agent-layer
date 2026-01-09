@@ -203,7 +203,7 @@ update_gitignore
 
 if [[ -f "$AGENTLAYER_DIR/setup.sh" ]]; then
   say "==> Running setup"
-  AGENTLAYER_SKIP_HOOK_TEST=1 bash "$AGENTLAYER_DIR/setup.sh"
+  bash "$AGENTLAYER_DIR/setup.sh"
 else
   die "Missing .agentlayer/setup.sh"
 fi

@@ -11,8 +11,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dev tools
+        run: sudo apt-get update && sudo apt-get install -y bats shellcheck shfmt
+
+      - name: Install node dev dependencies
+        run: npm install
 
       - name: Run tests
-        run: ./tests/run.sh
+        run: |
+          mkdir -p work
+          ln -s "$PWD" work/.agentlayer
+          cd work
+          ./.agentlayer/dev/check.sh

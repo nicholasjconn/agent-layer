@@ -19,8 +19,8 @@ Paths in this README are relative to the agent-layer repo root unless noted as w
 ## Prerequisites
 
 Required:
-- **Node.js + npm** (recommended: manage a pinned version via `mise`, `asdf`, `volta`, or `nvm`)
-- **git** (recommended; required for enabling hooks)
+- **Node.js + npm** (LTS >=20 recommended; `.nvmrc` included for devs; can use `mise`, `asdf`, `volta`, or `nvm`)
+- **git** (recommended; required for dev hooks)
 
 Optional (depending on which clients you use):
 - VS Code (Copilot Chat)
@@ -34,7 +34,7 @@ Note: This tooling is built for macOS. Other operating systems are untested, and
 
 From the agent-layer repo root (inside `.agentlayer/` in your working repo):
 
-1) **Run setup (installs deps, enables hooks, verifies everything)**
+1) **Run setup (installs deps, verifies everything)**
 
 ```bash
 chmod +x setup.sh
@@ -325,7 +325,7 @@ Each section below answers two questions:
 
 ### Scripts
 - `setup.sh`  
-  One-shot setup (install MCP deps, enable hooks, validate).
+  One-shot setup (install MCP deps, validate).
 - `sync/sync.mjs`  
   Generator (“build”) for all shims/configs/skills.
 - `clean.sh`  
@@ -334,9 +334,23 @@ Each section below answers two questions:
   Repo-local launcher (sync + env load + exec; symlink recommended at working repo root).
 
 ### Testing
-- Requires `bats` (macOS: `brew install bats-core`; Ubuntu: `apt-get install bats`) to contribute.
-- This is a development prerequisite and is not required to use the tool.
-- Run: `./tests/run.sh`
+Dev-only prerequisites (not required to use the tool):
+- `bats` (macOS: `brew install bats-core`; Ubuntu: `apt-get install bats`)
+- `shfmt` (macOS: `brew install shfmt`; Ubuntu: `apt-get install shfmt`)
+- `shellcheck` (macOS: `brew install shellcheck`; Ubuntu: `apt-get install shellcheck`)
+- `npm install` (installs Prettier for JS formatting)
+
+Dev bootstrap (installs dev deps + enables git hooks + runs checks):
+- `./dev/bootstrap.sh`
+
+Run checks (sync check + formatting/lint + tests):
+- `./dev/check.sh`
+
+Autoformat (shell + JS):
+- `./dev/format.sh`
+
+Tests only:
+- `./tests/run.sh`
 
 ## FAQ / Troubleshooting
 
@@ -364,16 +378,10 @@ Fix:
 The hook runs:
 
 ```bash
-node sync/sync.mjs --check
+./dev/check.sh
 ```
 
-If it fails, run:
-
-```bash
-node sync/sync.mjs
-```
-
-Then commit again.
+If it fails, fix the reported issues (formatting, lint, tests, or sync), then commit again.
 
 ### “Can I rename the instruction files?”
 Yes. Keep numeric prefixes if you want stable ordering without changing `sync/sync.mjs`.

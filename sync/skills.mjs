@@ -40,10 +40,22 @@ export function isGeneratedCodexSkill(skillDir) {
  * @returns {void}
  */
 export function generateCodexSkills(repoRoot, workflowsDir, args) {
+  if (!fileExists(workflowsDir)) {
+    throw new Error(
+      `agent-layer sync: missing workflows directory at ${workflowsDir}. ` +
+        "Restore .agent-layer/workflows before running sync."
+    );
+  }
   const codexSkillsRoot = path.join(repoRoot, ".codex", "skills");
   mkdirp(codexSkillsRoot);
 
   const workflowFiles = listFiles(workflowsDir, ".md");
+  if (workflowFiles.length === 0) {
+    throw new Error(
+      `agent-layer sync: no workflow files found in ${workflowsDir}. ` +
+        "Add at least one .md file to .agent-layer/workflows."
+    );
+  }
   const expectedFolders = new Set();
   const slugToName = new Map();
 

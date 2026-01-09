@@ -57,3 +57,17 @@ create_isolated_working_root() {
   mkdir -p "$root/sub/dir"
   printf "%s" "$root"
 }
+
+create_sync_working_root() {
+  local root
+  root="$(make_tmp_dir)"
+  mkdir -p "$root/.agent-layer"
+  cp -R "$AGENTLAYER_ROOT/sync" "$root/.agent-layer/sync"
+  cp -R "$AGENTLAYER_ROOT/instructions" "$root/.agent-layer/instructions"
+  cp -R "$AGENTLAYER_ROOT/workflows" "$root/.agent-layer/workflows"
+  mkdir -p "$root/.agent-layer/mcp" "$root/.agent-layer/policy"
+  cp "$AGENTLAYER_ROOT/mcp/servers.json" "$root/.agent-layer/mcp/servers.json"
+  cp "$AGENTLAYER_ROOT/policy/commands.json" "$root/.agent-layer/policy/commands.json"
+  mkdir -p "$root/sub/dir"
+  printf "%s" "$root"
+}

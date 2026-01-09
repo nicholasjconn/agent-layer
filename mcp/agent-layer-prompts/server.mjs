@@ -53,28 +53,49 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKFLOWS_DIR = findWorkflowsDir(process.cwd()) ?? findWorkflowsDir(HERE);
 
 /**
+ * List workflow markdown files from the workflows directory.
+ * @param {string | null} workflowsDir
+ * @returns {string[]}
+ */
+function listWorkflowFiles(workflowsDir) {
+  if (!workflowsDir) {
+    throw new Error(
+      "agent-layer prompts: could not find .agent-layer/workflows. " +
+        "Run from a repo that contains .agent-layer or fix the MCP server path."
+    );
+  }
+  let files;
+  try {
+    files = fs.readdirSync(workflowsDir);
+  } catch {
+    throw new Error(
+      `agent-layer prompts: unable to read workflows directory at ${workflowsDir}.`
+    );
+  }
+  const markdown = files.filter((f) => f.endsWith(".md")).sort();
+  if (markdown.length === 0) {
+    throw new Error(
+      `agent-layer prompts: no workflow files found in ${workflowsDir}. ` +
+        "Add at least one workflow markdown file."
+    );
+  }
+  return markdown;
+}
+
+/**
  * Load workflow prompt definitions from disk.
  * @returns {{ name: string, description: string, body: string }[]}
  */
 function loadWorkflows() {
-  if (!WORKFLOWS_DIR) return [];
-  let files = [];
-  try {
-    files = fs.readdirSync(WORKFLOWS_DIR);
-  } catch {
-    return [];
-  }
-  return files
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .map((f) => {
-      const full = path.join(WORKFLOWS_DIR, f);
-      const md = fs.readFileSync(full, "utf8");
-      const { meta, body } = parseFrontMatter(md);
-      const name = meta.name || path.basename(f, ".md");
-      const description = meta.description || "";
-      return { name, description, body };
-    });
+  const files = listWorkflowFiles(WORKFLOWS_DIR);
+  return files.map((f) => {
+    const full = path.join(WORKFLOWS_DIR, f);
+    const md = fs.readFileSync(full, "utf8");
+    const { meta, body } = parseFrontMatter(md);
+    const name = meta.name || path.basename(f, ".md");
+    const description = meta.description || "";
+    return { name, description, body };
+  });
 }
 
 const server = new Server(
@@ -138,6 +159,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 });
 
 async function main() {
+  listWorkflowFiles(WORKFLOWS_DIR);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

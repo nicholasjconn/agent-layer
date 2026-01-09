@@ -82,6 +82,43 @@ export function escapeRegexLiteral(literal) {
 }
 
 /**
+ * Deduplicate entries by strict equality while preserving order.
+ * @param {unknown[]} entries
+ * @returns {unknown[]}
+ */
+function dedupeEntries(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const entry of entries) {
+    if (seen.has(entry)) continue;
+    seen.add(entry);
+    out.push(entry);
+  }
+  return out;
+}
+
+/**
+ * Check whether a Gemini tools.allowed entry is managed by agent-layer.
+ * @param {unknown} entry
+ * @returns {boolean}
+ */
+function isManagedGeminiAllowed(entry) {
+  return typeof entry === "string" && entry.startsWith("run_shell_command(");
+}
+
+/**
+ * Check whether a Claude permissions.allow entry is managed by agent-layer.
+ * @param {unknown} entry
+ * @returns {boolean}
+ */
+function isManagedClaudeAllow(entry) {
+  return (
+    typeof entry === "string" &&
+    (entry.startsWith("Bash(") || entry.startsWith("mcp__"))
+  );
+}
+
+/**
  * Build Gemini tools.allowed prefixes from command prefixes.
  *
  * Gemini expects entries in the form: `run_shell_command(<prefix>)`.
@@ -124,6 +161,8 @@ export function buildVscodeAutoApprove(prefixes) {
 
 /**
  * Merge generated Gemini settings with existing user settings.
+ * Generated run_shell_command entries replace any existing run_shell_command entries.
+ * Generated allowlist entries replace any existing tools.allowed entries.
  * @param {unknown} existing
  * @param {{ mcpServers: Record<string, unknown> }} generated
  * @param {string[]} allowed
@@ -148,14 +187,10 @@ export function mergeGeminiSettings(existing, generated, allowed, filePath) {
     assert(Array.isArray(existingAllowed), `${filePath}: tools.allowed must be an array`);
   }
 
-  const mergedAllowed = existingAllowed ? existingAllowed.slice() : [];
-  const seen = new Set(mergedAllowed);
-  for (const entry of allowed) {
-    if (!seen.has(entry)) {
-      mergedAllowed.push(entry);
-      seen.add(entry);
-    }
-  }
+  const preservedAllowed = existingAllowed
+    ? existingAllowed.filter((entry) => !isManagedGeminiAllowed(entry))
+    : [];
+  const mergedAllowed = dedupeEntries([...preservedAllowed, ...allowed]);
 
   return {
     ...existing,
@@ -167,6 +202,7 @@ export function mergeGeminiSettings(existing, generated, allowed, filePath) {
 
 /**
  * Merge generated Claude permissions.allow patterns with existing settings.
+ * Generated entries replace existing Bash(...) and mcp__* entries.
  * @param {unknown} existing
  * @param {string[]} allowPatterns
  * @param {string} filePath
@@ -185,14 +221,10 @@ export function mergeClaudeSettings(existing, allowPatterns, filePath) {
     assert(Array.isArray(existingAllow), `${filePath}: permissions.allow must be an array`);
   }
 
-  const mergedAllow = existingAllow ? existingAllow.slice() : [];
-  const seen = new Set(mergedAllow);
-  for (const pattern of allowPatterns) {
-    if (!seen.has(pattern)) {
-      mergedAllow.push(pattern);
-      seen.add(pattern);
-    }
-  }
+  const preservedAllow = existingAllow
+    ? existingAllow.filter((entry) => !isManagedClaudeAllow(entry))
+    : [];
+  const mergedAllow = dedupeEntries([...preservedAllow, ...allowPatterns]);
 
   return {
     ...existing,
@@ -202,6 +234,7 @@ export function mergeClaudeSettings(existing, allowPatterns, filePath) {
 
 /**
  * Merge generated VS Code auto-approve rules with existing settings.
+ * Generated auto-approve rules replace any existing terminal auto-approve entries.
  * @param {unknown} existing
  * @param {Record<string, boolean>} generated
  * @param {string} filePath
@@ -218,16 +251,9 @@ export function mergeVscodeSettings(existing, generated, filePath) {
     );
   }
 
-  const mergedAutoApprove = { ...(existingAutoApprove ?? {}) };
-  for (const [key, value] of Object.entries(generated)) {
-    if (!Object.prototype.hasOwnProperty.call(mergedAutoApprove, key)) {
-      mergedAutoApprove[key] = value;
-    }
-  }
-
   return {
     ...existing,
-    "chat.tools.terminal.autoApprove": mergedAutoApprove,
+    "chat.tools.terminal.autoApprove": { ...generated },
   };
 }
 

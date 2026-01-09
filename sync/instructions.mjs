@@ -1,5 +1,5 @@
 import path from "node:path";
-import { listFiles, readUtf8 } from "./utils.mjs";
+import { fileExists, listFiles, readUtf8 } from "./utils.mjs";
 
 /**
  * @typedef {{ meta: Record<string, string>, body: string }} FrontMatterResult
@@ -123,7 +123,19 @@ export function banner(sourceHint, regenHint) {
  * @returns {string}
  */
 export function concatInstructions(instructionsDir) {
+  if (!fileExists(instructionsDir)) {
+    throw new Error(
+      `agent-layer sync: missing instructions directory at ${instructionsDir}. ` +
+        "Restore .agent-layer/instructions before running sync."
+    );
+  }
   const files = listFiles(instructionsDir, ".md");
+  if (files.length === 0) {
+    throw new Error(
+      `agent-layer sync: no instruction files found in ${instructionsDir}. ` +
+        "Add at least one .md file to .agent-layer/instructions."
+    );
+  }
   const chunks = [];
   for (const f of files) {
     const name = path.basename(f);

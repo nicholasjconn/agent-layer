@@ -103,6 +103,22 @@ else
   say "==> .agent-layer/.env already exists; leaving as-is"
 fi
 
+DOCS_DIR="$WORKING_ROOT/docs"
+ensure_memory_file() {
+  local file_path="$1"
+  local title="$2"
+  if [[ ! -f "$file_path" ]]; then
+    mkdir -p "$(dirname "$file_path")"
+    printf "# %s\n\n" "$title" > "$file_path"
+  fi
+}
+
+say "==> Ensuring project memory files exist"
+ensure_memory_file "$DOCS_DIR/ISSUES.md" "Issues"
+ensure_memory_file "$DOCS_DIR/FEATURES.md" "Features"
+ensure_memory_file "$DOCS_DIR/ROADMAP.md" "Roadmap"
+ensure_memory_file "$DOCS_DIR/DECISIONS.md" "Decisions"
+
 AL_PATH="$WORKING_ROOT/al"
 write_launcher() {
   cat > "$AL_PATH" <<'EOF'

@@ -227,6 +227,10 @@ EOF
   [ -d "$work/.agent-layer/.git" ]
   [ -f "$work/.agent-layer/.env" ]
   grep -q '^# >>> agent-layer$' "$work/.gitignore"
+  [ -f "$work/docs/ISSUES.md" ]
+  [ -f "$work/docs/FEATURES.md" ]
+  [ -f "$work/docs/ROADMAP.md" ]
+  [ -f "$work/docs/DECISIONS.md" ]
 
   rm -rf "$root"
 }

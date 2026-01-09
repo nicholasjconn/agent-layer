@@ -42,7 +42,9 @@ chmod +x agent-layer-install.sh
 ./agent-layer-install.sh
 ```
 
-This creates `.agent-layer/`, adds a managed `.gitignore` block, and creates `./al`.
+This creates `.agent-layer/`, adds a managed `.gitignore` block, creates `./al`,
+and ensures the project memory files exist under `docs/` (`ISSUES.md`, `FEATURES.md`,
+`ROADMAP.md`, `DECISIONS.md`).
 
 If you already have this repo checked out locally:
 
@@ -96,6 +98,8 @@ Examples:
 - Workflows: `workflows/*.md`
 - MCP server catalog: `mcp/servers.json`
 - Command allowlist: `policy/commands.json`
+
+Note: allowlist outputs are authoritative for shell command approvals; sync replaces existing run_shell_command/Bash/terminal auto-approve entries while preserving other allow entries.
 
 5) **Regenerate after changes (optional if you use `./al`)**
 
@@ -171,6 +175,20 @@ git checkout -- .mcp.json
 
 Numeric prefixes (e.g. `00_`, `10_`, `20_`) ensure a **stable, predictable ordering** without requiring a separate manifest/config file. If you add new instruction fragments, follow the same pattern.
 
+## Approvals and permissions
+
+Agent Layer treats `.agent-layer/mcp/servers.json` as the source of truth for MCP tool approvals.
+Set `trust: true` per server (or `defaults.trust` for the default) to auto-approve that server's
+tools where supported.
+
+Behavior by client:
+- Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
+- Claude Code: `permissions.allow` includes `mcp__<server>__*` for trusted servers, alongside the
+  Bash allowlist from `policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
+  preserved.
+- Codex CLI / VS Code extension: there is no per-server MCP allowlist in generated config; use
+  Codex CLI approval flags if you want to bypass prompts globally.
+
 ## Refresh / restart guidance (failure modes)
 
 General rule:
@@ -195,14 +213,14 @@ If you changed `workflows/*.md`:
 
 ## Support matrix
 
-| Client | System instructions | Slash commands | MCP servers | Approved command list |
-| --- | --- | --- | --- | --- |
-| Gemini CLI | ✅ | ✅ | ✅ | ✅ |
-| Claude Code CLI | ✅ | ✅ | ✅ | ✅ |
-| VS Code / Copilot Chat | ✅ | ✅ | ✅ | ✅ |
-| Codex CLI | ✅ | ✅ | ✅ | ✅ |
-| Codex VS Code extension | ✅ | ✅ | ✅ | ✅ |
-| Antigravity | ❌ | ❌ | ❌ | ❌ |
+| Client | System instructions | Slash commands | MCP servers | Approved command list | Approved MCP tools |
+| --- | --- | --- | --- | --- | --- |
+| Gemini CLI | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Code CLI | ✅ | ✅ | ✅ | ✅ | ✅ |
+| VS Code / Copilot Chat | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Codex CLI | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Codex VS Code extension | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Antigravity | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 Note: Codex artifacts live in `.codex/`. The CLI uses them when launched via `./al codex` (repo-local `CODEX_HOME`). The VS Code extension only uses them if the extension host sees the same `CODEX_HOME` (set it in the environment that launches VS Code).
 

@@ -100,7 +100,7 @@ export function validateServerCatalog(parsed, filePath) {
  */
 export function loadServerCatalog(agentlayerRoot) {
   const filePath = path.join(agentlayerRoot, "mcp", "servers.json");
-  if (!fileExists(filePath)) return { defaults: {}, servers: [] };
+  assert(fileExists(filePath), `${filePath} not found`);
   const parsed = JSON.parse(readUtf8(filePath));
   validateServerCatalog(parsed, filePath);
   const servers = Array.isArray(parsed.servers) ? parsed.servers : [];
@@ -142,6 +142,50 @@ export function enabledServers(servers) {
 }
 
 /**
+ * Resolve default trust from catalog defaults.
+ * @param {Record<string, unknown>} defaults
+ * @returns {boolean}
+ */
+function resolveDefaultTrust(defaults) {
+  // Back-compat: accept defaults.geminiTrust if defaults.trust is not present.
+  if (defaults.trust === undefined) {
+    return defaults.geminiTrust === undefined ? false : Boolean(defaults.geminiTrust);
+  }
+  return Boolean(defaults.trust);
+}
+
+/**
+ * Resolve trust for a server with defaults fallback.
+ * @param {Record<string, unknown>} defaults
+ * @param {Record<string, unknown>} server
+ * @returns {boolean}
+ */
+function resolveServerTrust(defaults, server) {
+  // Back-compat: per-server geminiTrust (prefer trust)
+  if (server.trust === undefined) {
+    return server.geminiTrust === undefined
+      ? resolveDefaultTrust(defaults)
+      : Boolean(server.geminiTrust);
+  }
+  return Boolean(server.trust);
+}
+
+/**
+ * List trusted server names using defaults as a fallback.
+ * @param {{ defaults?: Record<string, unknown>, servers?: unknown[] }} catalog
+ * @returns {string[]}
+ */
+export function trustedServerNames(catalog) {
+  const defaults = catalog.defaults ?? {};
+  const servers = enabledServers(catalog.servers ?? []);
+  const trusted = [];
+  for (const s of servers) {
+    if (resolveServerTrust(defaults, s)) trusted.push(s.name);
+  }
+  return trusted;
+}
+
+/**
  * Build MCP config objects for each client from the server catalog.
  * @param {{ defaults?: Record<string, unknown>, servers?: unknown[] }} catalog
  * @returns {{ vscode: Record<string, unknown>, claude: Record<string, unknown>, gemini: Record<string, unknown> }}
@@ -153,13 +197,6 @@ export function buildMcpConfigs(catalog) {
   // NOTE: VS Code can load env from an envFile. Default remains project root .env
   // unless you set defaults.vscodeEnvFile to "${workspaceFolder}/.agent-layer/.env".
   const vscodeEnvFile = defaults.vscodeEnvFile ?? "${workspaceFolder}/.env";
-
-  // Single generic trust field (applied to Gemini today; ignored elsewhere).
-  // Back-compat: accept defaults.geminiTrust if defaults.trust is not present.
-  const defaultTrust =
-    defaults.trust === undefined
-      ? (defaults.geminiTrust === undefined ? false : Boolean(defaults.geminiTrust))
-      : Boolean(defaults.trust);
 
   // VS Code
   const vscode = { servers: {} };
@@ -190,11 +227,7 @@ export function buildMcpConfigs(catalog) {
     const env = {};
     for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
 
-    // Back-compat: per-server geminiTrust if trust is not present.
-    const trust =
-      s.trust === undefined
-        ? (s.geminiTrust === undefined ? defaultTrust : Boolean(s.geminiTrust))
-        : Boolean(s.trust);
+    const trust = resolveServerTrust(defaults, s);
 
     const entry = {
       command: s.command,

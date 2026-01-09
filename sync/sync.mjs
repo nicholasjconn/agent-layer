@@ -35,7 +35,12 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { REGEN_COMMAND } from "./constants.mjs";
 import { banner, concatInstructions } from "./instructions.mjs";
-import { buildMcpConfigs, loadServerCatalog, renderCodexConfig } from "./mcp.mjs";
+import {
+  buildMcpConfigs,
+  loadServerCatalog,
+  renderCodexConfig,
+  trustedServerNames,
+} from "./mcp.mjs";
 import { diffOrWrite } from "./outdated.mjs";
 import {
   buildClaudeAllow,
@@ -140,6 +145,9 @@ function main() {
 
   const catalog = loadServerCatalog(agentlayerRoot);
   const mcpConfigs = buildMcpConfigs(catalog);
+  const trustedServers = trustedServerNames(catalog);
+  const claudeMcpAllowed = trustedServers.map((name) => `mcp__${name}__*`);
+  const claudeAllowPatterns = [...new Set([...claudeAllowed, ...claudeMcpAllowed])];
   const codexConfig = renderCodexConfig(catalog, REGEN_COMMAND);
   outputs.push(
     [
@@ -162,7 +170,11 @@ function main() {
 
   const claudeSettingsPath = path.join(workingRoot, ".claude", "settings.json");
   const claudeExisting = readJsonRelaxed(claudeSettingsPath, {});
-  const claudeMerged = mergeClaudeSettings(claudeExisting, claudeAllowed, claudeSettingsPath);
+  const claudeMerged = mergeClaudeSettings(
+    claudeExisting,
+    claudeAllowPatterns,
+    claudeSettingsPath
+  );
   outputs.push([claudeSettingsPath, JSON.stringify(claudeMerged, null, 2) + "\n"]);
 
   const vscodeSettingsPath = path.join(workingRoot, ".vscode", "settings.json");

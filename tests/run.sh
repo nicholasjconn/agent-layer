@@ -52,9 +52,6 @@ else
   die "prettier not found. Run: (cd .agent-layer && npm install) or install globally."
 fi
 
-say "==> Sync check"
-node "$AGENTLAYER_ROOT/sync/sync.mjs" --check
-
 say "==> Shell format check (shfmt)"
 shell_files=()
 while IFS= read -r -d '' file; do

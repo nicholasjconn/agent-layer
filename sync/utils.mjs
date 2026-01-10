@@ -228,7 +228,7 @@ export function readJsonRelaxed(filePath, defaultObj) {
       return JSON.parse(cleaned);
     } catch {
       throw new Error(
-        `agent-layer sync: cannot parse ${filePath}. Please make it valid JSON/JSONC.`
+        `agent-layer sync: cannot parse ${filePath}. Please make it valid JSON/JSONC.`,
       );
     }
   }

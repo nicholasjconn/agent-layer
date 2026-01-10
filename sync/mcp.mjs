@@ -8,86 +8,139 @@ import { assert, fileExists, readUtf8 } from "./utils.mjs";
  * @returns {void}
  */
 export function validateServerCatalog(parsed, filePath) {
-  assert(parsed && typeof parsed === "object", `${filePath} must contain a JSON object`);
+  assert(
+    parsed && typeof parsed === "object",
+    `${filePath} must contain a JSON object`,
+  );
 
   if (parsed.defaults !== undefined) {
     assert(
-      parsed.defaults && typeof parsed.defaults === "object" && !Array.isArray(parsed.defaults),
-      `${filePath}: defaults must be an object`
+      parsed.defaults &&
+        typeof parsed.defaults === "object" &&
+        !Array.isArray(parsed.defaults),
+      `${filePath}: defaults must be an object`,
     );
     if (parsed.defaults.vscodeEnvFile !== undefined) {
       assert(
         typeof parsed.defaults.vscodeEnvFile === "string",
-        `${filePath}: defaults.vscodeEnvFile must be a string`
+        `${filePath}: defaults.vscodeEnvFile must be a string`,
       );
     }
     // Back-compat: allow defaults.geminiTrust but prefer defaults.trust.
     if (parsed.defaults.trust !== undefined) {
       assert(
         typeof parsed.defaults.trust === "boolean",
-        `${filePath}: defaults.trust must be boolean`
+        `${filePath}: defaults.trust must be boolean`,
       );
     }
     if (parsed.defaults.geminiTrust !== undefined) {
       assert(
         typeof parsed.defaults.geminiTrust === "boolean",
-        `${filePath}: defaults.geminiTrust must be boolean`
+        `${filePath}: defaults.geminiTrust must be boolean`,
       );
     }
   }
 
-  assert(Array.isArray(parsed.servers), `${filePath}: servers must be an array`);
+  assert(
+    Array.isArray(parsed.servers),
+    `${filePath}: servers must be an array`,
+  );
 
   const seen = new Set();
   for (const s of parsed.servers) {
-    assert(s && typeof s === "object" && !Array.isArray(s), `${filePath}: each server must be an object`);
-    assert(typeof s.name === "string" && s.name.trim(), `${filePath}: server.name must be a non-empty string`);
+    assert(
+      s && typeof s === "object" && !Array.isArray(s),
+      `${filePath}: each server must be an object`,
+    );
+    assert(
+      typeof s.name === "string" && s.name.trim(),
+      `${filePath}: server.name must be a non-empty string`,
+    );
     assert(!seen.has(s.name), `${filePath}: duplicate server name "${s.name}"`);
     seen.add(s.name);
 
     if (s.enabled !== undefined) {
-      assert(typeof s.enabled === "boolean", `${filePath}: ${s.name}.enabled must be boolean`);
+      assert(
+        typeof s.enabled === "boolean",
+        `${filePath}: ${s.name}.enabled must be boolean`,
+      );
     }
     if (s.trust !== undefined) {
-      assert(typeof s.trust === "boolean", `${filePath}: ${s.name}.trust must be boolean`);
+      assert(
+        typeof s.trust === "boolean",
+        `${filePath}: ${s.name}.trust must be boolean`,
+      );
     }
     // Back-compat: per-server geminiTrust (prefer trust)
     if (s.geminiTrust !== undefined) {
-      assert(typeof s.geminiTrust === "boolean", `${filePath}: ${s.name}.geminiTrust must be boolean`);
-    }
-
-    if (s.transport !== undefined) {
-      assert(typeof s.transport === "string", `${filePath}: ${s.name}.transport must be a string`);
       assert(
-        s.transport === "stdio",
-        `${filePath}: ${s.name}.transport must be "stdio" (this generator supports only stdio currently)`
+        typeof s.geminiTrust === "boolean",
+        `${filePath}: ${s.name}.geminiTrust must be boolean`,
       );
     }
 
-    assert(typeof s.command === "string" && s.command.trim(), `${filePath}: ${s.name}.command must be a non-empty string`);
+    if (s.transport !== undefined) {
+      assert(
+        typeof s.transport === "string",
+        `${filePath}: ${s.name}.transport must be a string`,
+      );
+      assert(
+        s.transport === "stdio",
+        `${filePath}: ${s.name}.transport must be "stdio" (this generator supports only stdio currently)`,
+      );
+    }
+
+    assert(
+      typeof s.command === "string" && s.command.trim(),
+      `${filePath}: ${s.name}.command must be a non-empty string`,
+    );
 
     if (s.args !== undefined) {
-      assert(Array.isArray(s.args), `${filePath}: ${s.name}.args must be an array`);
-      assert(s.args.every((x) => typeof x === "string"), `${filePath}: ${s.name}.args must be string[]`);
+      assert(
+        Array.isArray(s.args),
+        `${filePath}: ${s.name}.args must be an array`,
+      );
+      assert(
+        s.args.every((x) => typeof x === "string"),
+        `${filePath}: ${s.name}.args must be string[]`,
+      );
     }
 
     if (s.envVars !== undefined) {
-      assert(Array.isArray(s.envVars), `${filePath}: ${s.name}.envVars must be an array`);
-      assert(s.envVars.every((x) => typeof x === "string"), `${filePath}: ${s.name}.envVars must be string[]`);
+      assert(
+        Array.isArray(s.envVars),
+        `${filePath}: ${s.name}.envVars must be an array`,
+      );
+      assert(
+        s.envVars.every((x) => typeof x === "string"),
+        `${filePath}: ${s.name}.envVars must be string[]`,
+      );
     }
 
     // Optional Gemini allow/deny lists.
     if (s.includeTools !== undefined) {
-      assert(Array.isArray(s.includeTools), `${filePath}: ${s.name}.includeTools must be an array`);
-      assert(s.includeTools.every((x) => typeof x === "string"), `${filePath}: ${s.name}.includeTools must be string[]`);
+      assert(
+        Array.isArray(s.includeTools),
+        `${filePath}: ${s.name}.includeTools must be an array`,
+      );
+      assert(
+        s.includeTools.every((x) => typeof x === "string"),
+        `${filePath}: ${s.name}.includeTools must be string[]`,
+      );
     }
     if (s.excludeTools !== undefined) {
-      assert(Array.isArray(s.excludeTools), `${filePath}: ${s.name}.excludeTools must be an array`);
-      assert(s.excludeTools.every((x) => typeof x === "string"), `${filePath}: ${s.name}.excludeTools must be string[]`);
+      assert(
+        Array.isArray(s.excludeTools),
+        `${filePath}: ${s.name}.excludeTools must be an array`,
+      );
+      assert(
+        s.excludeTools.every((x) => typeof x === "string"),
+        `${filePath}: ${s.name}.excludeTools must be string[]`,
+      );
     }
     if (s.includeTools !== undefined && s.excludeTools !== undefined) {
       throw new Error(
-        `agent-layer sync: ${filePath}: ${s.name} cannot set both includeTools and excludeTools`
+        `agent-layer sync: ${filePath}: ${s.name} cannot set both includeTools and excludeTools`,
       );
     }
   }
@@ -115,7 +168,7 @@ export function loadServerCatalog(agentlayerRoot) {
  */
 export function enabledServers(servers) {
   const enabled = servers.filter(
-    (s) => s && s.name && (s.enabled === undefined || s.enabled === true)
+    (s) => s && s.name && (s.enabled === undefined || s.enabled === true),
   );
 
   // Validate schema to avoid silently generating broken configs.
@@ -124,17 +177,23 @@ export function enabledServers(servers) {
     if (transport !== "stdio") {
       throw new Error(
         `agent-layer sync: unsupported transport '${transport}' for server '${s.name}'. ` +
-          "This generator currently supports only stdio servers."
+          "This generator currently supports only stdio servers.",
       );
     }
     if (!s.command || typeof s.command !== "string") {
-      throw new Error(`agent-layer sync: server '${s.name}' missing valid 'command'.`);
+      throw new Error(
+        `agent-layer sync: server '${s.name}' missing valid 'command'.`,
+      );
     }
     if (s.args !== undefined && !Array.isArray(s.args)) {
-      throw new Error(`agent-layer sync: server '${s.name}' has non-array 'args'.`);
+      throw new Error(
+        `agent-layer sync: server '${s.name}' has non-array 'args'.`,
+      );
     }
     if (s.envVars !== undefined && !Array.isArray(s.envVars)) {
-      throw new Error(`agent-layer sync: server '${s.name}' has non-array 'envVars'.`);
+      throw new Error(
+        `agent-layer sync: server '${s.name}' has non-array 'envVars'.`,
+      );
     }
   }
 
@@ -149,7 +208,9 @@ export function enabledServers(servers) {
 function resolveDefaultTrust(defaults) {
   // Back-compat: accept defaults.geminiTrust if defaults.trust is not present.
   if (defaults.trust === undefined) {
-    return defaults.geminiTrust === undefined ? false : Boolean(defaults.geminiTrust);
+    return defaults.geminiTrust === undefined
+      ? false
+      : Boolean(defaults.geminiTrust);
   }
   return Boolean(defaults.trust);
 }

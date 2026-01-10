@@ -6,8 +6,15 @@
     { "argv": ["git", "log"] },
     { "argv": ["git", "show"] },
 
+    { "argv": ["cd"] },
     { "argv": ["ls"] },
     { "argv": ["pwd"] },
-    { "argv": ["echo"] }
+    { "argv": ["echo"] },
+    { "argv": ["cat"] },
+    { "argv": ["find"] },
+    { "argv": ["grep"] },
+
+    { "argv": ["node"] },
+    { "argv": ["python"] }
   ]
 }

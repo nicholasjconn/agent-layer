@@ -43,7 +43,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
   if (!fileExists(workflowsDir)) {
     throw new Error(
       `agent-layer sync: missing workflows directory at ${workflowsDir}. ` +
-        "Restore .agent-layer/workflows before running sync."
+        "Restore .agent-layer/workflows before running sync.",
     );
   }
   const codexSkillsRoot = path.join(repoRoot, ".codex", "skills");
@@ -53,7 +53,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
   if (workflowFiles.length === 0) {
     throw new Error(
       `agent-layer sync: no workflow files found in ${workflowsDir}. ` +
-        "Add at least one .md file to .agent-layer/workflows."
+        "Add at least one .md file to .agent-layer/workflows.",
     );
   }
   const expectedFolders = new Set();
@@ -64,14 +64,17 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
     const { meta, body } = parseFrontMatter(md, wfPath);
 
     const fallbackName = path.basename(wfPath, ".md");
-    const name = (meta.name && String(meta.name).trim()) ? String(meta.name).trim() : fallbackName;
+    const name =
+      meta.name && String(meta.name).trim()
+        ? String(meta.name).trim()
+        : fallbackName;
     const description = meta.description ? String(meta.description) : "";
     const folder = slugify(name);
 
     if (slugToName.has(folder)) {
       throw new Error(
         `agent-layer sync: workflow slug collision: "${name}" and "${slugToName.get(folder)}" both map to "${folder}". ` +
-          "Rename one workflow name to avoid collisions."
+          "Rename one workflow name to avoid collisions.",
       );
     }
     slugToName.set(folder, name);
@@ -82,7 +85,9 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
     const skillFile = path.join(skillDir, "SKILL.md");
 
     if (!name.trim().length) {
-      throw new Error(`agent-layer sync: workflow name resolved to empty for ${wfPath}`);
+      throw new Error(
+        `agent-layer sync: workflow name resolved to empty for ${wfPath}`,
+      );
     }
     if (!body.trim().length) {
       throw new Error(`agent-layer sync: workflow body is empty for ${wfPath}`);
@@ -107,7 +112,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
         failOutOfDate(
           repoRoot,
           [skillFile],
-          "Codex skills are generated from .agent-layer/workflows/*.md."
+          "Codex skills are generated from .agent-layer/workflows/*.md.",
         );
       }
     } else {
@@ -132,12 +137,13 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
         failOutOfDate(
           repoRoot,
           [fileExists(maybeSkill) ? maybeSkill : skillDir],
-          "Stale generated Codex skill found (no matching workflow)."
+          "Stale generated Codex skill found (no matching workflow).",
         );
       }
 
       rmrf(skillDir);
-      if (args.verbose) console.log(`removed stale generated Codex skill: ${skillDir}`);
+      if (args.verbose)
+        console.log(`removed stale generated Codex skill: ${skillDir}`);
     }
   }
 }

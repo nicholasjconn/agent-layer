@@ -41,7 +41,7 @@ export function parseFrontMatter(markdown, sourcePath = "<workflow>") {
     const idx = line.indexOf(":");
     if (idx === -1) {
       throw new Error(
-        `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: expected "key: value" but got: ${line}`
+        `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: expected "key: value" but got: ${line}`,
       );
     }
 
@@ -50,26 +50,26 @@ export function parseFrontMatter(markdown, sourcePath = "<workflow>") {
 
     if (!k) {
       throw new Error(
-        `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: empty key in line: ${line}`
+        `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: empty key in line: ${line}`,
       );
     }
 
     if (!["name", "description"].includes(k)) {
       throw new Error(
-        `agent-layer sync: unsupported workflow frontmatter key "${k}" in ${sourcePath}. Allowed keys: name, description`
+        `agent-layer sync: unsupported workflow frontmatter key "${k}" in ${sourcePath}. Allowed keys: name, description`,
       );
     }
 
     if (Object.prototype.hasOwnProperty.call(meta, k)) {
       throw new Error(
-        `agent-layer sync: duplicate workflow frontmatter key "${k}" in ${sourcePath}`
+        `agent-layer sync: duplicate workflow frontmatter key "${k}" in ${sourcePath}`,
       );
     }
 
     const vv = v.replace(/^["']|["']$/g, "");
     if (k === "name" && !vv.trim()) {
       throw new Error(
-        `agent-layer sync: workflow frontmatter "name" must be non-empty in ${sourcePath}`
+        `agent-layer sync: workflow frontmatter "name" must be non-empty in ${sourcePath}`,
       );
     }
     meta[k] = vv;
@@ -77,11 +77,14 @@ export function parseFrontMatter(markdown, sourcePath = "<workflow>") {
 
   if (!closed) {
     throw new Error(
-      `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: missing closing "---"`
+      `agent-layer sync: invalid workflow frontmatter in ${sourcePath}: missing closing "---"`,
     );
   }
 
-  const body = lines.slice(i + 1).join("\n").replace(/^\n+/, "");
+  const body = lines
+    .slice(i + 1)
+    .join("\n")
+    .replace(/^\n+/, "");
   return { meta, body };
 }
 
@@ -126,14 +129,14 @@ export function concatInstructions(instructionsDir) {
   if (!fileExists(instructionsDir)) {
     throw new Error(
       `agent-layer sync: missing instructions directory at ${instructionsDir}. ` +
-        "Restore .agent-layer/instructions before running sync."
+        "Restore .agent-layer/instructions before running sync.",
     );
   }
   const files = listFiles(instructionsDir, ".md");
   if (files.length === 0) {
     throw new Error(
       `agent-layer sync: no instruction files found in ${instructionsDir}. ` +
-        "Add at least one .md file to .agent-layer/instructions."
+        "Add at least one .md file to .agent-layer/instructions.",
     );
   }
   const chunks = [];
@@ -142,7 +145,7 @@ export function concatInstructions(instructionsDir) {
     chunks.push(
       `<!-- BEGIN: ${name} -->\n` +
         readUtf8(f).trimEnd() +
-        `\n<!-- END: ${name} -->\n`
+        `\n<!-- END: ${name} -->\n`,
     );
   }
   return chunks.join("\n").trimEnd() + "\n";

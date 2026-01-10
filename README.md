@@ -137,9 +137,9 @@ Examples:
 - Unified instructions: `instructions/*.md`
 - Workflows: `workflows/*.md`
 - MCP server catalog: `mcp/servers.json`
-- Command allowlist: `policy/commands.json`
+- Command allowlist: `policy/commands.json` (tokens must use A-Z a-z 0-9 `.` `_` `/` `@` `+` `=` `-` and include at least one letter/number)
 
-Note: allowlist outputs are authoritative for shell command approvals. Sync replaces managed allowlist entries; non-managed allow entries are preserved for Gemini/Claude, while VS Code terminal auto-approve rules are replaced.
+Note: allowlist outputs are authoritative for shell command approvals. Sync replaces managed allowlist entries; non-managed allow entries are preserved by default for Gemini/Claude/VS Code. Use `node sync/sync.mjs --overwrite` to drop non-managed entries, or `--interactive` to choose at prompt when divergence is detected.
 
 5) **Regenerate after changes (optional if you use `./al`)**
 
@@ -248,9 +248,29 @@ Behavior by client:
 - Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
 - Claude Code: `permissions.allow` includes `mcp__<server>__*` for trusted servers, alongside the
   Bash allowlist from `policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
-  preserved.
+  preserved by default (use `--overwrite` to drop them).
 - Codex CLI / VS Code extension: there is no per-server MCP allowlist in generated config; use
   Codex CLI approval flags if you want to bypass prompts globally.
+
+### Inspect divergent configs
+
+If you approve commands or edit MCP settings directly in a client, Agent Layer may detect divergence and print:
+
+```
+WARNING: client configs NOT SYNCED due to divergence.
+Run: node .agent-layer/sync/inspect.mjs (JSON report)
+```
+
+The inspect script emits a JSON report of divergent approvals and MCP servers and **never** edits files.
+Use the report to update `.agent-layer/policy/commands.json` (approvals) or `.agent-layer/mcp/servers.json` (MCP servers),
+then run `node .agent-layer/sync/sync.mjs` to regenerate outputs.
+
+If you want Agent Layer to overwrite client configs instead of preserving divergent entries, run:
+- `node .agent-layer/sync/sync.mjs --overwrite` (non-interactive)
+- `node .agent-layer/sync/sync.mjs --interactive` (TTY only; shows a diff and prompts)
+
+Some entries (especially from client/session logs) may be flagged as `parseable: false` and require manual updates.
+Codex approvals are detected by scanning `$CODEX_HOME/sessions/*.jsonl` (best-effort), so keep `CODEX_HOME` repo-local if you want them captured.
 
 ## Refresh / restart guidance (failure modes)
 
@@ -493,6 +513,8 @@ Optional wrapper (handy if you work across multiple repos):
   One-shot setup (sync + MCP deps + check).
 - `sync/sync.mjs`  
   Generator (“build”) for all shims/configs/skills.
+- `sync/inspect.mjs`  
+  JSON report of divergent approvals and MCP servers (no edits).
 - `clean.sh`  
   Remove generated shims/configs/skills and strip agent-layer-managed settings from client config files.
 - `with-env.sh`  

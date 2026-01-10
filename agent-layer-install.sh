@@ -244,10 +244,10 @@ ensure_memory_file() {
   local template_path="$2"
   local rel_path
 
-  rel_path="${file_path#$WORKING_ROOT/}"
+  rel_path="${file_path#"$WORKING_ROOT"/}"
 
   if [[ ! -f "$template_path" ]]; then
-    die "Missing template: ${template_path#$AGENTLAYER_DIR/}"
+    die "Missing template: ${template_path#"$AGENTLAYER_DIR"/}"
   fi
 
   if [[ -f "$file_path" ]]; then

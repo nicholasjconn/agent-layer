@@ -26,7 +26,7 @@ function listWorkflowFiles(workflowsDir) {
   if (!workflowsDir) {
     throw new Error(
       "agent-layer prompts: could not find .agent-layer/workflows. " +
-        "Run from a repo that contains .agent-layer or fix the MCP server path."
+        "Run from a repo that contains .agent-layer or fix the MCP server path.",
     );
   }
   let files;
@@ -34,14 +34,14 @@ function listWorkflowFiles(workflowsDir) {
     files = fs.readdirSync(workflowsDir);
   } catch {
     throw new Error(
-      `agent-layer prompts: unable to read workflows directory at ${workflowsDir}.`
+      `agent-layer prompts: unable to read workflows directory at ${workflowsDir}.`,
     );
   }
   const markdown = files.filter((f) => f.endsWith(".md")).sort();
   if (markdown.length === 0) {
     throw new Error(
       `agent-layer prompts: no workflow files found in ${workflowsDir}. ` +
-        "Add at least one workflow markdown file."
+        "Add at least one workflow markdown file.",
     );
   }
   return markdown;
@@ -65,7 +65,7 @@ function loadWorkflows() {
 
 const server = new Server(
   { name: "agent-layer-prompts", version: "0.1.0" },
-  { capabilities: { prompts: {}, tools: {} } }
+  { capabilities: { prompts: {}, tools: {} } },
 );
 
 /**

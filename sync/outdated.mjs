@@ -92,7 +92,9 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   }
 
   if (commandAllowlistConfigs.length) {
-    console.error("Command allowlist configs (edit: .agent-layer/policy/commands.json):");
+    console.error(
+      "Command allowlist configs (edit: .agent-layer/policy/commands.json):",
+    );
     for (const p of commandAllowlistConfigs) console.error(`  - ${p}`);
     console.error("");
   }
@@ -113,7 +115,9 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   console.error("  1) Edit the source-of-truth file(s) listed above");
   console.error(`  2) Run: ${REGEN_COMMAND}`);
   console.error("");
-  console.error("If you accidentally edited a generated file, revert it (example):");
+  console.error(
+    "If you accidentally edited a generated file, revert it (example):",
+  );
   console.error("  git checkout -- .mcp.json");
   console.error("");
   console.error("Files that would change:");
@@ -139,7 +143,7 @@ export function diffOrWrite(outputs, args, repoRoot) {
     }
     if (args.verbose) {
       console.log(
-        `${old === content ? "ok" : args.check ? "needs-update" : "wrote"}: ${outPath}`
+        `${old === content ? "ok" : args.check ? "needs-update" : "wrote"}: ${outPath}`,
       );
     }
   }

@@ -1,5 +1,10 @@
 import path from "node:path";
-import { fileExists, isPlainObject, readJsonRelaxed, writeUtf8 } from "./utils.mjs";
+import {
+  fileExists,
+  isPlainObject,
+  readJsonRelaxed,
+  writeUtf8,
+} from "./utils.mjs";
 import { resolveWorkingRoot } from "./paths.mjs";
 import { isManagedClaudeAllow, isManagedGeminiAllowed } from "./policy.mjs";
 
@@ -102,7 +107,9 @@ function cleanGeminiSettings(existing, managedServers) {
       if (!Array.isArray(existingAllowed)) {
         fail(".gemini/settings.json: tools.allowed must be an array");
       }
-      const preserved = existingAllowed.filter((entry) => !isManagedGeminiAllowed(entry));
+      const preserved = existingAllowed.filter(
+        (entry) => !isManagedGeminiAllowed(entry),
+      );
       removedAllowed = existingAllowed.length - preserved.length;
       if (removedAllowed > 0) {
         toolsChanged = true;
@@ -178,7 +185,9 @@ function cleanClaudeSettings(existing) {
       if (!Array.isArray(existingAllow)) {
         fail(".claude/settings.json: permissions.allow must be an array");
       }
-      const preserved = existingAllow.filter((entry) => !isManagedClaudeAllow(entry));
+      const preserved = existingAllow.filter(
+        (entry) => !isManagedClaudeAllow(entry),
+      );
       removedAllow = existingAllow.length - preserved.length;
       if (removedAllow > 0) {
         permissionsChanged = true;
@@ -212,7 +221,12 @@ function cleanVscodeSettings(existing) {
   const updated = { ...existing };
   let changed = false;
 
-  if (Object.prototype.hasOwnProperty.call(existing, "chat.tools.terminal.autoApprove")) {
+  if (
+    Object.prototype.hasOwnProperty.call(
+      existing,
+      "chat.tools.terminal.autoApprove",
+    )
+  ) {
     delete updated["chat.tools.terminal.autoApprove"];
     changed = true;
   }
@@ -260,7 +274,7 @@ function main() {
     if (writeIfChanged(geminiPath, result.updated, result.changed)) {
       updates.push(
         `.gemini/settings.json (removed ${result.removedAllowed} tools.allowed entries, ` +
-          `${result.removedMcp} mcpServers)`
+          `${result.removedMcp} mcpServers)`,
       );
     }
   }
@@ -269,7 +283,9 @@ function main() {
     const existing = loadJsonObject(claudePath);
     const result = cleanClaudeSettings(existing);
     if (writeIfChanged(claudePath, result.updated, result.changed)) {
-      updates.push(`.claude/settings.json (removed ${result.removedAllow} allow entries)`);
+      updates.push(
+        `.claude/settings.json (removed ${result.removedAllow} allow entries)`,
+      );
     }
   }
 

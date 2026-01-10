@@ -56,7 +56,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
 
   gitignore="$work/.gitignore"
@@ -102,7 +102,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
 
   gitignore="$work/.gitignore"
@@ -133,7 +133,7 @@ EOF
   printf "top\n" >"$work/.gitignore"
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
 
   gitignore="$work/.gitignore"
@@ -157,7 +157,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -ne 0 ]
   [[ "$output" == *".agent-layer exists but is not a git repo"* ]]
 
@@ -175,7 +175,7 @@ EOF
   printf "original\n" >"$work/al"
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
   [ "$(cat "$work/al")" = "original" ]
 
@@ -193,7 +193,7 @@ EOF
   printf "original\n" >"$work/al"
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --force"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --force < /dev/null"
   [ "$status" -eq 0 ]
   grep -q '\.agent-layer/al' "$work/al"
 
@@ -210,7 +210,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
   [[ "$output" != *"==> Running sync"* ]]
 
@@ -222,7 +222,7 @@ EOF
   root="$(make_tmp_dir)"
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$root' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$root' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -ne 0 ]
   [[ "$output" == *"Not a git repo and no TTY available to confirm."* ]]
 
@@ -240,7 +240,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --repo-url '$src'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --repo-url '$src' < /dev/null"
   [ "$status" -eq 0 ]
 
   [ -d "$work/.agent-layer/.git" ]
@@ -270,7 +270,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' < /dev/null"
   [ "$status" -eq 0 ]
   [ "$(cat "$work/docs/ISSUES.md")" = "custom" ]
   [ -f "$work/docs/FEATURES.md" ]
@@ -299,7 +299,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --upgrade --repo-url '$src'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --upgrade --repo-url '$src' < /dev/null"
   [ "$status" -eq 0 ]
   tag="$(git -C "$work/.agent-layer" describe --tags --exact-match)"
   [ "$tag" = "v0.2.0" ]
@@ -325,7 +325,7 @@ EOF
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --latest-branch dev --repo-url '$src'"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --latest-branch dev --repo-url '$src' < /dev/null"
   [ "$status" -eq 0 ]
   [ "$(git -C "$work/.agent-layer" rev-parse --short HEAD)" = "$dev_commit" ]
   head_ref="$(git -C "$work/.agent-layer" symbolic-ref --short -q HEAD || true)"
@@ -339,7 +339,7 @@ EOF
   root="$(make_tmp_dir)"
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENTLAYER_ROOT/agent-layer-install.sh"
-  run bash -c "cd '$root' && PATH='$stub_bin:$PATH' '$installer' --repo-url"
+  run bash -c "cd '$root' && PATH='$stub_bin:$PATH' '$installer' --repo-url < /dev/null"
   [ "$status" -ne 0 ]
   [[ "$output" == *"--repo-url requires a value"* ]]
 

@@ -12,7 +12,12 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AGENTLAYER_ROOT = path.resolve(HERE, "..");
 const REPO_ROOT = path.resolve(AGENTLAYER_ROOT, "..");
-const SERVER_PATH = path.join(AGENTLAYER_ROOT, "mcp", "agent-layer-prompts", "server.mjs");
+const SERVER_PATH = path.join(
+  AGENTLAYER_ROOT,
+  "mcp",
+  "agent-layer-prompts",
+  "server.mjs",
+);
 
 /**
  * Extract a Zod schema shape, if available.
@@ -136,7 +141,7 @@ async function run() {
   child.on("exit", (code, signal) => {
     if (pending.size > 0) {
       const err = new Error(
-        `Server exited before completing requests (code=${code}, signal=${signal}).`
+        `Server exited before completing requests (code=${code}, signal=${signal}).`,
       );
       for (const { reject } of pending.values()) {
         reject(err);

@@ -13,15 +13,15 @@ die() {
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATHS_SH="$SCRIPT_DIR/.agent-layer/lib/paths.sh"
+PATHS_SH="$SCRIPT_DIR/.agent-layer/src/lib/paths.sh"
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/../src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  die "Missing lib/paths.sh (expected near .agent-layer/)."
+  die "Missing src/lib/paths.sh (expected near .agent-layer/)."
 fi
 # shellcheck disable=SC1090
 source "$PATHS_SH"
@@ -33,7 +33,7 @@ AGENTLAYER_ROOT="$WORKING_ROOT/.agent-layer"
 
 cd "$WORKING_ROOT"
 
-[[ -f "$AGENTLAYER_ROOT/sync/sync.mjs" ]] || die "Missing .agent-layer/sync/sync.mjs."
+[[ -f "$AGENTLAYER_ROOT/src/sync/sync.mjs" ]] || die "Missing .agent-layer/src/sync/sync.mjs."
 
 managed_settings_files=(
   ".gemini/settings.json"
@@ -51,9 +51,9 @@ done
 
 if [[ "$should_clean_settings" == "1" ]]; then
   command -v node > /dev/null 2>&1 || die "Node.js is required (node not found). Install Node, then re-run."
-  [[ -f "$AGENTLAYER_ROOT/sync/clean.mjs" ]] || die "Missing .agent-layer/sync/clean.mjs."
+  [[ -f "$AGENTLAYER_ROOT/src/sync/clean.mjs" ]] || die "Missing .agent-layer/src/sync/clean.mjs."
   say "==> Removing agent-layer-managed settings"
-  node "$AGENTLAYER_ROOT/sync/clean.mjs"
+  node "$AGENTLAYER_ROOT/src/sync/clean.mjs"
 fi
 
 generated_files=(

@@ -76,7 +76,12 @@ export function validateCommandPolicy(policy, filePath) {
  * @returns {CommandPolicy}
  */
 export function loadCommandPolicy(agentlayerRoot) {
-  const filePath = path.join(agentlayerRoot, "policy", "commands.json");
+  const filePath = path.join(
+    agentlayerRoot,
+    "config",
+    "policy",
+    "commands.json",
+  );
   assert(fileExists(filePath), `${filePath} not found`);
   const parsed = readJsonRelaxed(filePath, null);
   validateCommandPolicy(parsed, filePath);

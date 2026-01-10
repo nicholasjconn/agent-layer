@@ -88,27 +88,31 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   console.error("");
 
   if (instructionShims.length) {
-    console.error("Instruction shims (edit: .agent-layer/instructions/*.md):");
+    console.error(
+      "Instruction shims (edit: .agent-layer/config/instructions/*.md):",
+    );
     for (const p of instructionShims) console.error(`  - ${p}`);
     console.error("");
   }
 
   if (mcpConfigs.length) {
-    console.error("MCP config files (edit: .agent-layer/mcp/servers.json):");
+    console.error(
+      "MCP config files (edit: .agent-layer/config/mcp-servers.json):",
+    );
     for (const p of mcpConfigs) console.error(`  - ${p}`);
     console.error("");
   }
 
   if (commandAllowlistConfigs.length) {
     console.error(
-      "Command allowlist configs (edit: .agent-layer/policy/commands.json):",
+      "Command allowlist configs (edit: .agent-layer/config/policy/commands.json):",
     );
     for (const p of commandAllowlistConfigs) console.error(`  - ${p}`);
     console.error("");
   }
 
   if (codexSkills.length) {
-    console.error("Codex skills (edit: .agent-layer/workflows/*.md):");
+    console.error("Codex skills (edit: .agent-layer/config/workflows/*.md):");
     for (const p of codexSkills) console.error(`  - ${p}`);
     console.error("");
   }
@@ -124,7 +128,7 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   console.error(`  2) Re-run: ${REGEN_COMMAND} --check`);
   console.error("");
   console.error("If step 2 still fails, check for divergence:");
-  console.error("  3) Run: node .agent-layer/sync/inspect.mjs");
+  console.error("  3) Run: node .agent-layer/src/sync/inspect.mjs");
   console.error("  4) Update the .agent-layer sources listed above, then re-run sync");
   console.error(
     "     Or re-run sync with --overwrite to discard client-only entries.",

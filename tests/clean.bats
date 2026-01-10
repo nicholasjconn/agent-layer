@@ -58,11 +58,11 @@ EOF
 }
 EOF
 
-  mkdir -p "$root/.agent-layer/instructions" "$root/.agent-layer/workflows"
-  mkdir -p "$root/.agent-layer/mcp" "$root/.agent-layer/policy"
-  : >"$root/.agent-layer/instructions/01_test.md"
-  : >"$root/.agent-layer/workflows/01_test.md"
-  cat >"$root/.agent-layer/mcp/servers.json" <<'EOF'
+  mkdir -p "$root/.agent-layer/config/instructions" "$root/.agent-layer/config/workflows"
+  mkdir -p "$root/.agent-layer/config/policy"
+  : >"$root/.agent-layer/config/instructions/01_test.md"
+  : >"$root/.agent-layer/config/workflows/01_test.md"
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
 {
   "version": 1,
   "servers": [
@@ -72,7 +72,7 @@ EOF
   ]
 }
 EOF
-  : >"$root/.agent-layer/policy/commands.json"
+  : >"$root/.agent-layer/config/policy/commands.json"
 
   run "$root/.agent-layer/clean.sh"
   [ "$status" -eq 0 ]
@@ -106,10 +106,10 @@ EOF
   ! grep -Fq "chat.tools.terminal.autoApprove" "$root/.vscode/settings.json"
   grep -Fq "editor.tabSize" "$root/.vscode/settings.json"
 
-  [ -f "$root/.agent-layer/instructions/01_test.md" ]
-  [ -f "$root/.agent-layer/workflows/01_test.md" ]
-  [ -f "$root/.agent-layer/mcp/servers.json" ]
-  [ -f "$root/.agent-layer/policy/commands.json" ]
+  [ -f "$root/.agent-layer/config/instructions/01_test.md" ]
+  [ -f "$root/.agent-layer/config/workflows/01_test.md" ]
+  [ -f "$root/.agent-layer/config/mcp-servers.json" ]
+  [ -f "$root/.agent-layer/config/policy/commands.json" ]
 
   rm -rf "$root"
 }

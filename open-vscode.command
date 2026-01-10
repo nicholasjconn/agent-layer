@@ -7,7 +7,7 @@ CODEX_HOME="$ROOT/.codex"
 
 if [[ ! -d "$CODEX_HOME" ]]; then
   echo "error: CODEX_HOME directory not found at $CODEX_HOME" >&2
-  echo "Run: node \"$ROOT/.agent-layer/sync/sync.mjs\"" >&2
+  echo "Run: node \"$ROOT/.agent-layer/src/sync/sync.mjs\"" >&2
   exit 1
 fi
 

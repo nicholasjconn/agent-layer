@@ -7,7 +7,7 @@ load "helpers.bash"
   root="$(create_working_root)"
 
   ROOT="$root" AGENTLAYER_ROOT="$AGENTLAYER_ROOT" run bash -c \
-    'source "$AGENTLAYER_ROOT/lib/paths.sh"; resolve_working_root "$ROOT"'
+    'source "$AGENTLAYER_ROOT/src/lib/paths.sh"; resolve_working_root "$ROOT"'
 
   [ "$status" -eq 0 ]
   [ "$output" = "$root" ]
@@ -19,7 +19,7 @@ load "helpers.bash"
   root="/"
 
   ROOT="$root" AGENTLAYER_ROOT="$AGENTLAYER_ROOT" run bash -c \
-    'source "$AGENTLAYER_ROOT/lib/paths.sh"; resolve_working_root "$ROOT"'
+    'source "$AGENTLAYER_ROOT/src/lib/paths.sh"; resolve_working_root "$ROOT"'
 
   [ "$status" -ne 0 ]
 }

@@ -6,13 +6,30 @@ load "helpers.bash"
   local root
   root="$(create_working_root)"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
 
   [ -f "$root/.codex/config.toml" ]
   [ -f "$root/.codex/AGENTS.md" ]
   grep -q '^\[mcp_servers\.' "$root/.codex/config.toml"
   grep -q 'GENERATED FILE' "$root/.codex/AGENTS.md"
+
+  rm -rf "$root"
+}
+
+@test "sync emits YAML-folded descriptions for Codex skills" {
+  local root skill
+  root="$(create_working_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  skill="$root/.codex/skills/find-issues/SKILL.md"
+  [ -f "$skill" ]
+  run rg -n "^description: >-$" "$skill"
+  [ "$status" -eq 0 ]
+  run rg -n "^  .*Report-first:" "$skill"
+  [ "$status" -eq 0 ]
 
   rm -rf "$root"
 }
@@ -39,7 +56,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
 
   run rg -n "run_shell_command\\(bad\\)" "$root/.gemini/settings.json"
@@ -84,10 +101,10 @@ EOF
   local root
   root="$(create_working_root)"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs --check"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs --check"
   [ "$status" -eq 0 ]
 
   rm -rf "$root"
@@ -97,7 +114,7 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  cat >"$root/.agent-layer/policy/commands.json" <<'EOF'
+  cat >"$root/.agent-layer/config/policy/commands.json" <<'EOF'
 {
   "version": 1,
   "allowed": [
@@ -106,7 +123,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"unsupported characters"* ]]
 
@@ -155,7 +172,7 @@ EOF
 prefix_rule(pattern=["bad"], decision="allow", justification="legacy")
 EOF
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs --overwrite"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs --overwrite"
   [ "$status" -eq 0 ]
 
   run rg -n "run_shell_command\\(bad\\)" "$root/.gemini/settings.json"
@@ -183,12 +200,12 @@ EOF
   local root
   root="$(create_working_root)"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
 
   printf '\n# test\n' >> "$root/AGENTS.md"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs --check"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs --check"
   [ "$status" -ne 0 ]
   [[ "$output" == *"WARNING: generated files are out of date."* ]]
   [[ "$output" == *"divergence"* ]]
@@ -201,9 +218,9 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  rm -rf "$root/.agent-layer/instructions"
+  rm -rf "$root/.agent-layer/config/instructions"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"missing instructions directory"* ]]
 
@@ -214,9 +231,9 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  rm -f "$root/.agent-layer/instructions/"*.md
+  rm -f "$root/.agent-layer/config/instructions/"*.md
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"no instruction files found"* ]]
 
@@ -227,9 +244,9 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  rm -rf "$root/.agent-layer/workflows"
+  rm -rf "$root/.agent-layer/config/workflows"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"missing workflows directory"* ]]
 
@@ -240,9 +257,9 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  rm -f "$root/.agent-layer/workflows/"*.md
+  rm -f "$root/.agent-layer/config/workflows/"*.md
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"no workflow files found"* ]]
 
@@ -253,11 +270,61 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  rm -f "$root/.agent-layer/mcp/servers.json"
+  rm -f "$root/.agent-layer/config/mcp-servers.json"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"servers.json not found"* ]]
+
+  rm -rf "$root"
+}
+
+@test "sync fails when MCP defaults include geminiTrust" {
+  local root
+  root="$(create_sync_working_root)"
+
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "defaults": {
+    "geminiTrust": true
+  },
+  "servers": [
+    {
+      "name": "bad-defaults",
+      "command": "node"
+    }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"defaults.geminiTrust is not supported"* ]]
+
+  rm -rf "$root"
+}
+
+@test "sync fails when an MCP server includes geminiTrust" {
+  local root
+  root="$(create_sync_working_root)"
+
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "bad-server",
+      "command": "node",
+      "geminiTrust": true
+    }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"bad-server.geminiTrust is not supported"* ]]
 
   rm -rf "$root"
 }
@@ -277,7 +344,7 @@ EOF
 {"msg":{"type":"exec_approval_request","command":["echo","external"],"cwd":"/tmp"}}
 EOF
 
-  run bash -c "cd \"$root\" && CODEX_HOME=\"$external\" node .agent-layer/sync/inspect.mjs > \"$root/out.json\""
+  run bash -c "cd \"$root\" && CODEX_HOME=\"$external\" node .agent-layer/src/sync/inspect.mjs > \"$root/out.json\""
   [ "$status" -eq 0 ]
 
   run node -e "const data=require(process.argv[1]); if (data.summary.approvals !== 1) process.exit(1); if (data.divergences.approvals[0].prefix !== 'echo hi') process.exit(1);" "$root/out.json"
@@ -292,10 +359,10 @@ EOF
   local root
   root="$(create_working_root)"
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/inspect.mjs > \"$root/out.json\""
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/inspect.mjs > \"$root/out.json\""
   [ "$status" -eq 0 ]
 
   run node -e "const data=require(process.argv[1]); if (data.summary.approvals !== 0 || data.summary.mcp !== 0) process.exit(1);" "$root/out.json"
@@ -308,7 +375,7 @@ EOF
   local root
   root="$(create_sync_working_root)"
 
-  cat >"$root/.agent-layer/mcp/servers.json" <<'EOF'
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
 {
   "version": 1,
   "servers": [
@@ -331,7 +398,7 @@ EOF
 command = "node"
 EOF
 
-  run bash -c "cd \"$root\" && node .agent-layer/sync/inspect.mjs > \"$root/out.json\""
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/inspect.mjs > \"$root/out.json\""
   [ "$status" -eq 0 ]
 
   run node -e "const data=require(process.argv[1]); if (data.summary.mcp !== 0) process.exit(1);" "$root/out.json"
@@ -356,7 +423,7 @@ EOF
 {"msg":{"type":"exec_approval_request","command":["echo","external"]}}
 EOF
 
-  run bash -c "cd \"$root\" && CODEX_HOME=\"$external\" node .agent-layer/sync/sync.mjs"
+  run bash -c "cd \"$root\" && CODEX_HOME=\"$external\" node .agent-layer/src/sync/sync.mjs"
   [ "$status" -eq 0 ]
   [[ "$output" == *"approvals: 2"* ]]
 

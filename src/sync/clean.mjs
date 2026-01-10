@@ -49,7 +49,7 @@ function loadJsonObject(filePath) {
  * @returns {string[]}
  */
 function loadServerNames(agentlayerRoot) {
-  const filePath = path.join(agentlayerRoot, "mcp", "servers.json");
+  const filePath = path.join(agentlayerRoot, "config", "mcp-servers.json");
   if (!fileExists(filePath)) {
     fail(`${filePath} not found`);
   }

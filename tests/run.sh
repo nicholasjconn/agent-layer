@@ -8,15 +8,15 @@ die() {
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATHS_SH="$SCRIPT_DIR/.agent-layer/lib/paths.sh"
+PATHS_SH="$SCRIPT_DIR/.agent-layer/src/lib/paths.sh"
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/../src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  die "Missing lib/paths.sh (expected near .agent-layer/)."
+  die "Missing src/lib/paths.sh (expected near .agent-layer/)."
 fi
 # shellcheck disable=SC1090
 source "$PATHS_SH"

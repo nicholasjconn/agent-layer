@@ -26,19 +26,16 @@ export function validateServerCatalog(parsed, filePath) {
         `${filePath}: defaults.vscodeEnvFile must be a string`,
       );
     }
-    // Back-compat: allow defaults.geminiTrust but prefer defaults.trust.
     if (parsed.defaults.trust !== undefined) {
       assert(
         typeof parsed.defaults.trust === "boolean",
         `${filePath}: defaults.trust must be boolean`,
       );
     }
-    if (parsed.defaults.geminiTrust !== undefined) {
-      assert(
-        typeof parsed.defaults.geminiTrust === "boolean",
-        `${filePath}: defaults.geminiTrust must be boolean`,
-      );
-    }
+    assert(
+      !Object.prototype.hasOwnProperty.call(parsed.defaults, "geminiTrust"),
+      `${filePath}: defaults.geminiTrust is not supported; use defaults.trust`,
+    );
   }
 
   assert(
@@ -71,13 +68,10 @@ export function validateServerCatalog(parsed, filePath) {
         `${filePath}: ${s.name}.trust must be boolean`,
       );
     }
-    // Back-compat: per-server geminiTrust (prefer trust)
-    if (s.geminiTrust !== undefined) {
-      assert(
-        typeof s.geminiTrust === "boolean",
-        `${filePath}: ${s.name}.geminiTrust must be boolean`,
-      );
-    }
+    assert(
+      !Object.prototype.hasOwnProperty.call(s, "geminiTrust"),
+      `${filePath}: ${s.name}.geminiTrust is not supported; use ${s.name}.trust`,
+    );
 
     if (s.transport !== undefined) {
       assert(
@@ -152,7 +146,7 @@ export function validateServerCatalog(parsed, filePath) {
  * @returns {{ defaults: Record<string, unknown>, servers: unknown[] }}
  */
 export function loadServerCatalog(agentlayerRoot) {
-  const filePath = path.join(agentlayerRoot, "mcp", "servers.json");
+  const filePath = path.join(agentlayerRoot, "config", "mcp-servers.json");
   assert(fileExists(filePath), `${filePath} not found`);
   const parsed = JSON.parse(readUtf8(filePath));
   validateServerCatalog(parsed, filePath);
@@ -206,13 +200,7 @@ export function enabledServers(servers) {
  * @returns {boolean}
  */
 function resolveDefaultTrust(defaults) {
-  // Back-compat: accept defaults.geminiTrust if defaults.trust is not present.
-  if (defaults.trust === undefined) {
-    return defaults.geminiTrust === undefined
-      ? false
-      : Boolean(defaults.geminiTrust);
-  }
-  return Boolean(defaults.trust);
+  return defaults.trust === undefined ? false : Boolean(defaults.trust);
 }
 
 /**
@@ -222,11 +210,8 @@ function resolveDefaultTrust(defaults) {
  * @returns {boolean}
  */
 function resolveServerTrust(defaults, server) {
-  // Back-compat: per-server geminiTrust (prefer trust)
   if (server.trust === undefined) {
-    return server.geminiTrust === undefined
-      ? resolveDefaultTrust(defaults)
-      : Boolean(server.geminiTrust);
+    return resolveDefaultTrust(defaults);
   }
   return Boolean(server.trust);
 }
@@ -345,7 +330,7 @@ export function renderCodexConfig(catalog, regenCommand) {
   const servers = enabledServers(catalog.servers ?? []);
   const lines = [
     "# GENERATED FILE - DO NOT EDIT DIRECTLY",
-    "# Source: .agent-layer/mcp/servers.json",
+    "# Source: .agent-layer/config/mcp-servers.json",
     `# Regenerate: ${regenCommand}`,
     "",
   ];

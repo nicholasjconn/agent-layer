@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { LEGACY_REGEN_COMMANDS, REGEN_COMMAND } from "./constants.mjs";
+import { REGEN_COMMAND } from "./constants.mjs";
 import { banner, parseFrontMatter, slugify } from "./instructions.mjs";
 import { failOutOfDate } from "./outdated.mjs";
 import {
@@ -17,6 +17,38 @@ import {
  */
 
 /**
+ * Format a YAML folded block scalar with stable wrapping.
+ * @param {string} value
+ * @param {number} maxWidth
+ * @returns {string}
+ */
+function formatYamlFoldedBlock(value, maxWidth = 78) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "  ";
+
+  const words = normalized.split(/\s+/u).filter(Boolean);
+  /** @type {string[]} */
+  const lines = [];
+  let line = "";
+
+  for (const word of words) {
+    if (!line) {
+      line = word;
+      continue;
+    }
+    if (line.length + 1 + word.length <= maxWidth) {
+      line = `${line} ${word}`;
+    } else {
+      lines.push(line);
+      line = word;
+    }
+  }
+
+  if (line) lines.push(line);
+  return lines.map((entry) => `  ${entry}`).join("\n");
+}
+
+/**
  * Check whether a Codex skill directory is generated.
  * @param {string} skillDir
  * @returns {boolean}
@@ -27,8 +59,7 @@ export function isGeneratedCodexSkill(skillDir) {
   const txt = readUtf8(p);
   return (
     txt.includes("GENERATED FILE - DO NOT EDIT DIRECTLY") &&
-    (txt.includes(`Regenerate: ${REGEN_COMMAND}`) ||
-      LEGACY_REGEN_COMMANDS.some((cmd) => txt.includes(`Regenerate: ${cmd}`)))
+    txt.includes(`Regenerate: ${REGEN_COMMAND}`)
   );
 }
 
@@ -43,7 +74,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
   if (!fileExists(workflowsDir)) {
     throw new Error(
       `agent-layer sync: missing workflows directory at ${workflowsDir}. ` +
-        "Restore .agent-layer/workflows before running sync.",
+        "Restore .agent-layer/config/workflows before running sync.",
     );
   }
   const codexSkillsRoot = path.join(repoRoot, ".codex", "skills");
@@ -53,7 +84,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
   if (workflowFiles.length === 0) {
     throw new Error(
       `agent-layer sync: no workflow files found in ${workflowsDir}. ` +
-        "Add at least one .md file to .agent-layer/workflows.",
+        "Add at least one .md file to .agent-layer/config/workflows.",
     );
   }
   const expectedFolders = new Set();
@@ -94,12 +125,17 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
     }
 
     // YAML frontmatter must be first line for compatibility.
+    const descriptionBlock =
+      `description: >-\n` + `${formatYamlFoldedBlock(description)}\n`;
     const content =
       `---\n` +
       `name: ${name}\n` +
-      `description: ${description}\n` +
+      descriptionBlock +
       `---\n\n` +
-      banner(`.agent-layer/workflows/${path.basename(wfPath)}`, REGEN_COMMAND) +
+      banner(
+        `.agent-layer/config/workflows/${path.basename(wfPath)}`,
+        REGEN_COMMAND,
+      ) +
       `# ${name}\n\n` +
       (description ? `${description}\n\n` : "") +
       `${body.trimEnd()}\n`;
@@ -112,7 +148,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
         failOutOfDate(
           repoRoot,
           [skillFile],
-          "Codex skills are generated from .agent-layer/workflows/*.md.",
+          "Codex skills are generated from .agent-layer/config/workflows/*.md.",
         );
       }
     } else {

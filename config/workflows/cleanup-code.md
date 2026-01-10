@@ -223,7 +223,7 @@ Apply only if the repo’s language/ecosystem matches:
 - **C/C++:** consider separating declarations (headers) from implementations; avoid changing linkage/visibility.
 - **Rust:** split modules with `mod` and `pub use` to preserve paths; watch for visibility.
 - **Python/JS/TS:** use modules + re-export patterns; keep old imports stable where possible.
-- **Shell scripts:** split by extracting functions into separate sourced files (e.g., `lib/*.sh`) or by breaking a large “do-everything” script into multiple scripts; preserve:
+- **Shell scripts:** split by extracting functions into separate sourced files (e.g., `src/lib/*.sh`) or by breaking a large “do-everything” script into multiple scripts; preserve:
   - shebang line
   - `set -euo pipefail` semantics (if present)
   - environment variable expectations and working-directory assumptions

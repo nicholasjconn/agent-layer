@@ -14,7 +14,7 @@ import { resolveWorkingRoot } from "../../sync/paths.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKING_ROOT = resolveWorkingRoot(process.cwd(), HERE);
 const WORKFLOWS_DIR = WORKING_ROOT
-  ? path.join(WORKING_ROOT, ".agent-layer", "workflows")
+  ? path.join(WORKING_ROOT, ".agent-layer", "config", "workflows")
   : null;
 
 /**
@@ -25,7 +25,7 @@ const WORKFLOWS_DIR = WORKING_ROOT
 function listWorkflowFiles(workflowsDir) {
   if (!workflowsDir) {
     throw new Error(
-      "agent-layer prompts: could not find .agent-layer/workflows. " +
+      "agent-layer prompts: could not find .agent-layer/config/workflows. " +
         "Run from a repo that contains .agent-layer or fix the MCP server path.",
     );
   }
@@ -116,7 +116,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
             `---\n` +
             `Notes:\n` +
             `- Follow the workflow exactly.\n` +
-            `- If you modify .agent-layer/**, run: node .agent-layer/sync/sync.mjs\n`,
+            `- If you modify .agent-layer/**, run: node .agent-layer/src/sync/sync.mjs\n`,
         },
       },
     ],

@@ -238,7 +238,7 @@ else
 fi
 
 DOCS_DIR="$WORKING_ROOT/docs"
-TEMPLATES_DIR="$AGENTLAYER_DIR/templates/docs"
+TEMPLATES_DIR="$AGENTLAYER_DIR/config/templates/docs"
 ensure_memory_file() {
   local file_path="$1"
   local template_path="$2"

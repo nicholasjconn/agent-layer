@@ -18,13 +18,13 @@ load "helpers.bash"
   rm -rf "$root_a" "$root_b"
 }
 
-@test "al prefers .agent-layer paths when a root lib/paths.sh exists" {
+@test "al prefers .agent-layer paths when a root src/lib/paths.sh exists" {
   local root stub_bin output
   root="$(create_working_root)"
 
   ln -s "$root/.agent-layer/al" "$root/al"
-  mkdir -p "$root/lib"
-  cat >"$root/lib/paths.sh" <<'EOF'
+  mkdir -p "$root/src/lib"
+  cat >"$root/src/lib/paths.sh" <<'EOF'
 resolve_working_root() {
   return 1
 }
@@ -50,7 +50,7 @@ printf "%s" "${CODEX_HOME:-}"
 EOF
   chmod +x "$stub_bin/codex"
 
-  output="$(cd "$root/sub/dir" && PATH="$stub_bin:$PATH" "$root/.agent-layer/al" codex)"
+  output="$(cd "$root/sub/dir" && PATH="$stub_bin:$PATH" CODEX_HOME= "$root/.agent-layer/al" codex)"
   status=$?
   [ "$status" -eq 0 ]
   [ "$output" = "$root/.codex" ]

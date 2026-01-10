@@ -2,34 +2,34 @@
 /**
  * Agent Layer sync (Node-based generator)
  *
- * Generates per-client shim files from `.agent-layer/instructions/` sources:
+ * Generates per-client shim files from `.agent-layer/config/instructions/` sources:
  * - AGENTS.md
  * - .codex/AGENTS.md
  * - CLAUDE.md
  * - GEMINI.md
  * - .github/copilot-instructions.md
  *
- * Generates per-client MCP configuration from `.agent-layer/mcp/servers.json`:
+ * Generates per-client MCP configuration from `.agent-layer/config/mcp-servers.json`:
  * - .mcp.json              (Claude Code)
  * - .gemini/settings.json  (Gemini CLI)
  * - .vscode/mcp.json       (VS Code / Copilot Chat)
  * - .codex/config.toml     (Codex CLI / VS Code extension)
  *
- * Generates Codex Skills from `.agent-layer/workflows/*.md`:
+ * Generates Codex Skills from `.agent-layer/config/workflows/*.md`:
  * - .codex/skills/<workflow>/SKILL.md
  *
- * Generates per-client command allowlists from `.agent-layer/policy/commands.json`:
+ * Generates per-client command allowlists from `.agent-layer/config/policy/commands.json`:
  * - .gemini/settings.json
  * - .claude/settings.json
  * - .vscode/settings.json
  * - .codex/rules/agent-layer.rules
  *
  * Usage:
- *   node .agent-layer/sync/sync.mjs
- *   node .agent-layer/sync/sync.mjs --check
- *   node .agent-layer/sync/sync.mjs --verbose
- *   node .agent-layer/sync/sync.mjs --overwrite
- *   node .agent-layer/sync/sync.mjs --interactive
+ *   node .agent-layer/src/sync/sync.mjs
+ *   node .agent-layer/src/sync/sync.mjs --check
+ *   node .agent-layer/src/sync/sync.mjs --verbose
+ *   node .agent-layer/src/sync/sync.mjs --overwrite
+ *   node .agent-layer/src/sync/sync.mjs --interactive
  */
 
 import path from "node:path";
@@ -282,7 +282,7 @@ async function promptDivergenceAction(divergence, workingRoot) {
   console.warn(formatDivergenceDetails(divergence, workingRoot));
   console.warn("");
   console.warn(
-    "Run: node .agent-layer/sync/inspect.mjs (JSON report) to see what differs, then update .agent-layer sources.",
+    "Run: node .agent-layer/src/sync/inspect.mjs (JSON report) to see what differs, then update .agent-layer sources.",
   );
   console.warn("");
 
@@ -312,8 +312,8 @@ async function main() {
   }
 
   const agentlayerRoot = path.join(workingRoot, ".agent-layer");
-  const instructionsDir = path.join(agentlayerRoot, "instructions");
-  const workflowsDir = path.join(agentlayerRoot, "workflows");
+  const instructionsDir = path.join(agentlayerRoot, "config", "instructions");
+  const workflowsDir = path.join(agentlayerRoot, "config", "workflows");
 
   const policy = loadCommandPolicy(agentlayerRoot);
   const prefixes = commandPrefixes(policy);
@@ -349,7 +349,7 @@ async function main() {
   }
 
   const unified =
-    banner(".agent-layer/instructions/*.md", REGEN_COMMAND) +
+    banner(".agent-layer/config/instructions/*.md", REGEN_COMMAND) +
     concatInstructions(instructionsDir);
 
   const outputs = [

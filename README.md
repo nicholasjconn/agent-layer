@@ -57,7 +57,7 @@ chmod +x agent-layer-install.sh
 
 This creates `.agent-layer/`, adds a managed `.gitignore` block, creates `./al`,
 and ensures the project memory files exist under `docs/` (`ISSUES.md`, `FEATURES.md`,
-`ROADMAP.md`, `DECISIONS.md`). Templates live in `.agent-layer/templates/docs`; if a file
+`ROADMAP.md`, `DECISIONS.md`). Templates live in `.agent-layer/config/templates/docs`; if a file
 already exists, the installer prompts to keep it (default yes). In non-interactive
 runs, existing files are kept.
 
@@ -123,7 +123,7 @@ ln -s .agent-layer/al ./al
 
 This symlink is intended to live at the working repo root.
 
-Default behavior: sync every run via `node sync/sync.mjs`, then load `.env` and exec the command (via `with-env.sh`).
+Default behavior: sync every run via `node src/sync/sync.mjs`, then load `.env` and exec the command (via `with-env.sh`).
 
 Examples:
 
@@ -151,18 +151,18 @@ macOS (Finder double-click launcher):
 - If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
 
 5) **Edit sources of truth**
-- Unified instructions: `instructions/*.md`
-- Workflows: `workflows/*.md`
-- MCP server catalog: `mcp/servers.json`
-- Command allowlist: `policy/commands.json` (tokens must use A-Z a-z 0-9 `.` `_` `/` `@` `+` `=` `-` and include at least one letter/number)
+- Unified instructions: `config/instructions/*.md`
+- Workflows: `config/workflows/*.md`
+- MCP server catalog: `config/mcp-servers.json`
+- Command allowlist: `config/policy/commands.json` (tokens must use A-Z a-z 0-9 `.` `_` `/` `@` `+` `=` `-` and include at least one letter/number)
 
-Note: allowlist outputs are authoritative for shell command approvals. Sync replaces managed allowlist entries; non-managed allow entries are preserved by default for Gemini/Claude/VS Code. Use `node sync/sync.mjs --overwrite` to drop non-managed entries, or `--interactive` to choose at prompt when divergence is detected.
+Note: allowlist outputs are authoritative for shell command approvals. Sync replaces managed allowlist entries; non-managed allow entries are preserved by default for Gemini/Claude/VS Code. Use `node src/sync/sync.mjs --overwrite` to drop non-managed entries, or `--interactive` to choose at prompt when divergence is detected.
 
 6) **Regenerate after changes (optional if you use `./al`)**
 
 ```bash
 # ./al runs sync automatically; use this only if you want to regenerate without launching a CLI
-node sync/sync.mjs
+node src/sync/sync.mjs
 ```
 
 ## Conventions
@@ -173,13 +173,13 @@ Paths in this README are relative to the agent-layer repo root unless noted as w
 ### Repository layout
 
 - Working repo root: your app plus generated shims/configs (for example, `AGENTS.md`, `.mcp.json`, `.codex/`).
-- `.agent-layer/`: sources of truth (`instructions/`, `workflows/`, `mcp/`, `policy/`) and scripts (`setup.sh`, `sync/`, `clean.sh`).
+- `.agent-layer/`: sources of truth (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/`) and scripts (`setup.sh`, `src/sync/`, `clean.sh`).
 - `./al`: launcher in the working repo root that syncs and forwards to CLIs.
 - For the full list, see "What's inside this repository" below.
 
 ## Environment variables
 
-`./al` and `with-env.sh` load `.agent-layer/.env` when it exists. The default MCP servers in `mcp/servers.json` expect:
+`./al` and `with-env.sh` load `.agent-layer/.env` when it exists. The default MCP servers in `config/mcp-servers.json` expect:
 - `GITHUB_TOKEN` (GitHub MCP server)
 - `CONTEXT7_API_KEY` (Context7 MCP server)
 
@@ -191,7 +191,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 
 `./al` is intentionally minimal. By default it:
 
-1) Runs `node sync/sync.mjs` (or `--check` then regenerates if out of date, depending on your `al`)
+1) Runs `node src/sync/sync.mjs` (or `--check` then regenerates if out of date, depending on your `al`)
 2) Loads `.env` via `with-env.sh`
 3) Executes the command
 
@@ -220,10 +220,10 @@ For a one-off run that also includes project env (if configured), from the worki
 ### What files you should and should not edit
 
 **Edit these (sources of truth):**
-- `instructions/*.md`
-- `workflows/*.md`
-- `mcp/servers.json`
-- `policy/commands.json`
+- `config/instructions/*.md`
+- `config/workflows/*.md`
+- `config/mcp-servers.json`
+- `config/policy/commands.json`
 
 **Do not edit these directly (generated in the working repo root):**
 - `AGENTS.md`
@@ -244,27 +244,27 @@ If you accidentally edited a generated file, delete it and re-sync (example from
 
 ```bash
 rm .mcp.json
-node .agent-layer/sync/sync.mjs
+node .agent-layer/src/sync/sync.mjs
 ```
 
 If the file is tracked in your repo, `git checkout -- <file>` also works.
 
 ### Instruction file ordering (why the numbers)
 
-`sync/sync.mjs` concatenates `instructions/*.md` in **lexicographic order**.
+`src/sync/sync.mjs` concatenates `config/instructions/*.md` in **lexicographic order**.
 
 Numeric prefixes (e.g. `00_`, `10_`, `20_`) ensure a **stable, predictable ordering** without requiring a separate manifest/config file. If you add new instruction fragments, follow the same pattern.
 
 ## Approvals and permissions
 
-Agent Layer treats `.agent-layer/mcp/servers.json` as the source of truth for MCP tool approvals.
+Agent Layer treats `.agent-layer/config/mcp-servers.json` as the source of truth for MCP tool approvals.
 Set `trust: true` per server (or `defaults.trust` for the default) to auto-approve that server's
 tools where supported.
 
 Behavior by client:
 - Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
 - Claude Code: `permissions.allow` includes `mcp__<server>__*` for trusted servers, alongside the
-  Bash allowlist from `policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
+  Bash allowlist from `config/policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
   preserved by default (use `--overwrite` to drop them).
 - Codex CLI / VS Code extension: there is no per-server MCP allowlist in generated config; use
   Codex CLI approval flags if you want to bypass prompts globally.
@@ -276,16 +276,16 @@ If you approve commands or edit MCP settings directly in a client, Agent Layer m
 ```
 WARNING: client configs NOT SYNCED due to divergence.
 This means a client config has entries missing from or differing from .agent-layer sources.
-Run: node .agent-layer/sync/inspect.mjs (JSON report)
+Run: node .agent-layer/src/sync/inspect.mjs (JSON report)
 ```
 
 The inspect script emits a JSON report of divergent approvals and MCP servers and **never** edits files.
-Use the report to update `.agent-layer/policy/commands.json` (approvals) or `.agent-layer/mcp/servers.json` (MCP servers),
-then run `node .agent-layer/sync/sync.mjs` to regenerate outputs.
+Use the report to update `.agent-layer/config/policy/commands.json` (approvals) or `.agent-layer/config/mcp-servers.json` (MCP servers),
+then run `node .agent-layer/src/sync/sync.mjs` to regenerate outputs.
 
 If you want Agent Layer to overwrite client configs instead of preserving divergent entries, run:
-- `node .agent-layer/sync/sync.mjs --overwrite` (non-interactive)
-- `node .agent-layer/sync/sync.mjs --interactive` (TTY only; shows a diff and prompts)
+- `node .agent-layer/src/sync/sync.mjs --overwrite` (non-interactive)
+- `node .agent-layer/src/sync/sync.mjs --interactive` (TTY only; shows a diff and prompts)
 
 Some entries (especially from client/session logs) may be flagged as `parseable: false` and require manual updates.
 Codex approvals are detected by scanning `$CODEX_HOME/sessions/*.jsonl` (best-effort), so keep `CODEX_HOME` repo-local if you want them captured.
@@ -294,24 +294,24 @@ Codex MCP config documents env requirements in comments only, so divergence chec
 ## Refresh / restart guidance (failure modes)
 
 General rule:
-- After changing source-of-truth files (`instructions/`, `workflows/`, `mcp/servers.json`, `policy/commands.json`) → run `node sync/sync.mjs` (or run your CLI via `./al ...`) → then refresh/restart the client as needed.
+- After changing source-of-truth files (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/commands.json`) → run `node src/sync/sync.mjs` (or run your CLI via `./al ...`) → then refresh/restart the client as needed.
 
 ### MCP prompt server (workflows as “slash commands”)
 
 Workflows are exposed as MCP prompts by:
-- `mcp/agent-layer-prompts/server.mjs`
+- `src/mcp/agent-layer-prompts/server.mjs`
 
 **Required one-time install (per machine / per clone):**
 ```bash
-cd mcp/agent-layer-prompts
+cd src/mcp/agent-layer-prompts
 npm install
 ```
 
 Dependency upgrades (maintainers):
-- update `mcp/agent-layer-prompts/package.json`, then run `npm install` to refresh `package-lock.json`.
+- update `src/mcp/agent-layer-prompts/package.json`, then run `npm install` to refresh `package-lock.json`.
 
-If you changed `workflows/*.md`:
-- run `node sync/sync.mjs` (or `./al <cmd>`)
+If you changed `config/workflows/*.md`:
+- run `node src/sync/sync.mjs` (or `./al <cmd>`)
 - then refresh MCP discovery in your client (or restart the client/session)
 
 ---
@@ -368,7 +368,7 @@ Each section below answers two questions:
 **Confirm the MCP server can start**
 - Ensure Node deps are installed:
   ```bash
-  cd mcp/agent-layer-prompts && npm install && cd -
+  cd src/mcp/agent-layer-prompts && npm install && cd -
   ```
 - Then run Gemini via `./al gemini`.
 
@@ -377,12 +377,12 @@ Each section below answers two questions:
   - `/find-issues`
 - If it’s present, it will expand and run the workflow prompt.
 - If it’s missing:
-  1) run `node sync/sync.mjs`
+  1) run `node src/sync/sync.mjs`
   2) restart Gemini
   3) confirm `.gemini/settings.json` still lists `agent-layer` under `mcpServers`
 
 **Common failure mode**
-- If Gemini prompts for approvals on shell commands like `git status`, that is a *shell tool approval*, not MCP. (Solving this uses the repo allowlist `policy/commands.json` projected into Gemini’s `tools.allowed`.)
+- If Gemini prompts for approvals on shell commands like `git status`, that is a *shell tool approval*, not MCP. (Solving this uses the repo allowlist `config/policy/commands.json` projected into Gemini’s `tools.allowed`.)
 
 ---
 
@@ -429,7 +429,7 @@ Each section below answers two questions:
   1) verify `.mcp.json` exists and includes `mcpServers["agent-layer"]`
   2) ensure MCP prompt server deps installed:
      ```bash
-     cd mcp/agent-layer-prompts && npm install && cd -
+     cd src/mcp/agent-layer-prompts && npm install && cd -
      ```
   3) restart Claude Code CLI after MCP config changes
 
@@ -437,7 +437,7 @@ Each section below answers two questions:
 - In Claude Code CLI, invoke the MCP prompt using its MCP prompt UI/namespace (varies by client build).
 - Quick sanity check: the prompt list should include your workflow prompt name (e.g., `find-issues`).
 - If missing:
-  1) run `node sync/sync.mjs`
+  1) run `node src/sync/sync.mjs`
   2) restart Claude Code CLI
   3) ensure the MCP server process can run (Node installed, deps installed)
 
@@ -447,8 +447,8 @@ Each section below answers two questions:
 
 **MCP config + system instructions**
 - When launched via `./al codex`, `CODEX_HOME` is set to the repo-local `.codex/`.
-- MCP servers are generated into `.codex/config.toml` from `.agent-layer/mcp/servers.json`.
-- System instructions are generated into `.codex/AGENTS.md` from `.agent-layer/instructions/*.md`.
+- MCP servers are generated into `.codex/config.toml` from `.agent-layer/config/mcp-servers.json`.
+- System instructions are generated into `.codex/AGENTS.md` from `.agent-layer/config/instructions/*.md`.
 - Agent Layer also generates the project `AGENTS.md` from the same sources for clients that read it.
 - Agent Layer uses **Codex Skills** (and optional rules) as the primary “workflow command” mechanism.
 
@@ -477,8 +477,8 @@ echo "$CODEX_HOME"
   - (if your build supports it) list skills with `$skills`
 
 **If a skill is missing**
-1) run `node sync/sync.mjs`
-2) verify the workflow exists: `workflows/<workflow>.md`
+1) run `node src/sync/sync.mjs`
+2) verify the workflow exists: `config/workflows/<workflow>.md`
 3) verify `.codex/skills/<workflow>/SKILL.md` was generated
 
 **Common failure mode**
@@ -489,13 +489,13 @@ echo "$CODEX_HOME"
 ## What’s inside this repository
 
 ### Source-of-truth directories
-- `instructions/`  
+- `config/instructions/`  
   Unified instruction fragments (concatenated into shims).
-- `workflows/`  
+- `config/workflows/`  
   Workflow definitions (exposed as MCP prompts; also used to generate Codex skills).
-- `mcp/servers.json`  
+- `config/mcp-servers.json`  
   Canonical MCP server list (no secrets inside).
-- `policy/`  
+- `config/policy/`  
   Auto-approve command allowlist (safe shell command prefixes).
 
 ### Project memory files (in working repo)
@@ -525,9 +525,9 @@ echo "$CODEX_HOME"
   Install/upgrade helper for working repos.
 - `setup.sh`  
   One-shot setup (sync + MCP deps + check).
-- `sync/sync.mjs`  
+- `src/sync/sync.mjs`  
   Generator (“build”) for all shims/configs/skills.
-- `sync/inspect.mjs`  
+- `src/sync/inspect.mjs`  
   JSON report of divergent approvals and MCP servers (no edits).
 - `clean.sh`  
   Remove generated shims/configs/skills and strip agent-layer-managed settings from client config files.
@@ -570,16 +570,16 @@ Generated JSON files (`.mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json`) 
 
 Fix:
 1) revert the generated file(s)
-2) edit the source-of-truth (`mcp/servers.json`)
-3) run `node sync/sync.mjs`
+2) edit the source-of-truth (`config/mcp-servers.json`)
+3) run `node src/sync/sync.mjs`
 
 ### “I edited instructions but the agent didn’t follow them.”
-- Did you run `node sync/sync.mjs` (or run via `./al ...`)?
+- Did you run `node src/sync/sync.mjs` (or run via `./al ...`)?
 - Did you restart the session/client (many tools read system instructions at session start)?
 - For Gemini CLI, refresh memory (often `/memory refresh`) or start a new session.
 
 ### “I edited workflows but the prompt/command list didn’t update.”
-- Run `node sync/sync.mjs`
+- Run `node src/sync/sync.mjs`
 - Restart/refresh MCP discovery:
   - Gemini: restart Gemini and/or run MCP refresh if available in your build
   - VS Code: restart servers / reset cached tools
@@ -595,7 +595,7 @@ The hook runs:
 If it fails, fix the reported issues (formatting, lint, tests, or sync), then commit again.
 
 ### “Can I rename the instruction files?”
-Yes. Keep numeric prefixes if you want stable ordering without changing `sync/sync.mjs`.
+Yes. Keep numeric prefixes if you want stable ordering without changing `src/sync/sync.mjs`.
 
 ## Contributing
 

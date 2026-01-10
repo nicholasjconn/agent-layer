@@ -7,15 +7,15 @@ set -euo pipefail
 # Uncomment exactly one option below (leave the rest commented).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATHS_SH="$SCRIPT_DIR/.agent-layer/lib/paths.sh"
+PATHS_SH="$SCRIPT_DIR/.agent-layer/src/lib/paths.sh"
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/../src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  echo "ERROR: Missing lib/paths.sh (expected near .agent-layer/)." >&2
+  echo "ERROR: Missing src/lib/paths.sh (expected near .agent-layer/)." >&2
   exit 2
 fi
 # shellcheck disable=SC1090
@@ -71,19 +71,19 @@ command -v node > /dev/null 2>&1 || {
 }
 
 # Option A (default): sync every run, load only .agent-layer/.env, then exec.
-node .agent-layer/sync/sync.mjs
+node .agent-layer/src/sync/sync.mjs
 exec "$ROOT/.agent-layer/with-env.sh" "$@"
 
 # Option B: env-only (no sync).
 # exec "$ROOT/.agent-layer/with-env.sh" "$@"
 
 # Option C: sync-only (no env).
-# exec node .agent-layer/sync/sync.mjs "$@"
+# exec node .agent-layer/src/sync/sync.mjs "$@"
 
 # Option D: sync check + regen if stale, then env-only.
-# node .agent-layer/sync/sync.mjs --check || node .agent-layer/sync/sync.mjs
+# node .agent-layer/src/sync/sync.mjs --check || node .agent-layer/src/sync/sync.mjs
 # exec "$ROOT/.agent-layer/with-env.sh" "$@"
 
 # Option E: sync every run, load .agent-layer/.env + .env, then exec.
-# node .agent-layer/sync/sync.mjs
+# node .agent-layer/src/sync/sync.mjs
 # exec "$ROOT/.agent-layer/with-env.sh" --project-env "$@"

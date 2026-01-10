@@ -129,14 +129,14 @@ export function concatInstructions(instructionsDir) {
   if (!fileExists(instructionsDir)) {
     throw new Error(
       `agent-layer sync: missing instructions directory at ${instructionsDir}. ` +
-        "Restore .agent-layer/instructions before running sync.",
+        "Restore .agent-layer/config/instructions before running sync.",
     );
   }
   const files = listFiles(instructionsDir, ".md");
   if (files.length === 0) {
     throw new Error(
       `agent-layer sync: no instruction files found in ${instructionsDir}. ` +
-        "Add at least one .md file to .agent-layer/instructions.",
+        "Add at least one .md file to .agent-layer/config/instructions.",
     );
   }
   const chunks = [];

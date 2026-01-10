@@ -8,15 +8,15 @@ set -euo pipefail
 #   ./.agent-layer/with-env.sh --project-env gemini
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATHS_SH="$SCRIPT_DIR/.agent-layer/lib/paths.sh"
+PATHS_SH="$SCRIPT_DIR/.agent-layer/src/lib/paths.sh"
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
+  PATHS_SH="$SCRIPT_DIR/../src/lib/paths.sh"
 fi
 if [[ ! -f "$PATHS_SH" ]]; then
-  echo "ERROR: Missing lib/paths.sh (expected near .agent-layer/)." >&2
+  echo "ERROR: Missing src/lib/paths.sh (expected near .agent-layer/)." >&2
   exit 2
 fi
 # shellcheck disable=SC1090

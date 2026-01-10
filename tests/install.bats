@@ -4,7 +4,7 @@ load "helpers.bash"
 
 create_min_agent_layer() {
   local root="$1"
-  mkdir -p "$root/.agent-layer/sync" "$root/.agent-layer/templates/docs"
+  mkdir -p "$root/.agent-layer/src/sync" "$root/.agent-layer/config/templates/docs"
   cat >"$root/.agent-layer/setup.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -12,14 +12,14 @@ exit 0
 EOF
   chmod +x "$root/.agent-layer/setup.sh"
   printf "EXAMPLE=1\n" >"$root/.agent-layer/.env.example"
-  : >"$root/.agent-layer/sync/sync.mjs"
-  cp "$AGENTLAYER_ROOT/templates/docs/"*.md "$root/.agent-layer/templates/docs/"
+  : >"$root/.agent-layer/src/sync/sync.mjs"
+  cp "$AGENTLAYER_ROOT/config/templates/docs/"*.md "$root/.agent-layer/config/templates/docs/"
   git -C "$root/.agent-layer" init -q
 }
 
 create_source_repo() {
   local repo="$1"
-  mkdir -p "$repo/sync" "$repo/templates/docs"
+  mkdir -p "$repo/src/sync" "$repo/config/templates/docs"
   cat >"$repo/setup.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -27,8 +27,8 @@ exit 0
 EOF
   chmod +x "$repo/setup.sh"
   printf "EXAMPLE=1\n" >"$repo/.env.example"
-  : >"$repo/sync/sync.mjs"
-  cp "$AGENTLAYER_ROOT/templates/docs/"*.md "$repo/templates/docs/"
+  : >"$repo/src/sync/sync.mjs"
+  cp "$AGENTLAYER_ROOT/config/templates/docs/"*.md "$repo/config/templates/docs/"
   git -C "$repo" init -q
   git -C "$repo" config user.email "test@example.com"
   git -C "$repo" config user.name "Test User"
@@ -250,10 +250,10 @@ EOF
   [ -f "$work/docs/FEATURES.md" ]
   [ -f "$work/docs/ROADMAP.md" ]
   [ -f "$work/docs/DECISIONS.md" ]
-  cmp -s "$src/templates/docs/ISSUES.md" "$work/docs/ISSUES.md"
-  cmp -s "$src/templates/docs/FEATURES.md" "$work/docs/FEATURES.md"
-  cmp -s "$src/templates/docs/ROADMAP.md" "$work/docs/ROADMAP.md"
-  cmp -s "$src/templates/docs/DECISIONS.md" "$work/docs/DECISIONS.md"
+  cmp -s "$src/config/templates/docs/ISSUES.md" "$work/docs/ISSUES.md"
+  cmp -s "$src/config/templates/docs/FEATURES.md" "$work/docs/FEATURES.md"
+  cmp -s "$src/config/templates/docs/ROADMAP.md" "$work/docs/ROADMAP.md"
+  cmp -s "$src/config/templates/docs/DECISIONS.md" "$work/docs/DECISIONS.md"
 
   rm -rf "$root"
 }

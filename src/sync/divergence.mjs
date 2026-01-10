@@ -679,10 +679,10 @@ export function formatDivergenceWarning(result) {
     "agent-layer sync: WARNING: client configs NOT SYNCED due to divergence.",
     `Detected divergent approvals/MCP servers${detail}.`,
     "This means a client config has entries missing from or differing from .agent-layer sources.",
-    "Run: node .agent-layer/sync/inspect.mjs (JSON report)",
+    "Run: node .agent-layer/src/sync/inspect.mjs (JSON report)",
     "Then either:",
-    "  - Add them to .agent-layer/policy/commands.json or .agent-layer/mcp/servers.json, then re-run sync",
-    "  - Or re-run with: node .agent-layer/sync/sync.mjs --overwrite (discard client-only entries)",
-    "  - Or re-run with: node .agent-layer/sync/sync.mjs --interactive",
+    "  - Add them to .agent-layer/config/policy/commands.json or .agent-layer/config/mcp-servers.json, then re-run sync",
+    "  - Or re-run with: node .agent-layer/src/sync/sync.mjs --overwrite (discard client-only entries)",
+    "  - Or re-run with: node .agent-layer/src/sync/sync.mjs --interactive",
   ].join("\n");
 }

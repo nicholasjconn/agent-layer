@@ -66,8 +66,8 @@ function main() {
     },
     guidance: {
       approvals:
-        "Add approvals to .agent-layer/policy/commands.json, then run: node .agent-layer/sync/sync.mjs",
-      mcp: "Add MCP servers to .agent-layer/mcp/servers.json, then run: node .agent-layer/sync/sync.mjs",
+        "Add approvals to .agent-layer/config/policy/commands.json, then run: node .agent-layer/src/sync/sync.mjs",
+      mcp: "Add MCP servers to .agent-layer/config/mcp-servers.json, then run: node .agent-layer/src/sync/sync.mjs",
     },
     divergences: {
       approvals: divergences.approvals,

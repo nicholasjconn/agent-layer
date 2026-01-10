@@ -80,6 +80,19 @@ EOF
   rm -rf "$root"
 }
 
+@test "sync --check passes after sync when outputs are clean" {
+  local root
+  root="$(create_working_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs --check"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
+}
+
 @test "sync fails when policy contains unsafe argv token" {
   local root
   root="$(create_sync_working_root)"
@@ -162,6 +175,24 @@ EOF
   [ "$status" -ne 0 ]
   run rg -n "\\[\"bad\"\\]" "$root/.codex/rules/agent-layer.rules"
   [ "$status" -ne 0 ]
+
+  rm -rf "$root"
+}
+
+@test "sync --check warns and points to divergence report when outputs are stale" {
+  local root
+  root="$(create_working_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  printf '\n# test\n' >> "$root/AGENTS.md"
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs --check"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"WARNING: generated files are out of date."* ]]
+  [[ "$output" == *"divergence"* ]]
+  [[ "$output" == *"inspect.mjs"* ]]
 
   rm -rf "$root"
 }
@@ -255,6 +286,22 @@ EOF
   [ "$status" -eq 0 ]
 
   rm -rf "$root" "$external"
+}
+
+@test "inspect ignores Codex env var comments" {
+  local root
+  root="$(create_working_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run bash -c "cd \"$root\" && node .agent-layer/sync/inspect.mjs > \"$root/out.json\""
+  [ "$status" -eq 0 ]
+
+  run node -e "const data=require(process.argv[1]); if (data.summary.approvals !== 0 || data.summary.mcp !== 0) process.exit(1);" "$root/out.json"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
 }
 
 @test "inspect handles Codex config with empty args" {

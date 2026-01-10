@@ -185,10 +185,18 @@ function mergeCodexConfig(existingContent, generatedContent, options = {}) {
         : generated.header;
   const out = header.slice();
   for (const lines of mergedSections.values()) {
-    if (out.length && out[out.length - 1] !== "") out.push("");
+    const lastLine = out[out.length - 1];
+    const nextHeader = lines.find((line) => line.trim() !== "");
+    const skipSpacer =
+      typeof lastLine === "string" &&
+      lastLine.trim().startsWith("#") &&
+      typeof nextHeader === "string" &&
+      nextHeader.trim().startsWith("[mcp_servers.");
+    if (out.length && lastLine !== "" && !skipSpacer) out.push("");
     out.push(...lines);
   }
 
+  while (out.length && out[out.length - 1] === "") out.pop();
   return out.join("\n") + "\n";
 }
 
@@ -274,7 +282,7 @@ async function promptDivergenceAction(divergence, workingRoot) {
   console.warn(formatDivergenceDetails(divergence, workingRoot));
   console.warn("");
   console.warn(
-    "Run: node .agent-layer/sync/inspect.mjs (JSON report) to update Agent Layer sources.",
+    "Run: node .agent-layer/sync/inspect.mjs (JSON report) to see what differs, then update .agent-layer sources.",
   );
   console.warn("");
 

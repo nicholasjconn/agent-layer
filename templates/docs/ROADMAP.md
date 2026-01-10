@@ -10,6 +10,13 @@ Update rules:
   - Replace the phase content with a single bullet list summarizing what was accomplished (no checkbox list).
 - There is no separate "current" or "upcoming" section. The phase list itself shows what is done vs not done.
 
+
+Phase template (completed):
+## Phase N ✅ — <phase name>
+- <Accomplishment summary bullet>
+- <Accomplishment summary bullet>
+
+
 Phase template (incomplete):
 ## Phase N — <phase name>
 
@@ -24,10 +31,6 @@ Phase template (incomplete):
 - <Objective condition that must be true to call the phase complete.>
 - <Prefer testable statements: “X exists”, “Y passes”, “Z is documented”.>
 
-Phase template (completed):
-## Phase N ✅ — <phase name>
-- <Accomplishment summary bullet>
-- <Accomplishment summary bullet>
 
 ## Phases
 <!-- PHASES START -->

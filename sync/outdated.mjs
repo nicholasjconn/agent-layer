@@ -73,8 +73,16 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
     }
   }
 
-  console.error("agent-layer sync: generated files are out of date.");
+  console.error("agent-layer sync: WARNING: generated files are out of date.");
   if (extraMessage) console.error(extraMessage);
+  console.error("");
+  console.error("What this means:");
+  console.error(
+    "  - One or more generated files differ from the source-of-truth in .agent-layer.",
+  );
+  console.error(
+    "  - This can happen after edits to .agent-layer sources or when client configs diverge.",
+  );
   console.error("");
   console.error("Do NOT edit generated files directly.");
   console.error("");
@@ -111,9 +119,16 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
     console.error("");
   }
 
-  console.error("Fix:");
-  console.error("  1) Edit the source-of-truth file(s) listed above");
-  console.error(`  2) Run: ${REGEN_COMMAND}`);
+  console.error("Next steps:");
+  console.error(`  1) Run: ${REGEN_COMMAND}`);
+  console.error(`  2) Re-run: ${REGEN_COMMAND} --check`);
+  console.error("");
+  console.error("If step 2 still fails, check for divergence:");
+  console.error("  3) Run: node .agent-layer/sync/inspect.mjs");
+  console.error("  4) Update the .agent-layer sources listed above, then re-run sync");
+  console.error(
+    "     Or re-run sync with --overwrite to discard client-only entries.",
+  );
   console.error("");
   console.error(
     "If you accidentally edited a generated file, revert it (example):",

@@ -133,7 +133,24 @@ Examples:
 ./al codex
 ```
 
-4) **Edit sources of truth**
+4) **Launch VS Code for Codex (if you use the Codex extension)**
+
+The Codex VS Code extension only works when VS Code is launched with `CODEX_HOME` pointing at the repo-local `.codex/`. If you launch VS Code normally, it will not see the Codex artifacts.
+
+First, install the `code` CLI from VS Code (Command Palette: "Shell Command: Install 'code' command in PATH").
+
+macOS (launch from a terminal with the `code` CLI):
+```bash
+CODEX_HOME="$PWD/.codex" code .
+```
+
+macOS (Finder double-click launcher):
+- Use `.agent-layer/open-vscode.command` to launch VS Code for this repo.
+- `.agent-layer` is hidden in Finder; use Command+Shift+. to show hidden files.
+- On success, the launcher closes its Terminal window; set `OPEN_VSCODE_NO_CLOSE=1` if you run it from a terminal and want it to stay open.
+- If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
+
+5) **Edit sources of truth**
 - Unified instructions: `instructions/*.md`
 - Workflows: `workflows/*.md`
 - MCP server catalog: `mcp/servers.json`
@@ -141,7 +158,7 @@ Examples:
 
 Note: allowlist outputs are authoritative for shell command approvals. Sync replaces managed allowlist entries; non-managed allow entries are preserved by default for Gemini/Claude/VS Code. Use `node sync/sync.mjs --overwrite` to drop non-managed entries, or `--interactive` to choose at prompt when divergence is detected.
 
-5) **Regenerate after changes (optional if you use `./al`)**
+6) **Regenerate after changes (optional if you use `./al`)**
 
 ```bash
 # ./al runs sync automatically; use this only if you want to regenerate without launching a CLI
@@ -258,6 +275,7 @@ If you approve commands or edit MCP settings directly in a client, Agent Layer m
 
 ```
 WARNING: client configs NOT SYNCED due to divergence.
+This means a client config has entries missing from or differing from .agent-layer sources.
 Run: node .agent-layer/sync/inspect.mjs (JSON report)
 ```
 
@@ -271,6 +289,7 @@ If you want Agent Layer to overwrite client configs instead of preserving diverg
 
 Some entries (especially from client/session logs) may be flagged as `parseable: false` and require manual updates.
 Codex approvals are detected by scanning `$CODEX_HOME/sessions/*.jsonl` (best-effort), so keep `CODEX_HOME` repo-local if you want them captured.
+Codex MCP config documents env requirements in comments only, so divergence checks ignore env var differences unless an explicit `env = { ... }` entry is present.
 
 ## Refresh / restart guidance (failure modes)
 
@@ -436,21 +455,16 @@ Each section below answers two questions:
 **Getting the Codex VS Code extension to use repo-local `CODEX_HOME`**
 - The extension reads `CODEX_HOME` from the VS Code/Antigravity process environment at startup (no workspace setting).
 - Set `CODEX_HOME` to the absolute path of this repo's `.codex/`, then fully restart the app.
-
-macOS (recommended; if you have the `code` CLI available):
-```bash
-CODEX_HOME="$PWD/.codex" code .
-```
-
-If you launch from Dock/Finder, set the GUI env once per login:
-```bash
-launchctl setenv CODEX_HOME "/absolute/path/to/repo/.codex"
-# restart VS Code/Antigravity (log out/in to clear)
-```
+- See Quickstart step 4 for the recommended launcher commands.
 
 Optional wrapper (handy if you work across multiple repos):
 - Create a small script that exports `CODEX_HOME` and launches VS Code/Antigravity.
 - If your build supports `chatgpt.cliExecutable`, point it at a wrapper that sets `CODEX_HOME` before invoking `codex`.
+
+Quick verification inside VS Code:
+```bash
+echo "$CODEX_HOME"
+```
 
 **Confirm workflow “commands” (Codex Skills)**
 - Skills are generated into the working repo root: `.codex/skills/*/SKILL.md`

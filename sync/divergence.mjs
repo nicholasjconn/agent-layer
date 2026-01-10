@@ -606,14 +606,18 @@ export function collectMcpDivergences(workingRoot, catalog) {
       const expected = catalogMap.get(name);
       const parsedSection = parseCodexServerSection(lines);
       if ("server" in parsedSection) {
+        const expectedEnvVars = expected?.envVars ?? [];
+        const envMatches =
+          !parsedSection.server.envVarsKnown ||
+          equalStringArrays(
+            parsedSection.server.envVars.slice().sort(),
+            expectedEnvVars.slice().sort(),
+          );
         const shouldInclude =
           !expected ||
           parsedSection.server.command !== expected.command ||
           !equalStringArrays(parsedSection.server.args, expected.args) ||
-          !equalStringArrays(
-            parsedSection.server.envVars.slice().sort(),
-            expected.envVars.slice().sort(),
-          );
+          !envMatches;
         if (shouldInclude) {
           items.push({
             kind: "mcp",
@@ -674,10 +678,11 @@ export function formatDivergenceWarning(result) {
   return [
     "agent-layer sync: WARNING: client configs NOT SYNCED due to divergence.",
     `Detected divergent approvals/MCP servers${detail}.`,
+    "This means a client config has entries missing from or differing from .agent-layer sources.",
     "Run: node .agent-layer/sync/inspect.mjs (JSON report)",
     "Then either:",
-    "  - Update Agent Layer sources and re-run sync",
-    "  - Or re-run with: node .agent-layer/sync/sync.mjs --overwrite",
+    "  - Add them to .agent-layer/policy/commands.json or .agent-layer/mcp/servers.json, then re-run sync",
+    "  - Or re-run with: node .agent-layer/sync/sync.mjs --overwrite (discard client-only entries)",
     "  - Or re-run with: node .agent-layer/sync/sync.mjs --interactive",
   ].join("\n");
 }

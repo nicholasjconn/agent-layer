@@ -98,6 +98,7 @@ require_cmd() {
 
 require_cmd git "Install git (dev-only)."
 require_cmd node "Install Node.js (dev-only)."
+require_cmd rg "Install ripgrep (macOS: brew install ripgrep; Ubuntu: apt-get install ripgrep)."
 require_cmd shfmt "Install shfmt (macOS: brew install shfmt; Ubuntu: apt-get install shfmt)."
 require_cmd shellcheck "Install shellcheck (macOS: brew install shellcheck; Ubuntu: apt-get install shellcheck)."
 

@@ -57,6 +57,7 @@ has_cmd git || missing+=("git")
 has_cmd node || missing+=("node")
 has_cmd npm || missing+=("npm")
 has_cmd bats || missing+=("bats")
+has_cmd rg || missing+=("rg")
 has_cmd shfmt || missing+=("shfmt")
 has_cmd shellcheck || missing+=("shellcheck")
 
@@ -70,6 +71,7 @@ say "Dev bootstrap will ensure these dependencies are installed:"
 say "  - git"
 say "  - node + npm"
 say "  - bats"
+say "  - ripgrep (rg)"
 say "  - shfmt"
 say "  - shellcheck"
 say "  - npm install (Prettier in .agent-layer)"
@@ -137,6 +139,13 @@ if [[ "$missing_joined" == *" bats "* ]]; then
     packages+=("bats-core")
   elif [[ "$pkg_manager" == "apt-get" ]]; then
     packages+=("bats")
+  fi
+fi
+if [[ "$missing_joined" == *" rg "* ]]; then
+  if [[ "$pkg_manager" == "brew" ]]; then
+    packages+=("ripgrep")
+  elif [[ "$pkg_manager" == "apt-get" ]]; then
+    packages+=("ripgrep")
   fi
 fi
 if [[ "$missing_joined" == *" shfmt "* ]]; then

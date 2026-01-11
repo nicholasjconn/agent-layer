@@ -25,9 +25,10 @@ if [[ ! -f "$RUNNER" ]]; then
   # Use the repo-root runner when the local path is missing.
   RUNNER="$SCRIPT_DIR/.agent-layer/run.sh"
 fi
+RUNNER_DIR="$(cd "$(dirname "$RUNNER")" && pwd)"
 
 # Optional update check. Comment this out to skip update checks.
-"$SCRIPT_DIR/check-updates.sh" || true
+"$RUNNER_DIR/check-updates.sh" || true
 
 # Options (choose one). Keep exactly one "exec" line uncommented.
 #

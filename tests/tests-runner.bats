@@ -8,7 +8,7 @@ load "helpers.bash"
 write_stub_tools() {
   local bin="$1"
   mkdir -p "$bin"
-  for cmd in git node shfmt shellcheck bats prettier; do
+  for cmd in git node rg shfmt shellcheck bats prettier; do
     cat >"$bin/$cmd" <<'EOF'
 #!/usr/bin/env bash
 exit 0

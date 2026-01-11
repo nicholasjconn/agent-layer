@@ -545,6 +545,7 @@ echo "$CODEX_HOME"
 ### Testing
 Dev-only prerequisites (not required to use the tool):
 - `bats` (macOS: `brew install bats-core`; Ubuntu: `apt-get install bats`)
+- `rg` (macOS: `brew install ripgrep`; Ubuntu: `apt-get install ripgrep`)
 - `shfmt` (macOS: `brew install shfmt`; Ubuntu: `apt-get install shfmt`)
 - `shellcheck` (macOS: `brew install shellcheck`; Ubuntu: `apt-get install shellcheck`)
 - `npm install` (installs Prettier for JS formatting)

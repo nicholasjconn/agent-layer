@@ -2,30 +2,25 @@
 set -euo pipefail
 
 # Ensure generated agent-layer files are up to date before commit.
+# Resolve entrypoint helpers so the hook runs from any working directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATHS_SH="$SCRIPT_DIR/../lib/paths.sh"
-if [[ ! -f "$PATHS_SH" ]]; then
-  PATHS_SH="$SCRIPT_DIR/lib/paths.sh"
+ENTRYPOINT_SH="$SCRIPT_DIR/../src/lib/entrypoint.sh"
+if [[ ! -f "$ENTRYPOINT_SH" ]]; then
+  ENTRYPOINT_SH="$SCRIPT_DIR/src/lib/entrypoint.sh"
 fi
-if [[ ! -f "$PATHS_SH" ]]; then
-  echo "ERROR: Missing lib/paths.sh (expected near .agent-layer/)." >&2
+if [[ ! -f "$ENTRYPOINT_SH" ]]; then
+  echo "ERROR: Missing src/lib/entrypoint.sh (expected near .agent-layer/)." >&2
   exit 2
 fi
 # shellcheck disable=SC1090
-source "$PATHS_SH"
+source "$ENTRYPOINT_SH"
+resolve_entrypoint_root || exit $?
 
-WORKING_ROOT="$(resolve_working_root "$SCRIPT_DIR" "$PWD" || true)"
-
-if [[ -z "$WORKING_ROOT" ]]; then
-  echo "ERROR: Missing .agent-layer/ directory in this path or any parent." >&2
-  exit 2
-fi
-
-AGENTLAYER_ROOT="$WORKING_ROOT/.agent-layer"
-
+# Require the test runner script before executing it.
 if [[ ! -x "$AGENTLAYER_ROOT/tests/run.sh" ]]; then
   echo "ERROR: Missing .agent-layer/tests/run.sh." >&2
   exit 2
 fi
 
+# Run the dev checks and test suite.
 "$AGENTLAYER_ROOT/tests/run.sh"

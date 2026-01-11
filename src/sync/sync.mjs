@@ -297,6 +297,7 @@ function mergeCodexConfig(existingContent, generatedContent, options = {}) {
  * @returns {void}
  */
 async function main() {
+  // Parse arguments and resolve the working repo root.
   let args = parseArgs(process.argv);
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const workingRoot = resolveWorkingRoot(process.cwd(), scriptDir);
@@ -306,20 +307,24 @@ async function main() {
     );
     process.exit(2);
   }
+  // Enforce CODEX_HOME when sync runs for Codex.
   if (args.codex) {
     enforceCodexHome(workingRoot, process.env.CODEX_HOME);
   }
 
+  // Resolve config source directories relative to the repo root.
   const agentlayerRoot = path.join(workingRoot, ".agent-layer");
   const instructionsDir = path.join(agentlayerRoot, "config", "instructions");
   const workflowsDir = path.join(agentlayerRoot, "config", "workflows");
 
+  // Load policy and build per-client allowlists.
   const policy = loadCommandPolicy(agentlayerRoot);
   const prefixes = commandPrefixes(policy);
   const geminiAllowed = buildGeminiAllowed(prefixes);
   const claudeAllowed = buildClaudeAllow(prefixes);
   const vscodeAutoApprove = buildVscodeAutoApprove(prefixes);
 
+  // Load MCP catalog and handle any divergence warnings or prompts.
   const catalog = loadServerCatalog(agentlayerRoot);
   const divergence = collectDivergences(workingRoot, policy, catalog);
   const hasDivergence = divergence.approvals.length || divergence.mcp.length;
@@ -351,10 +356,12 @@ async function main() {
     );
   }
 
+  // Build the unified instructions output shared across clients.
   const unified =
     banner(".agent-layer/config/instructions/*.md", REGEN_COMMAND) +
     concatInstructions(instructionsDir);
 
+  // Seed the outputs list with instruction shims.
   const outputs = [
     [path.join(workingRoot, "AGENTS.md"), unified],
     [path.join(workingRoot, ".codex", "AGENTS.md"), unified],
@@ -363,6 +370,7 @@ async function main() {
     [path.join(workingRoot, ".github", "copilot-instructions.md"), unified],
   ];
 
+  // Build MCP configs and merge with existing client settings.
   const mcpConfigs = buildMcpConfigs(catalog);
   const trustedServers = trustedServerNames(catalog);
   const claudeMcpAllowed = trustedServers.map((name) => `mcp__${name}__*`);
@@ -396,12 +404,14 @@ async function main() {
     overwrite: args.overwrite,
   });
 
+  // Add MCP config outputs for VS Code, Claude, and Codex.
   outputs.push(
     [vscodeMcpPath, JSON.stringify(vscodeMcpMerged, null, 2) + "\n"],
     [claudeMcpPath, JSON.stringify(claudeMcpMerged, null, 2) + "\n"],
     [codexConfigPath, codexMerged],
   );
 
+  // Merge Gemini settings, preserving non-managed entries.
   const geminiSettingsPath = path.join(workingRoot, ".gemini", "settings.json");
   const geminiExisting = readJsonRelaxed(geminiSettingsPath, {});
   const geminiMerged = mergeGeminiSettings(
@@ -416,6 +426,7 @@ async function main() {
     JSON.stringify(geminiMerged, null, 2) + "\n",
   ]);
 
+  // Merge Claude settings, preserving non-managed entries.
   const claudeSettingsPath = path.join(workingRoot, ".claude", "settings.json");
   const claudeExisting = readJsonRelaxed(claudeSettingsPath, {});
   const claudeMerged = mergeClaudeSettings(
@@ -429,6 +440,7 @@ async function main() {
     JSON.stringify(claudeMerged, null, 2) + "\n",
   ]);
 
+  // Merge VS Code settings, preserving non-managed entries.
   const vscodeSettingsPath = path.join(workingRoot, ".vscode", "settings.json");
   const vscodeExisting = readJsonRelaxed(vscodeSettingsPath, {});
   const vscodeMerged = mergeVscodeSettings(
@@ -442,6 +454,7 @@ async function main() {
     JSON.stringify(vscodeMerged, null, 2) + "\n",
   ]);
 
+  // Render and merge Codex rules for command policy enforcement.
   const codexRulesPath = path.join(
     workingRoot,
     ".codex",
@@ -459,9 +472,11 @@ async function main() {
     : codexRulesGenerated;
   outputs.push([codexRulesPath, codexRulesMerged]);
 
+  // Write or diff outputs and regenerate Codex skills.
   diffOrWrite(outputs, args, workingRoot);
   generateCodexSkills(workingRoot, workflowsDir, args);
 
+  // Emit a success summary unless running in --check mode.
   if (!args.check) {
     console.log(
       "agent-layer sync: updated shims + MCP configs + allowlists + Codex skills",

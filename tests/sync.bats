@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for the sync generator and inspection tooling.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: sync generates Codex config and instructions
 @test "sync generates Codex config and instructions" {
   local root
   root="$(create_working_root)"
@@ -17,6 +20,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: sync emits YAML-folded descriptions for Codex skills
 @test "sync emits YAML-folded descriptions for Codex skills" {
   local root skill
   root="$(create_working_root)"
@@ -34,6 +38,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: sync handles workflow frontmatter with UTF-8 BOM
 @test "sync handles workflow frontmatter with UTF-8 BOM" {
   local root workflow_file
   root="$(create_sync_working_root)"
@@ -57,6 +62,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync defaults VS Code MCP envFile to .agent-layer/.env
 @test "sync defaults VS Code MCP envFile to .agent-layer/.env" {
   local root
   root="$(create_sync_working_root)"
@@ -71,6 +77,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync ignores MCP server key order differences
 @test "sync ignores MCP server key order differences" {
   local root baseline
   root="$(create_working_root)"
@@ -113,6 +120,7 @@ fs.writeFileSync(file, JSON.stringify(reordered, null, 2) + "\n");
   rm -rf "$root"
 }
 
+# Test: sync overwrites command allowlists from policy
 @test "sync overwrites command allowlists from policy" {
   local root
   root="$(create_working_root)"
@@ -176,6 +184,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync --check passes after sync when outputs are clean
 @test "sync --check passes after sync when outputs are clean" {
   local root
   root="$(create_working_root)"
@@ -189,6 +198,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync rejects --overwrite with --interactive
 @test "sync rejects --overwrite with --interactive" {
   local root
   root="$(create_sync_working_root)"
@@ -200,6 +210,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync rejects --check with --interactive
 @test "sync rejects --check with --interactive" {
   local root
   root="$(create_sync_working_root)"
@@ -211,6 +222,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync --codex fails when CODEX_HOME points outside repo
 @test "sync --codex fails when CODEX_HOME points outside repo" {
   local root external
   root="$(create_working_root)"
@@ -223,6 +235,7 @@ EOF
   rm -rf "$root" "$external"
 }
 
+# Test: sync --interactive fails without a TTY
 @test "sync --interactive fails without a TTY" {
   local root
   root="$(create_working_root)"
@@ -241,6 +254,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when policy contains unsafe argv token
 @test "sync fails when policy contains unsafe argv token" {
   local root
   root="$(create_sync_working_root)"
@@ -261,6 +275,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync --overwrite removes divergent allowlists and mcp entries
 @test "sync --overwrite removes divergent allowlists and mcp entries" {
   local root
   root="$(create_working_root)"
@@ -327,6 +342,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync --check warns and points to divergence report when outputs are stale
 @test "sync --check warns and points to divergence report when outputs are stale" {
   local root
   root="$(create_working_root)"
@@ -345,6 +361,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when instructions directory is missing
 @test "sync fails when instructions directory is missing" {
   local root
   root="$(create_sync_working_root)"
@@ -358,6 +375,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when instructions directory has no markdown files
 @test "sync fails when instructions directory has no markdown files" {
   local root
   root="$(create_sync_working_root)"
@@ -371,6 +389,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when workflows directory is missing
 @test "sync fails when workflows directory is missing" {
   local root
   root="$(create_sync_working_root)"
@@ -384,6 +403,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when workflows directory has no markdown files
 @test "sync fails when workflows directory has no markdown files" {
   local root
   root="$(create_sync_working_root)"
@@ -397,6 +417,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when MCP server catalog is missing
 @test "sync fails when MCP server catalog is missing" {
   local root
   root="$(create_sync_working_root)"
@@ -410,6 +431,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when MCP defaults include geminiTrust
 @test "sync fails when MCP defaults include geminiTrust" {
   local root
   root="$(create_sync_working_root)"
@@ -436,6 +458,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when an MCP server includes geminiTrust
 @test "sync fails when an MCP server includes geminiTrust" {
   local root
   root="$(create_sync_working_root)"
@@ -460,6 +483,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: inspect ignores Codex env var comments
 @test "inspect ignores Codex env var comments" {
   local root
   root="$(create_working_root)"
@@ -476,6 +500,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: inspect warns when extra Codex rules files exist
 @test "inspect warns when extra Codex rules files exist" {
   local root
   root="$(create_working_root)"
@@ -497,6 +522,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: inspect handles Codex config with empty args
 @test "inspect handles Codex config with empty args" {
   local root
   root="$(create_sync_working_root)"

@@ -4,10 +4,16 @@ import { fileURLToPath } from "node:url";
 import {
   InitializeRequestSchema,
   InitializedNotificationSchema,
+  GetPromptRequestSchema,
   ListPromptsRequestSchema,
   ListToolsRequestSchema,
   LATEST_PROTOCOL_VERSION,
 } from "@modelcontextprotocol/sdk/types.js";
+
+/**
+ * Test harness for the MCP prompt server.
+ * Exercises basic list operations via JSON-RPC.
+ */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AGENTLAYER_ROOT = path.resolve(HERE, "..");
@@ -77,6 +83,7 @@ function createTransport() {
  */
 async function run() {
   const child = createTransport();
+  // Track in-flight requests and collect stdout/stderr for assertions.
   const pending = new Map();
   let buffer = "";
   let stderr = "";
@@ -120,6 +127,7 @@ async function run() {
     stderr += chunk.toString("utf8");
   });
 
+  // Parse line-delimited JSON-RPC responses from stdout.
   child.stdout.on("data", (chunk) => {
     buffer += chunk.toString("utf8");
     let idx;
@@ -160,6 +168,7 @@ async function run() {
     child.stdin.write(`${JSON.stringify(msg)}\n`);
   };
 
+  // Initialize the MCP server handshake.
   const initializeId = 1;
   sendMessage({
     jsonrpc: "2.0",
@@ -181,6 +190,7 @@ async function run() {
     method: getMethod(InitializedNotificationSchema),
   });
 
+  // Request the list of prompts and validate the response.
   const promptsId = 2;
   sendMessage({
     jsonrpc: "2.0",
@@ -193,7 +203,26 @@ async function run() {
     fail(new Error("Prompts list response missing prompts array."));
   }
 
-  const toolsId = 3;
+  // Verify unknown prompt handling returns a helpful response.
+  const unknownName = "unknown-workflow-test";
+  const unknownId = 3;
+  sendMessage({
+    jsonrpc: "2.0",
+    id: unknownId,
+    method: getMethod(GetPromptRequestSchema),
+    params: { name: unknownName },
+  });
+  const unknownResponse = await waitForResponse(unknownId).catch(fail);
+  if (unknownResponse?.result?.description !== "Unknown workflow") {
+    fail(new Error("Unknown workflow response missing description."));
+  }
+  const unknownMessage = unknownResponse?.result?.messages?.[0]?.content?.text;
+  if (unknownMessage !== `Unknown workflow: ${unknownName}`) {
+    fail(new Error("Unknown workflow response missing expected message."));
+  }
+
+  // Request the list of tools and validate the response.
+  const toolsId = 4;
   sendMessage({
     jsonrpc: "2.0",
     id: toolsId,

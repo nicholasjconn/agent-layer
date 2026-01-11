@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
+# Working root discovery for agent-layer scripts.
+# Finds the nearest ancestor directory that contains .agent-layer/.
+
 find_working_root() {
+  # Search up to 50 ancestors for .agent-layer and return the first match.
   local dir
   dir="$(cd "$1" && pwd)"
   for _ in {1..50}; do
@@ -19,6 +23,7 @@ find_working_root() {
 }
 
 resolve_working_root() {
+  # Resolve the working root from a list of start directories.
   local start
   for start in "$@"; do
     if [[ -z "$start" ]]; then

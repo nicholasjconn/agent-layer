@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Shared entrypoint resolution for agent-layer shell scripts.
+# Call resolve_entrypoint_root to populate WORKING_ROOT and AGENTLAYER_ROOT.
+
 resolve_entrypoint_root() {
+  # Resolve the caller's directory and locate the nearest .agent-layer root.
+  # On success, exports WORKING_ROOT and AGENTLAYER_ROOT; returns 0 on success, 2 on failure.
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
   local paths_sh

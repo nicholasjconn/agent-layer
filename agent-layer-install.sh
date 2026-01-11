@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Agent Layer installer/upgrader.
+# Run this from the working repo root (the parent of .agent-layer/).
+
 say() { printf "%s\n" "$*"; }
 die() {
   printf "ERROR: %s\n" "$*" >&2
@@ -22,6 +25,7 @@ Options:
 EOF
 }
 
+# Default option values and repo URL configuration.
 FORCE="0"
 UPGRADE="0"
 LATEST_BRANCH=""
@@ -33,6 +37,7 @@ if [[ -n "${AGENTLAYER_REPO_URL:-}" ]]; then
   REPO_URL_OVERRIDE="1"
 fi
 
+# Parse CLI flags and reject unknown options.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force | -f)
@@ -72,6 +77,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# Validate incompatible or missing flag combinations.
 if [[ "$UPGRADE" == "1" && -n "$LATEST_BRANCH" ]]; then
   die "Choose only one: --upgrade or --latest-branch <branch>"
 fi
@@ -79,13 +85,16 @@ if [[ "$LATEST_BRANCH_SET" == "1" && -z "$LATEST_BRANCH" ]]; then
   die "--latest-branch requires a value"
 fi
 
+# Require git up front because install/upgrade uses it heavily.
 command -v git > /dev/null 2>&1 || die "git is required (not found)."
 
+# Confirm we are running from the repo root (not inside .agent-layer).
 WORKING_ROOT="$(pwd -P)"
 if [[ "$(basename "$WORKING_ROOT")" == ".agent-layer" ]]; then
   die "Run this from the working repo root (parent of .agent-layer/), not inside .agent-layer/."
 fi
 
+# Enforce or warn about git repo state to support hooks.
 if git rev-parse --show-toplevel > /dev/null 2>&1; then
   GIT_ROOT="$(git rev-parse --show-toplevel)"
   if [[ "$GIT_ROOT" != "$WORKING_ROOT" ]]; then
@@ -110,6 +119,7 @@ fi
 
 AGENTLAYER_DIR="$WORKING_ROOT/.agent-layer"
 
+# Resolve the fetch target for upgrades (explicit URL or origin remote).
 resolve_fetch_target() {
   if [[ "$REPO_URL_OVERRIDE" == "1" ]]; then
     printf "%s" "$REPO_URL"
@@ -122,6 +132,7 @@ resolve_fetch_target() {
   die "No origin remote found. Use --repo-url <url> or set AGENTLAYER_REPO_URL."
 }
 
+# Upgrade .agent-layer to the latest local tag.
 upgrade_agent_layer() {
   local fetch_target latest_tag current_commit current_tag changes
 
@@ -162,6 +173,7 @@ upgrade_agent_layer() {
   say "==> Note: .agent-layer is now on a detached HEAD at $latest_tag."
 }
 
+# Update .agent-layer to the latest commit on a specific branch.
 latest_branch_agent_layer() {
   local branch="$1"
   local fetch_target current_commit latest_commit changes
@@ -199,6 +211,7 @@ latest_branch_agent_layer() {
   say "==> To update again, re-run the installer with: --latest-branch $branch"
 }
 
+# Ensure .agent-layer exists, then apply the requested upgrade behavior.
 if [[ ! -e "$AGENTLAYER_DIR" ]]; then
   [[ -n "$REPO_URL" ]] || die "Missing repo URL (set AGENTLAYER_REPO_URL or use --repo-url)."
   say "==> Cloning agent-layer into .agent-layer/"
@@ -226,6 +239,7 @@ else
   fi
 fi
 
+# Ensure .agent-layer/.env exists (copy from .env.example if needed).
 if [[ ! -f "$AGENTLAYER_DIR/.env" ]]; then
   if [[ -f "$AGENTLAYER_DIR/.env.example" ]]; then
     cp "$AGENTLAYER_DIR/.env.example" "$AGENTLAYER_DIR/.env"
@@ -239,6 +253,8 @@ fi
 
 DOCS_DIR="$WORKING_ROOT/docs"
 TEMPLATES_DIR="$AGENTLAYER_DIR/config/templates/docs"
+
+# Create or refresh project memory files using provided templates.
 ensure_memory_file() {
   local file_path="$1"
   local template_path="$2"
@@ -280,17 +296,23 @@ ensure_memory_file "$DOCS_DIR/ROADMAP.md" "$TEMPLATES_DIR/ROADMAP.md"
 ensure_memory_file "$DOCS_DIR/DECISIONS.md" "$TEMPLATES_DIR/DECISIONS.md"
 
 AL_PATH="$WORKING_ROOT/al"
+
+# Write the repo-local launcher script (overwrites if requested).
 write_launcher() {
   cat > "$AL_PATH" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Repo-local launcher.
+# This script delegates to the managed Agent Layer entrypoint in .agent-layer/.
+# If you prefer, replace this file with a symlink to .agent-layer/al.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 exec "$SCRIPT_DIR/.agent-layer/al" "$@"
 EOF
   chmod +x "$AL_PATH"
 }
 
+# Create or preserve ./al based on --force.
 if [[ -e "$AL_PATH" ]]; then
   if [[ "$FORCE" == "1" ]]; then
     say "==> Overwriting ./al"
@@ -328,6 +350,7 @@ GEMINI.md
 EOF
 )"
 
+# Ensure the agent-layer gitignore block exists exactly once.
 update_gitignore() {
   local tmp last_char last_line found inblock line
   tmp="$(mktemp)" || die "Failed to create temp file."
@@ -355,6 +378,7 @@ update_gitignore() {
     : > "$tmp"
   fi
 
+  # Append the block if it was not found in the existing file.
   if [[ "$found" == "0" ]]; then
     if [[ -s "$tmp" ]]; then
       last_char="$(tail -c 1 "$tmp" || true)"
@@ -375,6 +399,7 @@ update_gitignore() {
 say "==> Updating .gitignore (agent-layer block)"
 update_gitignore
 
+# Run setup to generate configs and install MCP prompt server dependencies.
 if [[ -f "$AGENTLAYER_DIR/setup.sh" ]]; then
   say "==> Running setup"
   bash "$AGENTLAYER_DIR/setup.sh"
@@ -382,6 +407,7 @@ else
   die "Missing .agent-layer/setup.sh"
 fi
 
+# Print next steps for running the configured tools.
 say ""
 say "After completing the required manual steps above, run one of:"
 say "  ./al gemini"

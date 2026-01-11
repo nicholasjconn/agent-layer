@@ -12,6 +12,10 @@ import { resolveWorkingRoot } from "./paths.mjs";
 import { fileExists } from "./utils.mjs";
 
 /**
+ * CLI: emit a JSON report of divergence between generated outputs and sources.
+ */
+
+/**
  * Write JSON output and exit.
  * @param {unknown} payload
  * @param {number} code
@@ -34,6 +38,7 @@ function outputError(message, code = 2) {
  * Entrypoint.
  */
 function main() {
+  // Resolve the working root and validate the .agent-layer directory.
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const workingRoot = resolveWorkingRoot(process.cwd(), scriptDir);
   if (!workingRoot || !fileExists(path.join(workingRoot, ".agent-layer"))) {
@@ -42,6 +47,7 @@ function main() {
     );
   }
 
+  // Load source configs and collect divergence details.
   const agentlayerRoot = path.join(workingRoot, ".agent-layer");
   const policy = loadCommandPolicy(agentlayerRoot);
   const catalog = loadServerCatalog(agentlayerRoot);
@@ -53,6 +59,7 @@ function main() {
     notes: [...approvals.notes, ...mcp.notes],
   };
 
+  // Emit a structured JSON report for downstream tooling.
   output({
     ok: true,
     generatedAt: new Date().toISOString(),

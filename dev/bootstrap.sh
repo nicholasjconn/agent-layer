@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Developer bootstrap: install deps, run setup, and enable git hooks.
+
 say() { printf "%s\n" "$*"; }
 die() {
   printf "ERROR: %s\n" "$*" >&2
   exit 1
 }
 
+# Resolve the entrypoint helper so we can locate the repo root reliably.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
 if [[ ! -f "$ENTRYPOINT_SH" ]]; then
@@ -22,8 +25,33 @@ fi
 source "$ENTRYPOINT_SH"
 resolve_entrypoint_root || exit $?
 
+# Lightweight command-existence check for dependency discovery.
 has_cmd() { command -v "$1" > /dev/null 2>&1; }
 
+# Parse CLI flags and reject unknown options.
+ASSUME_YES="0"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes | -y)
+      ASSUME_YES="1"
+      ;;
+    --help | -h)
+      say "Usage: ./.agent-layer/dev/bootstrap.sh [--yes]"
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+# Allow non-interactive runs via environment override.
+if [[ "${AGENTLAYER_BOOTSTRAP_ASSUME_YES:-}" == "1" ]]; then
+  ASSUME_YES="1"
+fi
+
+# Detect missing system dependencies needed for dev workflows.
 missing=()
 has_cmd git || missing+=("git")
 has_cmd node || missing+=("node")
@@ -37,6 +65,7 @@ if [[ -x "$AGENTLAYER_ROOT/node_modules/.bin/prettier" ]]; then
   prettier_installed="1"
 fi
 
+# Report what will be installed or skipped.
 say "Dev bootstrap will ensure these dependencies are installed:"
 say "  - git"
 say "  - node + npm"
@@ -61,23 +90,28 @@ else
   say ""
 fi
 
-if [[ ! -t 0 ]]; then
-  die "No TTY available to confirm bootstrap."
-fi
-
+# Confirm before making changes unless --yes was provided.
 say "This will:"
 say "  - install missing system dependencies (if any)"
 say "  - run npm install in .agent-layer (if needed)"
 say "  - enable git hooks for this repo (dev-only)"
 say "  - run setup (sync + MCP deps; no checks)"
-read -r -p "Continue? [y/N] " reply
-case "$reply" in
-  y | Y | yes | YES) ;;
-  *)
-    die "Aborted."
-    ;;
-esac
+if [[ "$ASSUME_YES" == "1" ]]; then
+  say "Proceeding without prompt (--yes)."
+else
+  if [[ ! -t 0 ]]; then
+    die "No TTY available to confirm bootstrap. Use --yes to proceed."
+  fi
+  read -r -p "Continue? [y/N] " reply
+  case "$reply" in
+    y | Y | yes | YES) ;;
+    *)
+      die "Aborted."
+      ;;
+  esac
+fi
 
+# Choose the package manager used for system dependencies.
 pkg_manager=""
 if has_cmd brew; then
   pkg_manager="brew"
@@ -85,6 +119,7 @@ elif has_cmd apt-get; then
   pkg_manager="apt-get"
 fi
 
+# Map missing tools to their package names for the detected manager.
 packages=()
 missing_joined=" ${missing[*]-} "
 if [[ "$missing_joined" == *" git "* ]]; then
@@ -111,6 +146,7 @@ if [[ "$missing_joined" == *" shellcheck "* ]]; then
   packages+=("shellcheck")
 fi
 
+# Install missing system packages, if any.
 if [[ "${#packages[@]}" -gt 0 ]]; then
   if [[ -z "$pkg_manager" ]]; then
     die "No supported package manager found (brew or apt-get). Install manually."
@@ -125,14 +161,17 @@ if [[ "${#packages[@]}" -gt 0 ]]; then
   fi
 fi
 
+# Install Node dev dependencies needed by the formatter.
 if [[ "$prettier_installed" == "0" ]]; then
   say "==> Installing node dev dependencies (Prettier)"
   (cd "$AGENTLAYER_ROOT" && npm install)
 fi
 
+# Run the standard setup script without checks.
 say "==> Running setup (no checks)"
 bash "$AGENTLAYER_ROOT/setup.sh" --skip-checks
 
+# Enable repo-local git hooks if this is a git working tree.
 if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   say "==> Enabling git hooks (core.hooksPath=.agent-layer/.githooks)"
   git config core.hooksPath .agent-layer/.githooks
@@ -146,6 +185,7 @@ else
   say "Skipping hook enable/test (not a git repo)."
 fi
 
+# Print next steps for the developer.
 say ""
 say "Next steps:"
 say "  - Run tests (includes checks): ./tests/run.sh"

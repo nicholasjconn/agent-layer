@@ -11,6 +11,11 @@ import {
 import { parseFrontMatter } from "../../sync/instructions.mjs";
 import { resolveWorkingRoot } from "../../sync/paths.mjs";
 
+/**
+ * MCP prompt server that exposes workflow markdown as prompt definitions.
+ */
+
+// Resolve the workflow directory relative to the repo root.
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKING_ROOT = resolveWorkingRoot(process.cwd(), HERE);
 const WORKFLOWS_DIR = WORKING_ROOT
@@ -63,6 +68,7 @@ function loadWorkflows() {
   });
 }
 
+// Instantiate the MCP server with prompt/tool capabilities enabled.
 const server = new Server(
   { name: "agent-layer-prompts", version: "0.1.0" },
   { capabilities: { prompts: {}, tools: {} } },
@@ -76,6 +82,7 @@ function listTools() {
   return { tools: [] };
 }
 
+// Register handlers for the MCP prompt/tool request types.
 server.setRequestHandler(ListToolsRequestSchema, async () => listTools());
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
@@ -123,6 +130,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   };
 });
 
+// Validate inputs and start the stdio server.
 async function main() {
   listWorkflowFiles(WORKFLOWS_DIR);
   const transport = new StdioServerTransport();

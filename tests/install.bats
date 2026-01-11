@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for the installer and gitignore updates.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Helper: create a minimal .agent-layer repo for installer tests.
 create_min_agent_layer() {
   local root="$1"
   mkdir -p "$root/.agent-layer/src/sync" "$root/.agent-layer/config/templates/docs"
@@ -17,6 +20,7 @@ EOF
   git -C "$root/.agent-layer" init -q
 }
 
+# Helper: create a source repo to simulate cloning during install.
 create_source_repo() {
   local repo="$1"
   mkdir -p "$repo/src/sync" "$repo/config/templates/docs"
@@ -36,6 +40,7 @@ EOF
   git -C "$repo" commit -m "init" -q
 }
 
+# Test: installer updates an existing agent-layer .gitignore block in place
 @test "installer updates an existing agent-layer .gitignore block in place" {
   local root work stub_bin installer gitignore
   root="$(make_tmp_dir)"
@@ -76,6 +81,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer removes duplicate agent-layer blocks and keeps the first position
 @test "installer removes duplicate agent-layer blocks and keeps the first position" {
   local root work stub_bin installer gitignore
   root="$(make_tmp_dir)"
@@ -122,6 +128,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer appends agent-layer block when missing
 @test "installer appends agent-layer block when missing" {
   local root work stub_bin installer gitignore
   root="$(make_tmp_dir)"
@@ -148,6 +155,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer errors when .agent-layer exists but is not a git repo
 @test "installer errors when .agent-layer exists but is not a git repo" {
   local root work stub_bin installer
   root="$(make_tmp_dir)"
@@ -164,6 +172,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer leaves existing ./al without --force
 @test "installer leaves existing ./al without --force" {
   local root work stub_bin installer
   root="$(make_tmp_dir)"
@@ -182,6 +191,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer overwrites ./al with --force
 @test "installer overwrites ./al with --force" {
   local root work stub_bin installer
   root="$(make_tmp_dir)"
@@ -200,6 +210,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer does not run sync after setup
 @test "installer does not run sync after setup" {
   local root work stub_bin installer
   root="$(make_tmp_dir)"
@@ -217,6 +228,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer fails without git repo when non-interactive
 @test "installer fails without git repo when non-interactive" {
   local root stub_bin installer
   root="$(make_tmp_dir)"
@@ -229,6 +241,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer clones from local repo when .agent-layer is missing
 @test "installer clones from local repo when .agent-layer is missing" {
   local root work src stub_bin installer
   root="$(make_tmp_dir)"
@@ -258,6 +271,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer keeps existing docs without prompt in non-interactive mode
 @test "installer keeps existing docs without prompt in non-interactive mode" {
   local root work stub_bin installer
   root="$(make_tmp_dir)"
@@ -280,6 +294,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer upgrades .agent-layer to the latest tag with --upgrade
 @test "installer upgrades .agent-layer to the latest tag with --upgrade" {
   local root work src stub_bin installer tag
   root="$(make_tmp_dir)"
@@ -308,6 +323,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer updates .agent-layer to the latest branch commit with --latest-branch
 @test "installer updates .agent-layer to the latest branch commit with --latest-branch" {
   local root work src stub_bin installer dev_commit head_ref
   root="$(make_tmp_dir)"
@@ -334,6 +350,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: installer errors when --repo-url is missing a value
 @test "installer errors when --repo-url is missing a value" {
   local root stub_bin installer
   root="$(make_tmp_dir)"

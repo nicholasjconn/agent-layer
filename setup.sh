@@ -16,6 +16,7 @@ die() {
   exit 1
 }
 
+# Parse CLI flags and reject unknown options.
 SKIP_CHECKS="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# Resolve the entrypoint helper to locate the repo root.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
 if [[ ! -f "$ENTRYPOINT_SH" ]]; then
@@ -48,8 +50,10 @@ fi
 source "$ENTRYPOINT_SH"
 resolve_entrypoint_root || exit $?
 
+# Run from the repo root so all relative paths are stable.
 cd "$WORKING_ROOT"
 
+# Validate required agent-layer files and system tools.
 [[ -d "$AGENTLAYER_ROOT" ]] || die "Missing .agent-layer/ directory. Run the bootstrap script in the repo root first."
 [[ -f "$AGENTLAYER_ROOT/src/sync/sync.mjs" ]] || die "Missing .agent-layer/src/sync/sync.mjs. Re-run bootstrap or restore it."
 
@@ -65,9 +69,11 @@ else
   IN_GIT_REPO="1"
 fi
 
+# Generate all agent-layer outputs from config sources.
 say "==> Running agent-layer sync"
 node "$AGENTLAYER_ROOT/src/sync/sync.mjs"
 
+# Install MCP prompt server dependencies used by the runtime.
 say "==> Installing MCP prompt server dependencies"
 if [[ -f "$AGENTLAYER_ROOT/src/mcp/agent-layer-prompts/package.json" ]]; then
   pushd "$AGENTLAYER_ROOT/src/mcp/agent-layer-prompts" > /dev/null
@@ -77,12 +83,14 @@ else
   die "Missing .agent-layer/src/mcp/agent-layer-prompts/package.json"
 fi
 
+# Explain hook behavior based on repo state (hook enable is dev-only).
 if [[ "$IN_GIT_REPO" == "1" ]]; then
   say "Skipping hook enable/test (dev-only; run .agent-layer/dev/bootstrap.sh)."
 else
   say "Skipping hook enable/test (not a git repo)."
 fi
 
+# Optionally verify that sync outputs are clean.
 if [[ "$SKIP_CHECKS" == "1" ]]; then
   say "==> Skipping sync check (--skip-checks)"
 else
@@ -90,6 +98,7 @@ else
   node "$AGENTLAYER_ROOT/src/sync/sync.mjs" --check
 fi
 
+# Provide manual configuration steps for first-time setup.
 say ""
 say "Setup complete (manual steps below are required)."
 say ""

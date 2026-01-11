@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for the repo-local launcher behavior in ./al.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: al uses its script dir when PWD points at another working repo
 @test "al uses its script dir when PWD points at another working repo" {
   local root_a root_b stub_bin output
   root_a="$(create_working_root)"
@@ -18,6 +21,7 @@ load "helpers.bash"
   rm -rf "$root_a" "$root_b"
 }
 
+# Test: al prefers .agent-layer paths when a root src/lib/paths.sh exists
 @test "al prefers .agent-layer paths when a root src/lib/paths.sh exists" {
   local root stub_bin output
   root="$(create_working_root)"
@@ -40,6 +44,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al sets CODEX_HOME when unset
 @test "al sets CODEX_HOME when unset" {
   local root stub_bin output
   root="$(create_isolated_working_root)"
@@ -59,6 +64,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al does not warn when CODEX_HOME already matches repo-local
 @test "al does not warn when CODEX_HOME already matches repo-local" {
   local root stub_bin output status
   root="$(create_isolated_working_root)"
@@ -79,6 +85,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al accepts CODEX_HOME when it resolves to repo-local via symlink
 @test "al accepts CODEX_HOME when it resolves to repo-local via symlink" {
   local root stub_bin output
   root="$(create_isolated_working_root)"
@@ -101,6 +108,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al passes --codex to sync when running codex
 @test "al passes --codex to sync when running codex" {
   local root stub_bin output node_args
   root="$(create_isolated_working_root)"
@@ -128,16 +136,18 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al fails when node is missing
 @test "al fails when node is missing" {
   local root stub_bin output bash_bin
   root="$(create_isolated_working_root)"
   stub_bin="$root/stub-bin"
   bash_bin="$(command -v bash)"
   mkdir -p "$stub_bin"
+  ln -s "$bash_bin" "$stub_bin/bash"
   ln -s "$(command -v basename)" "$stub_bin/basename"
   ln -s "$(command -v dirname)" "$stub_bin/dirname"
 
-  run bash -c "cd '$root/sub/dir' && PATH='$stub_bin' '$bash_bin' '$root/.agent-layer/al' pwd 2>&1"
+  run "$bash_bin" -c "cd '$root/sub/dir' && PATH='$stub_bin' '$bash_bin' '$root/.agent-layer/al' pwd 2>&1"
   [ "$status" -ne 0 ]
   [[ "$output" == *"Node.js is required"* ]]
 

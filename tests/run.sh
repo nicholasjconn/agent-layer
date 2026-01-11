@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Run formatting checks and the Bats test suite.
+
 say() { printf "%s\n" "$*"; }
 die() {
   printf "ERROR: %s\n" "$*" >&2
   exit 1
 }
 
+# Resolve entrypoint helpers so the runner works from any directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
 if [[ ! -f "$ENTRYPOINT_SH" ]]; then
@@ -22,6 +25,7 @@ fi
 source "$ENTRYPOINT_SH"
 resolve_entrypoint_root || exit $?
 
+# Require external tools used by formatting and tests.
 require_cmd() {
   local cmd="$1" hint="$2"
   if ! command -v "$cmd" > /dev/null 2>&1; then
@@ -34,11 +38,13 @@ require_cmd node "Install Node.js (dev-only)."
 require_cmd shfmt "Install shfmt (macOS: brew install shfmt; Ubuntu: apt-get install shfmt)."
 require_cmd shellcheck "Install shellcheck (macOS: brew install shellcheck; Ubuntu: apt-get install shellcheck)."
 
+# Resolve the Bats binary (allow override via BATS_BIN).
 BATS_BIN="${BATS_BIN:-bats}"
 if ! command -v "$BATS_BIN" > /dev/null 2>&1; then
   die "bats not found. Install bats-core (macOS: brew install bats-core; Ubuntu: apt-get install bats)."
 fi
 
+# Resolve Prettier (local install preferred).
 PRETTIER_BIN="$AGENTLAYER_ROOT/node_modules/.bin/prettier"
 if [[ -x "$PRETTIER_BIN" ]]; then
   PRETTIER="$PRETTIER_BIN"
@@ -48,6 +54,7 @@ else
   die "prettier not found. Run: (cd .agent-layer && npm install) or install globally."
 fi
 
+# Collect shell sources for formatting and linting.
 say "==> Shell format check (shfmt)"
 shell_files=()
 while IFS= read -r -d '' file; do
@@ -64,11 +71,13 @@ if [[ "${#shell_files[@]}" -gt 0 ]]; then
   shfmt -d -i 2 -ci -sr "${shell_files[@]}"
 fi
 
+# Run shellcheck against the same shell sources.
 say "==> Shell lint (shellcheck)"
 if [[ "${#shell_files[@]}" -gt 0 ]]; then
   shellcheck "${shell_files[@]}"
 fi
 
+# Collect JS sources for formatting checks.
 say "==> JS format check (prettier)"
 js_files=()
 while IFS= read -r -d '' file; do
@@ -85,5 +94,6 @@ if [[ "${#js_files[@]}" -gt 0 ]]; then
   "$PRETTIER" --check "${js_files[@]}"
 fi
 
+# Run the Bats test suite.
 say "==> Tests (bats)"
 "$BATS_BIN" "$AGENTLAYER_ROOT/tests"

@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for working root discovery helpers.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: resolve_working_root finds .agent-layer from working root
 @test "resolve_working_root finds .agent-layer from working root" {
   local root
   root="$(create_working_root)"
@@ -14,6 +17,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: resolve_working_root fails when .agent-layer is missing from ancestors
 @test "resolve_working_root fails when .agent-layer is missing from ancestors" {
   local root
   root="/"

@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for the VS Code launcher wrapper.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: open-vscode.command sets CODEX_HOME and launches the working root
 @test "open-vscode.command sets CODEX_HOME and launches the working root" {
   local root stub_bin
   root="$(create_working_root)"
@@ -23,6 +26,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: open-vscode.command auto-closes Terminal by default when osascript is available
 @test "open-vscode.command auto-closes Terminal by default when osascript is available" {
   local root stub_bin marker
   root="$(create_working_root)"
@@ -53,6 +57,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: open-vscode.command skips auto-close when OPEN_VSCODE_NO_CLOSE is set
 @test "open-vscode.command skips auto-close when OPEN_VSCODE_NO_CLOSE is set" {
   local root stub_bin marker
   root="$(create_working_root)"
@@ -83,6 +88,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: open-vscode.command fails when code CLI is missing
 @test "open-vscode.command fails when code CLI is missing" {
   local root
   root="$(create_working_root)"

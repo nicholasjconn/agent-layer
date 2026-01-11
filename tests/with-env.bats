@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for environment loading via with-env.sh.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: with-env.sh loads project .env only with --project-env
 @test "with-env.sh loads project .env only with --project-env" {
   local root output
   root="$(create_isolated_working_root)"
@@ -23,6 +26,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: with-env.sh loads .agent-layer .env by default
 @test "with-env.sh loads .agent-layer .env by default" {
   local root output
   root="$(create_isolated_working_root)"
@@ -38,6 +42,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: with-env.sh is a no-op when .agent-layer .env is missing
 @test "with-env.sh is a no-op when .agent-layer .env is missing" {
   local root output
   root="$(create_isolated_working_root)"
@@ -51,6 +56,7 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: with-env.sh --help prints usage
 @test "with-env.sh --help prints usage" {
   local root
   root="$(create_isolated_working_root)"

@@ -294,11 +294,13 @@ function writeIfChanged(filePath, updated, changed) {
  * @returns {void}
  */
 function main() {
+  // Resolve the working root containing .agent-layer.
   const workingRoot = resolveWorkingRoot(process.cwd());
   if (!workingRoot) {
     fail("Missing .agent-layer/ directory in this path or any parent.");
   }
 
+  // Build client config paths relative to the working root.
   const agentlayerRoot = path.join(workingRoot, ".agent-layer");
   const geminiPath = path.join(workingRoot, ".gemini", "settings.json");
   const claudePath = path.join(workingRoot, ".claude", "settings.json");
@@ -307,6 +309,7 @@ function main() {
 
   const updates = [];
   let managedServers = null;
+  // Lazily resolve managed server names only when needed.
   const getManagedServers = () => {
     if (!managedServers) {
       managedServers = new Set(loadServerNames(agentlayerRoot));
@@ -314,6 +317,7 @@ function main() {
     return managedServers;
   };
 
+  // Clean each client config file if it exists.
   if (fileExists(geminiPath)) {
     const existing = loadJsonObject(geminiPath);
     const result = cleanGeminiSettings(
@@ -359,6 +363,7 @@ function main() {
     }
   }
 
+  // Emit a summary if any files were updated.
   if (updates.length > 0) {
     console.log("agent-layer clean: updated settings");
     for (const entry of updates) {

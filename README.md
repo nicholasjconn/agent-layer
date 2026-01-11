@@ -551,6 +551,7 @@ Dev-only prerequisites (not required to use the tool):
 
 Dev bootstrap (installs dev deps + enables git hooks):
 - `./dev/bootstrap.sh`
+- Use `./dev/bootstrap.sh --yes` for non-interactive runs.
 
 Run tests (includes sync check + formatting/lint):
 - `./tests/run.sh`
@@ -610,6 +611,7 @@ Yes. Keep numeric prefixes if you want stable ordering without changing `src/syn
    ```bash
    ./dev/bootstrap.sh
    ```
+   Use `./dev/bootstrap.sh --yes` for non-interactive runs.
 3) Before committing:
    ```bash
    ./tests/run.sh

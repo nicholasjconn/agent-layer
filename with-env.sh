@@ -7,6 +7,7 @@ set -euo pipefail
 #   ./.agent-layer/with-env.sh codex
 #   ./.agent-layer/with-env.sh --project-env gemini
 
+# Resolve the entrypoint helper to locate the repo root.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
 if [[ ! -f "$ENTRYPOINT_SH" ]]; then
@@ -26,6 +27,7 @@ resolve_entrypoint_root || exit $?
 
 INCLUDE_PROJECT_ENV=0
 
+# Parse CLI flags and validate required arguments.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-env)
@@ -49,6 +51,7 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
+# Load agent-layer .env if present.
 AGENT_ENV="$AGENTLAYER_ROOT/.env"
 
 if [[ -f "$AGENT_ENV" ]]; then
@@ -58,6 +61,7 @@ if [[ -f "$AGENT_ENV" ]]; then
   set +a
 fi
 
+# Optionally load the project .env after the agent-layer env.
 PROJECT_ENV="$WORKING_ROOT/.env"
 if [[ "$INCLUDE_PROJECT_ENV" -eq 1 && -f "$PROJECT_ENV" && "$PROJECT_ENV" != "$AGENT_ENV" ]]; then
   set -a
@@ -66,8 +70,10 @@ if [[ "$INCLUDE_PROJECT_ENV" -eq 1 && -f "$PROJECT_ENV" && "$PROJECT_ENV" != "$A
   set +a
 fi
 
+# Ensure CODEX_HOME points at the repo-local .codex when running Codex.
 if [[ "${AGENTLAYER_RUN_CODEX:-}" == "1" && -z "${CODEX_HOME:-}" ]]; then
   export CODEX_HOME="$WORKING_ROOT/.codex"
 fi
 
+# Execute the requested command with the loaded environment.
 exec "$@"

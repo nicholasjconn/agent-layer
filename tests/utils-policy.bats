@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for JSON parsing helpers and policy validation.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: utils helpers strip JSONC comments and trailing commas
 @test "utils helpers strip JSONC comments and trailing commas" {
   local tmp file
   tmp="$(make_tmp_dir)"
@@ -37,6 +40,7 @@ if (parsed.a !== 1 || parsed.b.length !== 2 || parsed.c.d !== "ok") {
   [ "$status" -eq 0 ]
 }
 
+# Test: readJsonRelaxed accepts JSONC with comments and trailing commas
 @test "readJsonRelaxed accepts JSONC with comments and trailing commas" {
   local tmp file
   tmp="$(make_tmp_dir)"
@@ -64,6 +68,7 @@ if (!parsed || parsed.answer !== 42 || parsed.values.length !== 2) {
   [ "$status" -eq 0 ]
 }
 
+# Test: validateCommandPolicy rejects invalid argv entries
 @test "validateCommandPolicy rejects invalid argv entries" {
   POLICY_PATH="$AGENTLAYER_ROOT/src/sync/policy.mjs" run node --input-type=module -e '
 import { pathToFileURL } from "node:url";

@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 
+# Tests for cleaning generated outputs and managed settings.
+# Load shared helpers for temp roots and stub binaries.
 load "helpers.bash"
 
+# Test: clean.sh removes generated outputs but keeps sources
 @test "clean.sh removes generated outputs but keeps sources" {
   local root
   root="$(create_isolated_working_root)"
@@ -116,6 +119,7 @@ EOF
   rm -rf "$root"
 }
 
+# Test: clean.mjs removes managed VS Code MCP servers
 @test "clean.mjs removes managed VS Code MCP servers" {
   local root
   root="$(create_isolated_working_root)"

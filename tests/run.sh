@@ -88,7 +88,7 @@ else
   resolve_entrypoint_root || exit $?
 fi
 
-# Require external tools used by formatting and tests.
+# Require external tools used by tests.
 require_cmd() {
   local cmd="$1" hint="$2"
   if ! command -v "$cmd" > /dev/null 2>&1; then
@@ -99,63 +99,11 @@ require_cmd() {
 require_cmd git "Install git (dev-only)."
 require_cmd node "Install Node.js (dev-only)."
 require_cmd rg "Install ripgrep (macOS: brew install ripgrep; Ubuntu: apt-get install ripgrep)."
-require_cmd shfmt "Install shfmt (macOS: brew install shfmt; Ubuntu: apt-get install shfmt)."
-require_cmd shellcheck "Install shellcheck (macOS: brew install shellcheck; Ubuntu: apt-get install shellcheck)."
 
 # Resolve the Bats binary (allow override via BATS_BIN).
 BATS_BIN="${BATS_BIN:-bats}"
 if ! command -v "$BATS_BIN" > /dev/null 2>&1; then
   die "bats not found. Install bats-core (macOS: brew install bats-core; Ubuntu: apt-get install bats)."
-fi
-
-# Resolve Prettier (local install preferred).
-PRETTIER_BIN="$AGENTLAYER_ROOT/node_modules/.bin/prettier"
-if [[ -x "$PRETTIER_BIN" ]]; then
-  PRETTIER="$PRETTIER_BIN"
-elif command -v prettier > /dev/null 2>&1; then
-  PRETTIER="$(command -v prettier)"
-else
-  die "prettier not found. Run: (cd .agent-layer && npm install) or install globally."
-fi
-
-# Collect shell sources for formatting and linting.
-say "==> Shell format check (shfmt)"
-shell_files=()
-while IFS= read -r -d '' file; do
-  shell_files+=("$file")
-done < <(
-  find "$AGENTLAYER_ROOT" \
-    -path "$AGENTLAYER_ROOT/node_modules" -prune -o \
-    -path "$AGENTLAYER_ROOT/.git" -prune -o \
-    -path "$AGENTLAYER_ROOT/tmp" -prune -o \
-    -type f \( -name "*.sh" -o -path "$AGENTLAYER_ROOT/al" -o -path "$AGENTLAYER_ROOT/.githooks/pre-commit" \) \
-    -print0
-)
-if [[ "${#shell_files[@]}" -gt 0 ]]; then
-  shfmt -d -i 2 -ci -sr "${shell_files[@]}"
-fi
-
-# Run shellcheck against the same shell sources.
-say "==> Shell lint (shellcheck)"
-if [[ "${#shell_files[@]}" -gt 0 ]]; then
-  shellcheck "${shell_files[@]}"
-fi
-
-# Collect JS sources for formatting checks.
-say "==> JS format check (prettier)"
-js_files=()
-while IFS= read -r -d '' file; do
-  js_files+=("$file")
-done < <(
-  find "$AGENTLAYER_ROOT" \
-    -path "$AGENTLAYER_ROOT/node_modules" -prune -o \
-    -path "$AGENTLAYER_ROOT/.git" -prune -o \
-    -path "$AGENTLAYER_ROOT/tmp" -prune -o \
-    -type f \( -name "*.mjs" -o -name "*.js" \) \
-    -print0
-)
-if [[ "${#js_files[@]}" -gt 0 ]]; then
-  "$PRETTIER" --check "${js_files[@]}"
 fi
 
 # Run the Bats test suite.

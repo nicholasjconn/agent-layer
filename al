@@ -18,13 +18,19 @@ set -euo pipefail
 # | Resolves RUNNER to the correct .agent-layer/run.sh.         |
 # +------------------------------------------------------------+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Prefer a runner alongside this script (when invoked via .agent-layer/al).
-RUNNER="$SCRIPT_DIR/run.sh"
-# Fall back to the repo-root .agent-layer/run.sh (when invoked via ./al).
-if [[ ! -f "$RUNNER" ]]; then
-  # Use the repo-root runner when the local path is missing.
+
+# Probe for the runner in plausible locations:
+# 1. Alongside this script (when invoked as .agent-layer/al)
+# 2. In .agent-layer relative to invocation dir (when invoked as ./al wrapper)
+if [[ -f "$SCRIPT_DIR/run.sh" ]]; then
+  RUNNER="$SCRIPT_DIR/run.sh"
+elif [[ -f "$SCRIPT_DIR/.agent-layer/run.sh" ]]; then
   RUNNER="$SCRIPT_DIR/.agent-layer/run.sh"
+else
+  echo "ERROR: Cannot locate run.sh (expected in $SCRIPT_DIR or $SCRIPT_DIR/.agent-layer)" >&2
+  exit 2
 fi
+
 RUNNER_DIR="$(cd "$(dirname "$RUNNER")" && pwd)"
 
 # Optional update check. Comment this out to skip update checks.

@@ -554,14 +554,19 @@ Dev bootstrap (installs dev deps + enables git hooks):
 - `./dev/bootstrap.sh`
 - Use `./dev/bootstrap.sh --yes` for non-interactive runs.
 
-Run tests (includes sync check + formatting/lint):
-- `./tests/run.sh`
-  When run inside the agent-layer repo itself (no `.agent-layer/` directory), pass `--work-root <path>` to a consumer root that contains `.agent-layer/`. Example:
-  ```bash
-  mkdir -p tmp/work-root
-  ln -s "$(pwd)" "tmp/work-root/.agent-layer"
-  ./tests/run.sh --work-root "$(pwd)/tmp/work-root"
-  ```
+Run tests (hermetic, creates isolated consumer root in system temp):
+- `./tests/ci.sh`
+  This creates a temporary workspace outside the repo, mounts `.agent-layer`, and runs the test suite.
+
+Run tests with manual work-root (advanced):
+- `./tests/run.sh --work-root <path>`
+  When you need to test with a specific consumer root setup, pass `--work-root` to a directory containing `.agent-layer/`.
+
+Run format checks only:
+- `./dev/format-check.sh`
+
+Run everything (format + tests):
+- `./dev/check.sh`
 
 Autoformat (shell + JS):
 - `./dev/format.sh`
@@ -619,9 +624,14 @@ Yes. Keep numeric prefixes if you want stable ordering without changing `src/syn
    ./dev/bootstrap.sh
    ```
    Use `./dev/bootstrap.sh --yes` for non-interactive runs.
-3) Before committing (see "Testing" above for work-root setup):
+3) Before committing:
    ```bash
-   ./tests/run.sh --work-root "<consumer-root>"
+   ./dev/check.sh
+   ```
+   Or run format and tests separately:
+   ```bash
+   ./dev/format-check.sh
+   ./tests/ci.sh
    ```
 4) Autoformat (shell + JS) when needed:
    ```bash

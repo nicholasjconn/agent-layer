@@ -14,8 +14,8 @@ die() {
 # Resolve the repo root (physical path to avoid symlink confusion)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-# Create workspace in system temp
-WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/agent-layer-ci.XXXXXX")"
+# Create workspace in system temp (mktemp handles TMPDIR or system default)
+WORKSPACE="$(mktemp -d)"
 cleanup() {
   if [[ -d "$WORKSPACE" ]]; then
     rm -rf "$WORKSPACE"

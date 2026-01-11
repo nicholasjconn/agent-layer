@@ -27,7 +27,7 @@ if [[ -f "$SCRIPT_DIR/run.sh" ]]; then
 elif [[ -f "$SCRIPT_DIR/.agent-layer/run.sh" ]]; then
   RUNNER="$SCRIPT_DIR/.agent-layer/run.sh"
 else
-  echo "ERROR: Cannot locate run.sh (expected in $SCRIPT_DIR or $SCRIPT_DIR/.agent-layer)" >&2
+  printf "ERROR: Cannot locate run.sh (expected in %s or %s/.agent-layer)\n" "$SCRIPT_DIR" "$SCRIPT_DIR" >&2
   exit 2
 fi
 

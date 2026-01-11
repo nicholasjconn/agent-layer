@@ -31,7 +31,7 @@ if [[ -x "$PRETTIER_BIN" ]]; then
 elif command -v prettier > /dev/null 2>&1; then
   PRETTIER="$(command -v prettier)"
 else
-  die "prettier not found. Run: npm install or install globally."
+  die "prettier not found. Run: (cd .agent-layer && npm install) or install globally."
 fi
 
 # Collect shell sources for formatting and linting.

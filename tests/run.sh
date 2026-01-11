@@ -11,7 +11,7 @@ die() {
 
 # Parse --work-root so the runner can be invoked from the agent-layer repo.
 usage() {
-  cat <<'EOF'
+  cat << 'EOF'
 Usage: tests/run.sh [--work-root <path>]
 
 Run formatting checks and the Bats suite. When running from inside the
@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift
       ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;
@@ -65,26 +65,28 @@ if [[ -n "$work_root" ]]; then
     die "--work-root must contain a .agent-layer directory: $work_root"
   fi
   cd "$work_root"
+  WORKING_ROOT="$work_root"
+  AGENTLAYER_ROOT="$work_root/.agent-layer"
+  export WORKING_ROOT AGENTLAYER_ROOT
 else
   if ! resolve_working_root "$SCRIPT_DIR" "$PWD" > /dev/null; then
     die "Missing .agent-layer/ directory in this path or any parent. Re-run with --work-root <path>."
   fi
+  # Resolve entrypoint helpers so the runner works from any directory.
+  ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
+  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
+    ENTRYPOINT_SH="$SCRIPT_DIR/src/lib/entrypoint.sh"
+  fi
+  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
+    ENTRYPOINT_SH="$SCRIPT_DIR/../src/lib/entrypoint.sh"
+  fi
+  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
+    die "Missing src/lib/entrypoint.sh (expected near .agent-layer/)."
+  fi
+  # shellcheck disable=SC1090
+  source "$ENTRYPOINT_SH"
+  resolve_entrypoint_root || exit $?
 fi
-
-# Resolve entrypoint helpers so the runner works from any directory.
-ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
-if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-  ENTRYPOINT_SH="$SCRIPT_DIR/src/lib/entrypoint.sh"
-fi
-if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-  ENTRYPOINT_SH="$SCRIPT_DIR/../src/lib/entrypoint.sh"
-fi
-if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-  die "Missing src/lib/entrypoint.sh (expected near .agent-layer/)."
-fi
-# shellcheck disable=SC1090
-source "$ENTRYPOINT_SH"
-resolve_entrypoint_root || exit $?
 
 # Require external tools used by formatting and tests.
 require_cmd() {

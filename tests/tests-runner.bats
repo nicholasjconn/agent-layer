@@ -20,10 +20,19 @@ EOF
 # Helper: create a minimal agent-layer repo layout for tests/run.sh.
 create_tool_repo() {
   local root="$1"
+  local paths_mode="${2:-real}"
   mkdir -p "$root/tests" "$root/src/lib"
   cp "$AGENTLAYER_ROOT/tests/run.sh" "$root/tests/run.sh"
   cp "$AGENTLAYER_ROOT/src/lib/entrypoint.sh" "$root/src/lib/entrypoint.sh"
-  cp "$AGENTLAYER_ROOT/src/lib/paths.sh" "$root/src/lib/paths.sh"
+  if [[ "$paths_mode" == "stub" ]]; then
+    cat >"$root/src/lib/paths.sh" <<'EOF'
+resolve_working_root() {
+  return 1
+}
+EOF
+  else
+    cp "$AGENTLAYER_ROOT/src/lib/paths.sh" "$root/src/lib/paths.sh"
+  fi
   chmod +x "$root/tests/run.sh"
 }
 
@@ -33,7 +42,7 @@ create_tool_repo() {
   root="$(make_tmp_dir)"
   bash_bin="$(command -v bash)"
 
-  create_tool_repo "$root"
+  create_tool_repo "$root" "stub"
 
   run "$bash_bin" -c "cd '$root' && '$root/tests/run.sh' 2>&1"
   [ "$status" -ne 0 ]

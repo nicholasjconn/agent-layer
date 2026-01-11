@@ -221,10 +221,7 @@ function mergeMcpConfig(existing, generated, key, options = {}) {
   const mergedServers = {};
   for (const [name, entry] of Object.entries(generatedServers)) {
     const existingEntry = existingServers[name];
-    if (
-      isPlainObject(existingEntry) &&
-      !jsonDeepEqual(existingEntry, entry)
-    ) {
+    if (isPlainObject(existingEntry) && !jsonDeepEqual(existingEntry, entry)) {
       mergedServers[name] = existingEntry;
     } else {
       mergedServers[name] = entry;

@@ -45,7 +45,11 @@ EOF
 
   mkdir -p "$script_dir/src/lib"
   cp "$AGENTLAYER_ROOT/src/lib/entrypoint.sh" "$script_dir/src/lib/entrypoint.sh"
-  cp "$AGENTLAYER_ROOT/src/lib/paths.sh" "$script_dir/src/lib/paths.sh"
+  cat >"$script_dir/src/lib/paths.sh" <<'EOF'
+resolve_working_root() {
+  return 1
+}
+EOF
   write_wrapper "$script_dir"
 
   run "$bash_bin" -c "cd '$root' && '$script_dir/entrypoint-wrapper.sh' 2>&1"

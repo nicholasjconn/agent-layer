@@ -20,7 +20,7 @@ CMD
   root="$(create_isolated_working_root)"
   bash_bin="$(command -v bash)"
 
-  run "$bash_bin" -c "cd '$root' && '$root/.agent-layer/dev/bootstrap.sh' 2>&1"
+  run "$bash_bin" -c "cd '$root' && '$root/.agent-layer/dev/bootstrap.sh' < /dev/null 2>&1"
   [ "$status" -ne 0 ]
   [[ "$output" == *"No TTY available"* ]]
 

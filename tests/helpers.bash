@@ -1,12 +1,23 @@
 # Shared test helpers for Bats suites.
 # Keep helpers deterministic and side-effect free outside temp directories.
 
+# Preserve temp parent root state if set (from run.sh --temp-parent-root).
+_SAVED_PARENT_ROOT="${PARENT_ROOT:-}"
+_SAVED_TEMP_FLAG="${TEMP_PARENT_ROOT_CREATED:-}"
+
 # Reset any global root overrides inherited from the test runner.
 unset PARENT_ROOT AGENT_LAYER_ROOT
 
 # Resolve the agent-layer root for test fixtures.
 AGENT_LAYER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export AGENT_LAYER_ROOT
+
+# Restore temp parent root state if it was set.
+if [[ -n "$_SAVED_TEMP_FLAG" ]]; then
+  TEMP_PARENT_ROOT_CREATED="$_SAVED_TEMP_FLAG"
+  PARENT_ROOT="$_SAVED_PARENT_ROOT"
+  export TEMP_PARENT_ROOT_CREATED PARENT_ROOT
+fi
 
 # Join arguments into a newline-delimited string.
 multiline() {
@@ -16,30 +27,15 @@ multiline() {
 # Create a temporary directory under tmp/test-roots (relative to current parent root).
 make_tmp_dir() {
   local base dir
-  # Debug output
-  printf "DEBUG make_tmp_dir: PARENT_ROOT=%s PWD=%s AGENT_LAYER_ROOT=%s\n" "${PARENT_ROOT:-unset}" "$PWD" "$AGENT_LAYER_ROOT" >&2
-  # When running with --temp-parent-root, PARENT_ROOT is set and we're cd'd there.
-  # Use the current working directory's tmp, not AGENT_LAYER_ROOT's tmp.
-  if [[ -n "${PARENT_ROOT:-}" && "$PWD" == "$PARENT_ROOT" ]]; then
+  # When running with --temp-parent-root, use the temp parent root location.
+  # Check TEMP_PARENT_ROOT_CREATED flag rather than PWD since PWD may change during test execution.
+  if [[ "${TEMP_PARENT_ROOT_CREATED:-0}" == "1" && -n "${PARENT_ROOT:-}" ]]; then
     base="$PARENT_ROOT/.agent-layer/tmp/test-roots"
-    printf "DEBUG: Using temp parent root location: %s\n" "$base" >&2
   else
     base="$AGENT_LAYER_ROOT/tmp/test-roots"
-    printf "DEBUG: Using agent layer root location: %s\n" "$base" >&2
   fi
-  mkdir -p "$base" 2>&1 || {
-    printf "ERROR: mkdir -p failed for %s\n" "$base" >&2
-    return 1
-  }
-  dir="$(mktemp -d "$base/agent-layer-test.XXXXXX" 2>&1)" || {
-    printf "ERROR: mktemp failed for %s\n" "$base" >&2
-    return 1
-  }
-  if [[ ! -d "$dir" ]]; then
-    printf "ERROR: created dir does not exist: %s\n" "$dir" >&2
-    return 1
-  fi
-  printf "%s" "$dir"
+  mkdir -p "$base"
+  mktemp -d "$base/agent-layer-test.XXXXXX"
 }
 
 # Create a parent repo root that symlinks the real .agent-layer.

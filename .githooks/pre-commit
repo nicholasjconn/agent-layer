@@ -17,6 +17,9 @@ fi
 if [[ -x "$repo_root/tests/run.sh" ]]; then
   test_runner="$repo_root/tests/run.sh"
   (cd "$repo_root" && "$test_runner" --temp-parent-root)
+  if [[ -x "$repo_root/tests/coverage.sh" ]]; then
+    (cd "$repo_root" && "$repo_root/tests/coverage.sh")
+  fi
 elif [[ -x "$repo_root/.agent-layer/tests/run.sh" ]]; then
   test_runner="$repo_root/.agent-layer/tests/run.sh"
   (cd "$repo_root" && "$test_runner" --parent-root "$repo_root")

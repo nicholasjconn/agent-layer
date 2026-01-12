@@ -41,11 +41,18 @@ echo "ran-agent-layer $*"
 EOF
   chmod +x "$root/tests/run.sh"
 
+  cat >"$root/tests/coverage.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "ran-coverage"
+EOF
+  chmod +x "$root/tests/coverage.sh"
+
   git -C "$root" init -q
 
   run "$bash_bin" -c "cd '$root' && '$root/.githooks/pre-commit'"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ran-agent-layer --temp-parent-root"* ]]
+  [[ "$output" == *"ran-coverage"* ]]
 
   rm -rf "$root"
 }

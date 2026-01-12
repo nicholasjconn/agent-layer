@@ -1,10 +1,6 @@
 # Shared test helpers for Bats suites.
 # Keep helpers deterministic and side-effect free outside temp directories.
 
-# Preserve temp parent root state if set (from run.sh --temp-parent-root).
-_SAVED_PARENT_ROOT="${PARENT_ROOT:-}"
-_SAVED_TEMP_FLAG="${TEMP_PARENT_ROOT_CREATED:-}"
-
 # Reset any global root overrides inherited from the test runner.
 unset PARENT_ROOT AGENT_LAYER_ROOT
 
@@ -12,28 +8,15 @@ unset PARENT_ROOT AGENT_LAYER_ROOT
 AGENT_LAYER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export AGENT_LAYER_ROOT
 
-# Restore temp parent root state if it was set.
-if [[ -n "$_SAVED_TEMP_FLAG" ]]; then
-  TEMP_PARENT_ROOT_CREATED="$_SAVED_TEMP_FLAG"
-  PARENT_ROOT="$_SAVED_PARENT_ROOT"
-  export TEMP_PARENT_ROOT_CREATED PARENT_ROOT
-fi
-
 # Join arguments into a newline-delimited string.
 multiline() {
   printf '%s\n' "$@"
 }
 
-# Create a temporary directory under tmp/test-roots (relative to current parent root).
+# Create a temporary directory under .agent-layer/tmp.
 make_tmp_dir() {
-  local base dir
-  # When running with --temp-parent-root, use the temp parent root location.
-  # Check TEMP_PARENT_ROOT_CREATED flag rather than PWD since PWD may change during test execution.
-  if [[ "${TEMP_PARENT_ROOT_CREATED:-0}" == "1" && -n "${PARENT_ROOT:-}" ]]; then
-    base="$PARENT_ROOT/.agent-layer/tmp/test-roots"
-  else
-    base="$AGENT_LAYER_ROOT/tmp/test-roots"
-  fi
+  local base
+  base="$AGENT_LAYER_ROOT/tmp"
   mkdir -p "$base"
   mktemp -d "$base/agent-layer-test.XXXXXX"
 }

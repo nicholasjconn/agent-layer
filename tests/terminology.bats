@@ -18,8 +18,7 @@ load "helpers.bash"
     -e 'WORKING_ROOT' \
     -e 'work-root' \
     -e 'work_root' \
-    -e 'AGENTLAYER_ROOT' \
-    -e 'AGENTLAYER_SYNC_ROOTS' \
+    -e 'AGENTLAYER_' \
     -e 'discover-root.sh' \
     -e 'temp-work-root.sh' \
     -e 'find_working_root' \

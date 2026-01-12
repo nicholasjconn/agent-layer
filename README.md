@@ -795,7 +795,6 @@ Dev-only prerequisites (not required to use the tool):
 - `rg` (macOS: `brew install ripgrep`; Ubuntu: `apt-get install ripgrep`)
 - `shfmt` (macOS: `brew install shfmt`; Ubuntu: `apt-get install shfmt`)
 - `shellcheck` (macOS: `brew install shellcheck`; Ubuntu: `apt-get install shellcheck`)
-- `ruby` + `bashcov` (for shell coverage reports; `gem install bashcov`)
 - `npm install` (installs Prettier for JS formatting)
 
 ### Setup for Development
@@ -829,7 +828,6 @@ Run tests (includes sync check + formatting/lint):
 - From the agent-layer repo: `./tests/run.sh --temp-parent-root` (uses system temp; falls back to `tmp/agent-layer-temp-parent-root`)
 - From a consumer repo: `./.agent-layer/tests/run.sh`
 - CI and git hooks use `./tests/run.sh --temp-parent-root` when testing the agent-layer repo.
-- Coverage for discovery logic: `bash ./tests/coverage.sh`
 
 If you want to pass your own parent root, it must contain a `.agent-layer` entry that resolves to this repo:
 ```bash

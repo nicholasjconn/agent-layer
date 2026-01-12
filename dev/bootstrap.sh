@@ -93,16 +93,10 @@ has_cmd bats || missing+=("bats")
 has_cmd rg || missing+=("rg")
 has_cmd shfmt || missing+=("shfmt")
 has_cmd shellcheck || missing+=("shellcheck")
-has_cmd ruby || missing+=("ruby")
 
 prettier_installed="0"
 if [[ -x "$AGENT_LAYER_ROOT/node_modules/.bin/prettier" ]]; then
   prettier_installed="1"
-fi
-
-bashcov_installed="0"
-if has_cmd bashcov; then
-  bashcov_installed="1"
 fi
 
 # Report what will be installed or skipped.
@@ -113,12 +107,10 @@ say "  - bats"
 say "  - ripgrep (rg)"
 say "  - shfmt"
 say "  - shellcheck"
-say "  - ruby"
-say "  - bashcov (gem install)"
 say "  - npm install (Prettier in .agent-layer)"
 say ""
 
-if [[ "${#missing[@]}" -eq 0 && "$prettier_installed" == "1" && "$bashcov_installed" == "1" ]]; then
+if [[ "${#missing[@]}" -eq 0 && "$prettier_installed" == "1" ]]; then
   say "All dependencies are already installed."
 else
   say "Missing:"
@@ -129,9 +121,6 @@ else
   fi
   if [[ "$prettier_installed" == "0" ]]; then
     say "  - npm install (Prettier in .agent-layer)"
-  fi
-  if [[ "$bashcov_installed" == "0" ]]; then
-    say "  - bashcov (gem install bashcov)"
   fi
   say ""
 fi
@@ -198,9 +187,6 @@ fi
 if [[ "$missing_joined" == *" shellcheck "* ]]; then
   packages+=("shellcheck")
 fi
-if [[ "$missing_joined" == *" ruby "* ]]; then
-  packages+=("ruby")
-fi
 
 # Install missing system packages, if any.
 if [[ "${#packages[@]}" -gt 0 ]]; then
@@ -221,14 +207,6 @@ fi
 if [[ "$prettier_installed" == "0" ]]; then
   say "==> Installing node dev dependencies (Prettier)"
   (cd "$AGENT_LAYER_ROOT" && npm install)
-fi
-
-if [[ "$bashcov_installed" == "0" ]]; then
-  if ! command -v gem > /dev/null 2>&1; then
-    die "gem not found. Install Ruby, then run: gem install bashcov"
-  fi
-  say "==> Installing bashcov (gem)"
-  gem install bashcov --no-document
 fi
 
 # Run the standard setup script without checks.

@@ -13,5 +13,3 @@ trap '[[ "${PARENT_ROOT_KEEP_TEMP:-0}" == "1" ]] || rm -rf "$parent_root"' EXIT 
 (cd "$parent_root" && node .agent-layer/src/sync/sync.mjs)
 
 "$repo_root/tests/run.sh" --parent-root "$parent_root" --run-from-repo-root
-
-bash "$repo_root/tests/coverage.sh"

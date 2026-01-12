@@ -54,8 +54,6 @@ create_dev_repo() {
   write_stub_cmd "$stub_bin" "rg"
   write_stub_cmd "$stub_bin" "shfmt"
   write_stub_cmd "$stub_bin" "shellcheck"
-  write_stub_cmd "$stub_bin" "ruby"
-  write_stub_cmd "$stub_bin" "bashcov"
 
   mkdir -p "$root/.agent-layer/node_modules/.bin"
   cat >"$root/.agent-layer/node_modules/.bin/prettier" <<'EOF'
@@ -107,8 +105,6 @@ EOF
   write_stub_cmd "$stub_bin" "rg"
   write_stub_cmd "$stub_bin" "shfmt"
   write_stub_cmd "$stub_bin" "shellcheck"
-  write_stub_cmd "$stub_bin" "ruby"
-  write_stub_cmd "$stub_bin" "bashcov"
   write_stub_cmd "$stub_bin" "prettier"
   write_stub_logger "$stub_bin" "bats" "$bats_log"
 

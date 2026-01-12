@@ -70,8 +70,6 @@ EOF
   write_stub_cmd "$stub_bin" "bats"
   write_stub_cmd "$stub_bin" "shfmt"
   write_stub_cmd "$stub_bin" "shellcheck"
-  write_stub_cmd "$stub_bin" "ruby"
-  write_stub_cmd "$stub_bin" "bashcov"
 
   run "$bash_bin" -c "cd '$root' && PATH='$stub_bin:/usr/bin:/bin' '$root/.agent-layer/dev/bootstrap.sh' --yes --parent-root '$root'"
   [ "$status" -eq 0 ]

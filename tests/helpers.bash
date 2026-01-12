@@ -13,23 +13,12 @@ multiline() {
   printf '%s\n' "$@"
 }
 
-# Create a temporary directory (prefer system temp, fall back to repo tmp).
+# Create a temporary directory under .agent-layer/tmp.
 make_tmp_dir() {
-  local base dir
-
-  base="${TMPDIR:-/tmp}"
-  dir="$(mktemp -d "${base%/}/agent-layer-test.XXXXXX" 2> /dev/null || true)"
-  if [[ -z "$dir" || ! -d "$dir" ]]; then
-    base="$AGENT_LAYER_ROOT/tmp"
-    mkdir -p "$base" 2> /dev/null || true
-    dir="$(mktemp -d "$base/agent-layer-test.XXXXXX" 2> /dev/null || true)"
-  fi
-  if [[ -z "$dir" || ! -d "$dir" ]]; then
-    printf "%s\n" "ERROR: failed to create temp dir." >&2
-    return 1
-  fi
-
-  printf "%s" "$dir"
+  local base
+  base="$AGENT_LAYER_ROOT/tmp"
+  mkdir -p "$base"
+  mktemp -d "$base/agent-layer-test.XXXXXX"
 }
 
 # Create a parent repo root that symlinks the real .agent-layer.
@@ -46,7 +35,7 @@ create_stub_node() {
   local root="$1"
   local bin="$root/stub-bin"
   mkdir -p "$bin"
-  cat > "$bin/node" << 'NODE'
+  cat >"$bin/node" <<'NODE'
 #!/usr/bin/env bash
 exit 0
 NODE
@@ -59,11 +48,11 @@ create_stub_tools() {
   local root="$1"
   local bin="$root/stub-bin"
   mkdir -p "$bin"
-  cat > "$bin/node" << 'NODE'
+  cat >"$bin/node" <<'NODE'
 #!/usr/bin/env bash
 exit 0
 NODE
-  cat > "$bin/npm" << 'NPM'
+  cat >"$bin/npm" <<'NPM'
 #!/usr/bin/env bash
 exit 0
 NPM
@@ -78,7 +67,7 @@ create_agent_layer_root() {
   cp "$AGENT_LAYER_ROOT/src/lib/parent-root.sh" "$root/src/lib/parent-root.sh"
   cp "$AGENT_LAYER_ROOT/src/lib/temp-parent-root.sh" "$root/src/lib/temp-parent-root.sh"
   cp "$AGENT_LAYER_ROOT/src/lib/entrypoint.sh" "$root/src/lib/entrypoint.sh"
-  : > "$root/src/sync/sync.mjs"
+  : >"$root/src/sync/sync.mjs"
 }
 
 # Build an isolated parent root with copied agent-layer scripts.
@@ -109,7 +98,7 @@ create_isolated_parent_root() {
     "$agent_layer_dir/clean.sh" "$agent_layer_dir/setup.sh" \
     "$agent_layer_dir/dev/bootstrap.sh" "$agent_layer_dir/dev/format.sh" \
     "$agent_layer_dir/.githooks/pre-commit"
-  : > "$agent_layer_dir/src/sync/sync.mjs"
+  : >"$agent_layer_dir/src/sync/sync.mjs"
   mkdir -p "$root/sub/dir"
   printf "%s" "$root"
 }

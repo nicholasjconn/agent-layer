@@ -5,10 +5,14 @@
 load "helpers.bash"
 
 realpath_dir() {
-  local target="$1"
-  # Try to resolve the path, but if cd fails (CI subshell issue), just return the path as-is
-  # since mktemp already returns absolute paths
-  (cd "$target" && pwd -P 2>/dev/null) || printf "%s" "$target"
+  local target="$1" saved_pwd result
+  # Avoid subshells - they have issues accessing temp directories in some CI environments.
+  # Instead, cd directly, get the path, and cd back.
+  saved_pwd="$PWD"
+  cd "$target" || return 1
+  result="$(pwd -P)"
+  cd "$saved_pwd" || return 1
+  printf "%s" "$result"
 }
 
 # Spec 1: Consumer repo discovery succeeds

@@ -441,12 +441,13 @@ realpath_dir() {
 
 # Spec 2 Error: Parent root missing .agent-layer
 @test "Spec 2 Error: Parent root missing .agent-layer" {
-  local parent_root agent_layer_root missing_agent expected script
+  local parent_root agent_layer_root missing_agent missing_agent_resolved expected script
   parent_root="$(make_tmp_dir)"
   agent_layer_root="$parent_root/.agent-layer"
   create_agent_layer_root "$agent_layer_root"
 
   missing_agent="$(make_tmp_dir)"
+  missing_agent_resolved="$(realpath_dir "$missing_agent")"
 
   script="$(
     multiline \
@@ -459,7 +460,7 @@ realpath_dir() {
 
   expected="$(
     multiline \
-      "ERROR: Parent root must contain .agent-layer/ (dir or symlink): $(realpath_dir \"$missing_agent\")" \
+      "ERROR: Parent root must contain .agent-layer/ (dir or symlink): $missing_agent_resolved" \
       "" \
       "Found directory but no .agent-layer/ inside." \
       "" \
@@ -475,12 +476,13 @@ realpath_dir() {
 
 # Spec 2 Error: Parent root .agent-layer is a file
 @test "Spec 2 Error: Parent root .agent-layer is a file" {
-  local parent_root agent_layer_root file_parent expected script
+  local parent_root agent_layer_root file_parent file_parent_resolved expected script
   parent_root="$(make_tmp_dir)"
   agent_layer_root="$parent_root/.agent-layer"
   create_agent_layer_root "$agent_layer_root"
 
   file_parent="$(make_tmp_dir)"
+  file_parent_resolved="$(realpath_dir "$file_parent")"
   printf "not-a-dir\n" > "$file_parent/.agent-layer"
 
   script="$(
@@ -494,7 +496,7 @@ realpath_dir() {
 
   expected="$(
     multiline \
-      "ERROR: Parent root must contain .agent-layer/ (dir or symlink): $(realpath_dir \"$file_parent\")" \
+      "ERROR: Parent root must contain .agent-layer/ (dir or symlink): $file_parent_resolved" \
       "" \
       "Found directory but no .agent-layer/ inside." \
       "" \
@@ -510,12 +512,14 @@ realpath_dir() {
 
 # Spec 2 Error: Parent root consistency check fails
 @test "Spec 2 Error: Parent root consistency check fails" {
-  local agent_layer_root real_parent fake_parent expected script
+  local agent_layer_root real_parent fake_parent agent_layer_resolved fake_parent_resolved expected script
   real_parent="$(make_tmp_dir)"
   agent_layer_root="$real_parent/.agent-layer"
   create_agent_layer_root "$agent_layer_root"
+  agent_layer_resolved="$(realpath_dir "$agent_layer_root")"
 
   fake_parent="$(make_tmp_dir)"
+  fake_parent_resolved="$(realpath_dir "$fake_parent")"
   mkdir -p "$fake_parent/.agent-layer"
 
   script="$(
@@ -531,8 +535,8 @@ realpath_dir() {
     multiline \
       "ERROR: Parent root .agent-layer/ does not match script location." \
       "" \
-      "Resolved script location: $(realpath_dir \"$agent_layer_root\")" \
-      "Resolved parent config:   $(realpath_dir \"$fake_parent/.agent-layer\")" \
+      "Resolved script location: $agent_layer_resolved" \
+      "Resolved parent config:   $fake_parent_resolved/.agent-layer" \
       "" \
       "These must point to the same location. You are running scripts from one" \
       "agent-layer installation but trying to configure a different one." \
@@ -980,10 +984,11 @@ EOF
 
 # Spec 3 Error: Temp parent root creation fails
 @test "Spec 3 Error: Temp parent root creation fails" {
-  local parent_root agent_layer_root stub_bin expected script
+  local parent_root agent_layer_root stub_bin agent_layer_resolved expected script
   parent_root="$(make_tmp_dir)"
   agent_layer_root="$parent_root/.agent-layer"
   create_agent_layer_root "$agent_layer_root"
+  agent_layer_resolved="$(realpath_dir "$agent_layer_root")"
 
   stub_bin="$parent_root/stub-bin"
   mkdir -p "$stub_bin"
@@ -1008,7 +1013,7 @@ EOF
       "" \
       "Attempted:" \
       "  1. ${TMPDIR:-/tmp}/agent-layer-temp-parent-root.XXXXXX" \
-      "  2. $(realpath_dir \"$agent_layer_root\")/tmp/agent-layer-temp-parent-root.XXXXXX" \
+      "  2. $agent_layer_resolved/tmp/agent-layer-temp-parent-root.XXXXXX" \
       "  3. Manual creation (if mktemp unavailable)" \
       "" \
       "Possible causes:" \
@@ -1028,10 +1033,11 @@ EOF
 
 # Spec 3 Error: Temp parent root symlink creation fails
 @test "Spec 3 Error: Temp parent root symlink creation fails" {
-  local parent_root agent_layer_root stub_bin script expected temp_root
+  local parent_root agent_layer_root stub_bin script expected temp_root agent_layer_resolved
   parent_root="$(make_tmp_dir)"
   agent_layer_root="$parent_root/.agent-layer"
   create_agent_layer_root "$agent_layer_root"
+  agent_layer_resolved="$(realpath_dir "$agent_layer_root")"
 
   stub_bin="$parent_root/stub-bin"
   mkdir -p "$stub_bin"
@@ -1059,7 +1065,7 @@ EOF
     multiline \
       "ERROR: Failed to create .agent-layer symlink in temp parent root." \
       "" \
-      "Path: $temp_root/.agent-layer -> $(realpath_dir \"$agent_layer_root\")" \
+      "Path: $temp_root/.agent-layer -> $agent_layer_resolved" \
       "" \
       "Possible causes:" \
       "  - Filesystem doesn't support symlinks (e.g., FAT32, some network mounts)" \
@@ -1136,11 +1142,12 @@ EOF
 
 # Spec 4: Dev repo requires explicit parent root configuration
 @test "Spec 4: Dev repo requires explicit parent root configuration" {
-  local base agent_layer_root script expected
+  local base agent_layer_root script expected agent_layer_resolved
   base="$(make_tmp_dir)"
   agent_layer_root="$base/agent-layer"
   mkdir -p "$agent_layer_root"
   create_agent_layer_root "$agent_layer_root"
+  agent_layer_resolved="$(realpath_dir "$agent_layer_root")"
 
   script="$(
     multiline \
@@ -1171,7 +1178,7 @@ EOF
       "     ./setup.sh --parent-root /path/to/test-repo" \
       "     ./tests/run.sh --parent-root /path/to/test-repo" \
       "" \
-      "  3. Set PARENT_ROOT in $(realpath_dir \"$agent_layer_root\")/.env for persistent config:" \
+      "  3. Set PARENT_ROOT in $agent_layer_resolved/.env for persistent config:" \
       "     echo \"PARENT_ROOT=/path/to/test-repo\" > .env"
   )"
   [[ "$output" == "$expected" ]]
@@ -1181,11 +1188,12 @@ EOF
 
 # Spec 4: Renamed agent layer directory cannot discover parent root
 @test "Spec 4: Renamed agent layer directory cannot discover parent root" {
-  local base agent_layer_root script expected
+  local base agent_layer_root script expected agent_layer_resolved
   base="$(make_tmp_dir)"
   agent_layer_root="$base/custom-layer"
   mkdir -p "$agent_layer_root"
   create_agent_layer_root "$agent_layer_root"
+  agent_layer_resolved="$(realpath_dir "$agent_layer_root")"
 
   script="$(
     multiline \
@@ -1210,7 +1218,7 @@ EOF
       "  1. Rename directory to .agent-layer (if this is an installed agent layer)" \
       "  2. Use explicit parent root: --parent-root <path>" \
       "  3. Use temp parent root: --temp-parent-root" \
-      "  4. Set PARENT_ROOT in $(realpath_dir \"$agent_layer_root\")/.env"
+      "  4. Set PARENT_ROOT in $agent_layer_resolved/.env"
   )"
   [[ "$output" == "$expected" ]]
 

@@ -9,32 +9,46 @@ die() {
   exit 1
 }
 
-# Parse --work-root so the runner can be invoked from the agent-layer repo.
+# Parse parent-root flags so the runner can be invoked from the agent-layer repo.
 usage() {
-  cat << 'EOF'
-Usage: tests/run.sh [--work-root <path>]
+  cat << 'USAGE'
+Usage: tests/run.sh [--parent-root <path>] [--temp-parent-root] [--run-from-repo-root]
 
-Run formatting checks and the Bats suite. When running from inside the
-agent-layer repo itself, pass --work-root to a consumer root that contains
-a .agent-layer/ directory.
-EOF
+Run formatting checks and the Bats suite.
+
+In the agent-layer repo (no .agent-layer/ directory), use --temp-parent-root
+or pass --parent-root to a temp directory. In a consumer repo, --parent-root
+must point to the repo root that contains .agent-layer/.
+
+Use --run-from-repo-root to keep the current working directory unchanged.
+USAGE
 }
 
-work_root=""
+parent_root=""
+use_temp_parent_root="0"
+run_from_repo_root="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --work-root)
-      shift
-      if [[ $# -eq 0 || -z "${1:-}" ]]; then
-        die "--work-root requires a path."
-      fi
-      work_root="$1"
+    --temp-parent-root)
+      use_temp_parent_root="1"
       shift
       ;;
-    --work-root=*)
-      work_root="${1#*=}"
-      if [[ -z "$work_root" ]]; then
-        die "--work-root requires a path."
+    --run-from-repo-root)
+      run_from_repo_root="1"
+      shift
+      ;;
+    --parent-root)
+      shift
+      if [[ $# -eq 0 || -z "${1:-}" ]]; then
+        die "--parent-root requires a path."
+      fi
+      parent_root="$1"
+      shift
+      ;;
+    --parent-root=*)
+      parent_root="${1#*=}"
+      if [[ -z "$parent_root" ]]; then
+        die "--parent-root requires a path."
       fi
       shift
       ;;
@@ -48,44 +62,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PATHS_SH="$REPO_ROOT/src/lib/paths.sh"
-if [[ ! -f "$PATHS_SH" ]]; then
-  die "Missing src/lib/paths.sh (expected in the agent-layer repo)."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOTS_HELPER="$SCRIPT_DIR/../src/lib/parent-root.sh"
+if [[ ! -f "$ROOTS_HELPER" ]]; then
+  die "Missing src/lib/parent-root.sh (expected near tests/)."
 fi
 # shellcheck disable=SC1090
-source "$PATHS_SH"
-if [[ -n "$work_root" ]]; then
-  if [[ ! -d "$work_root" ]]; then
-    die "--work-root does not exist: $work_root"
-  fi
-  work_root="$(cd "$work_root" && pwd)"
-  if [[ ! -d "$work_root/.agent-layer" ]]; then
-    die "--work-root must contain a .agent-layer directory: $work_root"
-  fi
-  cd "$work_root"
-  WORKING_ROOT="$work_root"
-  AGENTLAYER_ROOT="$work_root/.agent-layer"
-  export WORKING_ROOT AGENTLAYER_ROOT
-else
-  if ! resolve_working_root "$SCRIPT_DIR" "$PWD" > /dev/null; then
-    die "Missing .agent-layer/ directory in this path or any parent. Re-run with --work-root <path>."
-  fi
-  # Resolve entrypoint helpers so the runner works from any directory.
-  ENTRYPOINT_SH="$SCRIPT_DIR/.agent-layer/src/lib/entrypoint.sh"
-  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-    ENTRYPOINT_SH="$SCRIPT_DIR/src/lib/entrypoint.sh"
-  fi
-  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-    ENTRYPOINT_SH="$SCRIPT_DIR/../src/lib/entrypoint.sh"
-  fi
-  if [[ ! -f "$ENTRYPOINT_SH" ]]; then
-    die "Missing src/lib/entrypoint.sh (expected near .agent-layer/)."
-  fi
-  # shellcheck disable=SC1090
-  source "$ENTRYPOINT_SH"
-  resolve_entrypoint_root || exit $?
+source "$ROOTS_HELPER"
+ROOTS_PARENT_ROOT="$parent_root" \
+  ROOTS_USE_TEMP_PARENT_ROOT="$use_temp_parent_root" \
+  resolve_parent_root || exit $?
+
+if [[ "$TEMP_PARENT_ROOT_CREATED" == "1" ]]; then
+  # shellcheck disable=SC2153
+  trap '[[ "${PARENT_ROOT_KEEP_TEMP:-0}" == "1" ]] || rm -rf "$PARENT_ROOT"' EXIT INT TERM
+fi
+
+if [[ "$run_from_repo_root" != "1" ]]; then
+  cd "$PARENT_ROOT"
 fi
 
 # Require external tools used by formatting and tests.
@@ -109,7 +103,7 @@ if ! command -v "$BATS_BIN" > /dev/null 2>&1; then
 fi
 
 # Resolve Prettier (local install preferred).
-PRETTIER_BIN="$AGENTLAYER_ROOT/node_modules/.bin/prettier"
+PRETTIER_BIN="$AGENT_LAYER_ROOT/node_modules/.bin/prettier"
 if [[ -x "$PRETTIER_BIN" ]]; then
   PRETTIER="$PRETTIER_BIN"
 elif command -v prettier > /dev/null 2>&1; then
@@ -124,11 +118,9 @@ shell_files=()
 while IFS= read -r -d '' file; do
   shell_files+=("$file")
 done < <(
-  find "$AGENTLAYER_ROOT" \
-    -path "$AGENTLAYER_ROOT/node_modules" -prune -o \
-    -path "$AGENTLAYER_ROOT/.git" -prune -o \
-    -path "$AGENTLAYER_ROOT/tmp" -prune -o \
-    -type f \( -name "*.sh" -o -path "$AGENTLAYER_ROOT/al" -o -path "$AGENTLAYER_ROOT/.githooks/pre-commit" \) \
+  find "$AGENT_LAYER_ROOT" \
+    \( -type d \( -name node_modules -o -name .git -o -name tmp \) -prune \) -o \
+    -type f \( -name "*.sh" -o -path "$AGENT_LAYER_ROOT/al" -o -path "$AGENT_LAYER_ROOT/.githooks/pre-commit" \) \
     -print0
 )
 if [[ "${#shell_files[@]}" -gt 0 ]]; then
@@ -147,10 +139,8 @@ js_files=()
 while IFS= read -r -d '' file; do
   js_files+=("$file")
 done < <(
-  find "$AGENTLAYER_ROOT" \
-    -path "$AGENTLAYER_ROOT/node_modules" -prune -o \
-    -path "$AGENTLAYER_ROOT/.git" -prune -o \
-    -path "$AGENTLAYER_ROOT/tmp" -prune -o \
+  find "$AGENT_LAYER_ROOT" \
+    \( -type d \( -name node_modules -o -name .git -o -name tmp \) -prune \) -o \
     -type f \( -name "*.mjs" -o -name "*.js" \) \
     -print0
 )
@@ -160,4 +150,4 @@ fi
 
 # Run the Bats test suite.
 say "==> Tests (bats)"
-"$BATS_BIN" "$AGENTLAYER_ROOT/tests"
+"$BATS_BIN" "$AGENT_LAYER_ROOT/tests"

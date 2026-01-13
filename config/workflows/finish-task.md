@@ -26,18 +26,15 @@ If any are missing, create them from `config/templates/docs/<NAME>.md` (preserve
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `scope=uncommitted|since_last_commit|range|paths` (default: `uncommitted`)
-- `range=<git-range>` (only if `scope=range`, e.g. `HEAD~5..HEAD`)
-- `paths=<comma-separated paths>` (only if `scope=paths`)
-- `plan_path=implementation_plan.md` (default: `implementation_plan.md`)
-- `verify=auto|fast|full|none` (default: `auto`)
-- `risk=low|medium|high` (default: `medium`)
-- `update_roadmap=auto|on|off` (default: `auto`)
-- `max_new_entries=10` (default: `10`) — across all memory files
-- `dry_run=false|true` (default: `false`) — if `true`, do not edit files; only propose changes
+- Scope: default to uncommitted changes; the user may request since last commit, a specific git range, or explicit paths.
+- Plan file path: default to `implementation_plan.md`.
+- Verification depth and risk level: default to automatic verification with medium risk.
+- Roadmap updates: default to automatic updates when the work maps to roadmap tasks; skip if the user asks to avoid updates.
+- Maximum new entries across memory files: default to 10.
+- Dry run: if the user asks for a dry run, do not edit files and only propose changes.
 
 ---
 
@@ -75,15 +72,15 @@ If only one agent is available, execute phases in this order with explicit headi
 
 3. Build the review file list based on `scope`:
 
-- `scope=uncommitted` (default):
+- Default to uncommitted changes:
   - staged: `git diff --name-only --staged`
   - unstaged: `git diff --name-only`
-- `scope=since_last_commit`:
+- If the user requests since last commit:
   - `git show --name-only --pretty="" HEAD`
-- `scope=range`:
+- If the user provides a git range:
   - `git diff --name-only <range>`
-- `scope=paths`:
-  - use the provided `paths=...`
+- If the user provides explicit paths:
+  - use those paths directly
 
 If the file list is empty:
 - state “No changed files detected” and proceed with memory cleanup only (dedup/removal).
@@ -98,7 +95,7 @@ If the file list is empty:
 # Phase 1 — Reflect on recent work (Change Reviewer)
 
 ## 1A) Plan alignment (if a plan exists)
-If `plan_path` exists:
+If the plan file exists:
 - read it
 - compare planned tasks vs actual changes
 - list:
@@ -106,7 +103,7 @@ If `plan_path` exists:
   - omissions
   - deviations (and why)
 
-If `plan_path` does not exist:
+If the plan file does not exist:
 - state that no plan artifact was found and skip plan alignment.
 
 ## 1B) Passive best-practice check (no broad audit)
@@ -150,7 +147,7 @@ If missing:
 - Add to **`docs/DECISIONS.md`** if the task required a significant decision:
   - record decision, reason, and tradeoffs
   - keep it brief and keep the most recent decisions near the top
-- Update **`docs/ROADMAP.md`** only if `update_roadmap=on`, or `update_roadmap=auto` and:
+- Update **`docs/ROADMAP.md`** only if the user asks for roadmap updates, or if automatic updates are appropriate and:
   - the completed work clearly maps to existing roadmap tasks, or
   - the roadmap is now stale/contradicted by what was implemented.
 
@@ -197,13 +194,13 @@ Add entries near the top:
 - Keep the file easy to scan (prefer newest entries near top if that is the existing convention).
 
 ## 2G) Respect entry limits
-Do not add more than `max_new_entries` new entries across all memory files in a single run.
+Do not add more than the entry cap across all memory files in a single run.
 If more exist:
 - add the most impactful first
 - summarize the remainder in the final report as “not logged due to limit”
 
 ## 2H) Dry run support
-If `dry_run=true`:
+If running in dry-run mode:
 - do not modify files
 - produce a proposed diff-style summary of what would change
 
@@ -212,12 +209,12 @@ If `dry_run=true`:
 # Phase 3 — Regression test and verification (Verifier)
 
 ## 3A) Choose verification level
-- `verify=none`: skip verification and clearly document the limitation.
-- `verify=fast`: run the repo’s fast checks.
-- `verify=full`: run the repo’s full checks.
-- `verify=auto`:
+- If the user explicitly requests no verification, skip it and clearly document the limitation.
+- If the user requests fast verification, run the repo’s fast checks.
+- If the user requests full verification, run the repo’s full checks.
+- Otherwise:
   - default to fast checks
-  - escalate toward full checks when `risk=high` or changes touch core infrastructure, build pipelines, or public interfaces.
+  - escalate toward full checks when risk is high or changes touch core infrastructure, build pipelines, or public interfaces.
 
 ## 3B) Prefer repo-defined commands
 Attempt, in order, depending on what exists in the repository:
@@ -234,7 +231,7 @@ If no credible commands exist:
 ## 3C) If verification fails
 - Fix failures only if the fix is directly connected to the recent work and remains in-scope.
 - If the failure indicates a broader problem:
-  - log it to `docs/ISSUES.md` (unless `dry_run=true`)
+  - log it to `docs/ISSUES.md` (unless running in dry-run mode)
   - stop further scope expansion.
 
 ---
@@ -258,7 +255,7 @@ Provide a structured summary:
   - limitations (if any)
 
 ## Out-of-scope discoveries
-List any out-of-scope items that were observed and where they were logged (ISSUES/FEATURES), or note if they were not logged due to `max_new_entries` or `dry_run=true`.
+List any out-of-scope items that were observed and where they were logged (ISSUES/FEATURES), or note if they were not logged due to the entry cap or dry-run mode.
 
 ---
 

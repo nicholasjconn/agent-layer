@@ -183,12 +183,6 @@ runs, existing files are kept.
 
 **Note**: `.agent-layer/` is gitignored by default so you can use it individually without team buy-in. For team use, fork agent-layer and have team members install your fork instead of committing config to each project repo.
 
-**If you already have agent-layer checked out locally**:
-
-```bash
-/path/to/.agent-layer/agent-layer-install.sh
-```
-
 ### Upgrade Existing Installation
 
 **Upgrade to latest tagged release**:
@@ -260,30 +254,9 @@ The installer creates `.env` from `.env.example` if it is missing.
 
 **Note**: Keep agent-only secrets separate from your application's `.env` (if you have one). Agent-layer reads `.agent-layer/.env`, not your parent root `.env`.
 
-### Step 3: Verify Launcher Exists
-
-The installer created `./al` in your parent root. Verify:
-
-```bash
-# From parent root:
-ls -la ./al
-```
-
-You should see a file or symlink. If it's missing, the installer had an issue.
-
-**For advanced users**: The installer creates a wrapper script. You can replace it with a symlink if you prefer:
-```bash
-ln -sf .agent-layer/agent-layer ./al
-```
-
-### Step 4: Codex Users (Special Setup)
+### Step 3: Codex Users (Special Setup)
 
 **If you use the Codex VS Code extension**, you need to launch VS Code with `CODEX_HOME` set.
-
-**Quick command** (from parent root):
-```bash
-CODEX_HOME="$PWD/.codex" code .
-```
 
 **macOS Finder launcher**:
 - Use `.agent-layer/open-vscode.command` to launch VS Code for this repo.
@@ -291,11 +264,16 @@ CODEX_HOME="$PWD/.codex" code .
 - On success, the launcher closes its Terminal window; set `OPEN_VSCODE_NO_CLOSE=1` if you run it from a terminal and want it to stay open.
 - If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
 
+**Quick command** (from parent root):
+```bash
+CODEX_HOME="$PWD/.codex" code .
+```
+
 **Why**: The Codex VS Code extension only works when `CODEX_HOME` points at the repo-local `.codex/`. If you launch VS Code normally, it won't see the Codex artifacts.
 
 See the [Codex section](#codex-cli--vs-code-extension) for full details.
 
-### Step 5: Try It Now
+### Step 4: Try It Now
 
 Test that agent-layer is working:
 
@@ -455,7 +433,7 @@ Antigravity:
 **Getting the Codex VS Code extension to use repo-local `CODEX_HOME`**
 - The extension reads `CODEX_HOME` from the VS Code/Antigravity process environment at startup (no workspace setting).
 - Set `CODEX_HOME` to the absolute path of this repo's `.codex/`, then fully restart the app.
-- See First Steps step 4 for the recommended launcher commands.
+- See First Steps step 3 for the recommended launcher commands.
 
 Optional wrapper (handy if you work across multiple repos):
 - Create a small script that exports `CODEX_HOME` and launches VS Code/Antigravity.

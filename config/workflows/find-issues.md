@@ -24,30 +24,21 @@ This workflow is **report-first**:
 - `docs/ROADMAP.md` — numbered phases; guides architecture and sequencing.
 - `docs/DECISIONS.md` — rolling log of important decisions (brief).
 
-If any are missing, create them from `config/templates/docs/<NAME>.md` (preserve headings and markers), but only if `write_mode=apply`.
+If any are missing, create them from `config/templates/docs/<NAME>.md` (preserve headings and markers), but only if the user explicitly asks to apply changes.
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `scope=uncommitted|last_commit|range|paths|repo` (default: `uncommitted`)
-- `range=<git-range>` (only if `scope=range`, e.g. `HEAD~5..HEAD`)
-- `paths=<comma-separated paths>` (only if `scope=paths`)
-- `depth=narrow|deep|broad|full` (default: `full`)
-  - `narrow`: only the narrow set (changed files)
-  - `deep`: narrow + one layer outward (callers/callees/adjacent modules)
-  - `broad`: repo-wide scan for smell patterns and hotspot spot-checking
-  - `full`: narrow → deep → broad
-- `risk=low|medium|high` (default: `medium`) — influences prioritization and recommended verification
-- `report_path=quality_audit_report.md` (default: `quality_audit_report.md`)
-- `max_findings=20` (default: `20`)
-- `include_snippets=none|short` (default: `short`)
-- `write_mode=report_only|propose|apply` (default: `report_only`)
-  - `report_only`: report findings only
-  - `propose`: include “ready-to-paste” entries for memory files, but do not write them
-  - `apply`: update memory files using the project rules (requires explicit user request)
-- `entry_id=auto|<token>` (default: `auto`) — used in proposed Issue/Feature/Decision entries (e.g., short SHA)
+- Scope: default to uncommitted changes; the user may request the last commit, a specific git range, specific paths, or the full repository.
+- Depth: default to a full pass (narrow → deep → broad); the user may request narrow, deep, or broad only.
+- Risk level: default to medium; use higher risk to prioritize more severe findings.
+- Report path: default to `quality_audit_report.md` unless the user specifies a different location.
+- Maximum findings: default to 20.
+- Snippet length: default to short; omit snippets if the user requests none.
+- Write mode: default to report-only; provide proposals if requested; apply changes only if the user explicitly requests it.
+- Entry identifier: default to the git short SHA when available; use a user-provided token if given.
 
 ---
 
@@ -57,7 +48,7 @@ If the user provides arguments after the command, interpret them as:
 3. **Deep-Dive Investigator**: expand one layer outward from the highest-impact narrow findings.
 4. **Broad Scanner**: lightweight smell scanning + hotspot spot-checking.
 5. **Synthesizer**: deduplicate, prioritize, and map findings to roadmap/decisions/standards.
-6. **Reporter**: write `report_path` and present a review summary to the user.
+6. **Reporter**: write the report file and present a review summary to the user.
 
 If only one agent is available, execute phases in this order with explicit headings.
 
@@ -77,22 +68,18 @@ If only one agent is available, execute phases in this order with explicit headi
    - `git status --porcelain`
 
 2. Determine the narrow file set:
-- `scope=uncommitted` (default):
+- Default to uncommitted changes:
   - staged: `git diff --name-only --staged`
   - unstaged: `git diff --name-only`
-- `scope=last_commit`:
-  - `git show --name-only --pretty="" HEAD`
-- `scope=range`:
-  - `git diff --name-only <range>`
-- `scope=paths`:
-  - use `paths=...`
-- `scope=repo`:
-  - narrow set is empty; proceed directly to broad scan
+- If the user requests the last commit: `git show --name-only --pretty="" HEAD`
+- If the user provides a git range: `git diff --name-only <range>`
+- If the user provides specific paths: use those paths directly.
+- If the user requests a repo-wide scan: the narrow set is empty; proceed directly to the broad scan.
 
-If `scope=uncommitted` yields no files, fall back to `scope=last_commit` and note it in the report.
+If uncommitted changes yield no files, fall back to the last commit and note it in the report.
 
 3. Establish an entry identifier:
-- if `entry_id=auto` and git is available: use `git rev-parse --short HEAD`
+- if the user did not supply an identifier and git is available: use `git rev-parse --short HEAD`
 - otherwise: use `nogit`
 
 **Deliverable**
@@ -127,7 +114,7 @@ Produce an “audit lens” checklist:
 
 # Phase 2 — Narrow audit (Diff Auditor)
 
-Trigger when `depth=narrow|deep|full`.
+Trigger when the chosen depth includes narrow.
 
 For each file in the narrow set:
 
@@ -165,7 +152,7 @@ Each finding should include:
 
 # Phase 3 — Deep dive (Deep-Dive Investigator)
 
-Trigger when `depth=deep|full`.
+Trigger when the chosen depth includes deep.
 
 1. Select up to 5 highest-impact narrow findings.
 2. For each, go one layer outward:
@@ -184,7 +171,7 @@ Refine recommendations into “next-step sized” actions.
 
 # Phase 4 — Broad audit (Broad Scanner)
 
-Trigger when `depth=broad|full`.
+Trigger when the chosen depth includes broad.
 
 ## 4A) Identify hotspots
 Use one or more of:
@@ -223,13 +210,13 @@ Pick a few representative areas and check:
 - **Medium**: significant maintainability cost, likely bug source, extensibility pain.
 - **Low**: clarity/polish; not urgent.
 
-3. Select up to `max_findings` for the report.
+3. Select up to the findings cap for the report.
 
 ---
 
 # Phase 6 — Report and review (Reporter)
 
-Create `report_path` with:
+Create the report file at the chosen path with:
 
 ## Required sections
 1. **Executive summary** (5–10 bullets)
@@ -240,7 +227,7 @@ Create `report_path` with:
    - propose small coherent batches (≤ 3) rather than a long backlog
 
 ## Optional: ready-to-paste memory entries
-If `write_mode=propose|apply`, include an “Entry candidates” section.
+If the user asked for proposals or apply mode, include an “Entry candidates” section.
 
 ### Candidate entry rules (mandatory)
 - Entries must be **3 to 5 lines**.
@@ -252,13 +239,13 @@ Formats:
 - Features: `- Feature YYYY-MM-DD <entry_id>: <short title>` (user-visible only)
 - Decisions: `- Decision YYYY-MM-DD <entry_id>: <short title>`
 
-**Important:** If `write_mode=propose`, do not modify files—only provide candidates.
+**Important:** If the user asked for proposals, do not modify files—only provide candidates.
 
 ---
 
 # Phase 7 — Optional apply step (only if explicitly requested)
 
-Proceed only if `write_mode=apply`.
+Proceed only if the user explicitly asked to apply changes.
 
 1. Ensure all memory files exist (create from templates if missing).
 2. For each approved finding:
@@ -280,7 +267,7 @@ Present the top findings (High + Medium) to the user and ask which items should 
 ---
 
 ## Definition of done
-- `report_path` exists and is readable.
+- The report file exists and is readable.
 - Findings are evidence-backed, deduplicated, and aligned to README/ROADMAP/DECISIONS.
 - No code changes made unless separately requested.
-- Memory files are not modified unless the user explicitly requests `write_mode=apply`.
+- Memory files are not modified unless the user explicitly asks to apply changes.

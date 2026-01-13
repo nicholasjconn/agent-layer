@@ -1,5 +1,5 @@
 ---
-description: Identify the single lowest-covered business-logic file across coverage domains, add tests to raise that file above a threshold, and verify—using repo-defined coverage commands documented in docs/COMMANDS.md.
+description: Identify the single lowest-covered business-logic file across coverage domains, add tests to raise that file above the repo-defined coverage threshold, and verify—using repo-defined coverage commands documented in docs/COMMANDS.md.
 ---
 
 # Boost coverage for the weakest file (repo-adaptive, monorepo-safe)
@@ -7,7 +7,8 @@ description: Identify the single lowest-covered business-logic file across cover
 ## Intent
 Increase test coverage for exactly one **eligible business-logic** file:
 - Select the file with the **lowest line coverage** (across coverage domains/components when applicable).
-- Add or update tests to raise that file’s coverage to **> threshold** (default 95%).
+- Add or update tests to raise that file’s coverage to meet the repo-defined coverage threshold (from CI requirements or `docs/DECISIONS.md`).
+- If no threshold is documented, ask the user to provide one, log it in `docs/DECISIONS.md`, and use it going forward.
 - Verify with the most credible file-scoped or component-scoped coverage check available.
 
 This workflow is designed for agentic environments:
@@ -16,26 +17,26 @@ This workflow is designed for agentic environments:
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `threshold=95` (default: `95`)
-- `target=<path>` (optional; if provided, skip selection and work only on that file)
-- `domain=auto|<name>` (default: `auto`) — a coverage domain/component (backend, web, service-a, etc.)
-- `scope=auto|repo|domain` (default: `auto`)
-- `verify=auto|fast|full` (default: `auto`)
-- `install_tools=never|ask` (default: `ask`) — installing missing coverage tooling always requires user approval
-- `update_commands=true|false` (default: `true`) — whether to persist coverage commands to `docs/COMMANDS.md`
+- Coverage threshold: use the repo-defined threshold (CI requirements or `docs/DECISIONS.md`). If none is documented, ask the user to provide one and log it in `docs/DECISIONS.md`.
+- A specific target file path; if provided, skip selection and work only on that file.
+- A coverage domain/component to focus on (default: auto-detect).
+- Scope preference (default: automatic, choose repo or domain as appropriate).
+- Verification depth (default: automatic).
+- Whether to install missing coverage tooling (default: ask; always requires approval).
+- Whether to persist coverage commands to `docs/COMMANDS.md` (default: yes).
 
 ---
 
 ## Roles and handoffs (multi-agent)
 1. **Coverage Scout**: discover coverage domains and commands; compute confidence; propose the coverage plan.
 2. **Coverage Runner**: execute coverage commands and produce a normalized per-file coverage table.
-3. **Target Selector**: apply eligibility rules and choose the single lowest-covered file (or validate `target=`).
+3. **Target Selector**: apply eligibility rules and choose the single lowest-covered file (or validate a user-specified target).
 4. **Test Designer**: derive behavior-driven test cases that cover branches and edge cases meaningfully.
-5. **Test Implementer**: add/update tests to raise coverage above `threshold` without changing behavior.
-6. **Verifier**: re-run the smallest credible coverage check to confirm the target file meets the threshold.
+5. **Test Implementer**: add/update tests to raise coverage to the agreed threshold without changing behavior.
+6. **Verifier**: re-run the smallest credible coverage check to confirm the target file meets the agreed threshold.
 7. **Reporter**: summarize before/after, commands, and changes; update `docs/COMMANDS.md` if enabled.
 
 ---
@@ -100,9 +101,16 @@ Assign confidence for the coverage plan:
   3) Do not proceed until confirmed.
 
 ## 1E) Persist commands (seamless)
-If the user confirms/provides commands and `update_commands=true`:
+If the user confirms/provides commands and wants them recorded:
 - Update `docs/COMMANDS.md` under **Coverage** (and **Test** if relevant).
 - Only record commands expected to be reused.
+
+## 1F) Determine the coverage threshold (repo-defined)
+1. Check CI or test requirements for an explicit coverage gate (for example, coverage configuration or workflow checks).
+2. Check `docs/DECISIONS.md` for an existing coverage threshold decision.
+3. If a threshold is found, use it and avoid adding a duplicate decision.
+4. If no threshold is documented, ask the user to provide one before proceeding.
+5. Once provided, add a `Decision YYYY-MM-DD abcdef` entry to `docs/DECISIONS.md` and use that threshold for this run and future runs.
 
 ---
 
@@ -112,7 +120,7 @@ If coverage execution fails due to missing tooling (plugin/runner):
 1. Propose the smallest viable installation approach (exact command and why it is needed).
 2. Ask the user for approval.
 3. Only after approval, install and re-run coverage.
-4. Update `docs/COMMANDS.md` prerequisites if `update_commands=true`.
+4. Update `docs/COMMANDS.md` prerequisites if the user wants commands recorded.
 
 ---
 
@@ -143,7 +151,7 @@ Exclude files likely to be noise:
 - entrypoints that are intentionally thin (barrels, index files) unless they contain logic
 
 ## 4B) Target selection
-- If `target=` is provided:
+- If the user provides a target file:
   - validate it is eligible business logic
   - compute current coverage for it
 - Otherwise:
@@ -185,7 +193,7 @@ Deliverables:
 
 Verification preference order:
 1. File-scoped coverage for the target (best).
-2. Domain-scoped coverage re-run and confirm the target file’s percent is > `threshold`.
+2. Domain-scoped coverage re-run and confirm the target file’s percent meets or exceeds the agreed threshold.
 
 If verification cannot be performed reliably:
 - stop and report what is missing (commands/artifacts/tooling)

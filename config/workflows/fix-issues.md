@@ -15,22 +15,18 @@ Treat this as a starting point. Adjust scope limits and verification rigor based
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `mode=plan|execute` (default: `plan`)
-- `approved=false|true` (default: `false`)
-- `issues_path=docs/ISSUES.md` (default: `docs/ISSUES.md`)
-- `readme_path=README.md` (default: `README.md`)
-- `plan_path=implementation_plan.md` (default: `implementation_plan.md`)
-- `max_issues=3` (default: `3`) — maximum number of issues to fix in one run
-- `max_files=12` (default: `12`) — guardrail to prevent massive refactors
-- `risk=low|medium|high` (default: `medium`) — influences verification depth
-- `verify=auto|fast|full|none` (default: `auto`) — `none` only when explicitly requested
-- `scope=touched|targeted|all` (default: `targeted`)
+- Whether they want planning only or to proceed to execution after approval (default: plan).
+- Alternate paths for the issues ledger, README, or plan file (defaults: `docs/ISSUES.md`, `README.md`, `implementation_plan.md`).
+- Maximum number of issues to fix in one run (default: 3).
+- Maximum number of files to touch (default: 12).
+- Desired risk level and verification depth (default: medium risk and automatic verification; skip only if explicitly requested).
+- Scope preference (default: targeted; the user may ask for touched-only or all).
 
 **Human approval rule**
-- If `mode=execute`, execution is allowed **only if** `approved=true` is explicitly provided by the user (human).
+- If the user asks to execute, execution is allowed **only if** explicit approval is provided by the user (human).
 
 ---
 
@@ -49,8 +45,8 @@ If only one agent is available, execute phases in this order and clearly label e
 
 ## Non-negotiable constraints
 - Do not exceed reasonable scope:
-  - fix a **logical subset** of issues (≤ `max_issues`)
-  - avoid touching > `max_files` unless required for correctness
+  - fix a **logical subset** of issues (default cap: 3)
+  - avoid touching more than 12 files unless required for correctness or explicitly requested
 - Follow the repo’s architectural and style standards (from `README.md` and existing patterns).
 - Keep changes **reviewable**:
   - avoid opportunistic refactors not tied to an issue
@@ -66,17 +62,17 @@ If only one agent is available, execute phases in this order and clearly label e
    - `git diff --stat`
 
 2. Verify documentation files exist:
-   - Open `readme_path` (`README.md` default).
-   - Open `issues_path` (`docs/ISSUES.md` default).
+   - Open the README (default: `README.md`).
+   - Open the issues ledger (default: `docs/ISSUES.md`).
 
-**If `issues_path` does not exist**
+**If the issues ledger file does not exist**
 - Search for an issue ledger file (examples: `ISSUES.md`, `docs/issues.md`, `docs/TODO.md`, `TODO.md`).
 - If none exists:
   - create a minimal `docs/ISSUES.md` with a header + “Known Issues” section
   - populate it with any obvious issues discovered during triage (keep brief)
 
 **Deliverable**
-- Paths used (`readme_path`, `issues_path`, `plan_path`)
+- Paths used (README, issues ledger, plan file)
 - Repo status summary (clean/dirty)
 - Any missing-docs remediation performed
 
@@ -85,7 +81,7 @@ If only one agent is available, execute phases in this order and clearly label e
 # Phase 1 — Review standards and issues (Architect + Issue Triage Lead)
 
 ## 1A) Read standards
-Read `readme_path` and extract:
+Read the README and extract:
 - architecture boundaries and layering
 - naming conventions
 - dependency rules
@@ -95,8 +91,8 @@ Read `readme_path` and extract:
 
 Record these in the plan as “Standards to obey”.
 
-## 1B) Triage `issues_path`
-Parse `issues_path` and build a structured shortlist:
+## 1B) Triage the issues ledger
+Parse the issues ledger and build a structured shortlist:
 - issue title / identifier (if present)
 - category: bug | tech debt | perf | docs | tests | build/CI | security | DX
 - impact: high | medium | low
@@ -105,7 +101,7 @@ Parse `issues_path` and build a structured shortlist:
 - dependencies (if any)
 
 ## 1C) Select a logical subset
-Choose up to `max_issues` that form a coherent batch (e.g., same module, same failure mode, same refactor boundary).
+Choose up to the issue cap (default: 3) that form a coherent batch (e.g., same module, same failure mode, same refactor boundary).
 Avoid mixing unrelated issues that produce wide diffs.
 
 **Deliverable**
@@ -116,7 +112,7 @@ Avoid mixing unrelated issues that produce wide diffs.
 
 # Phase 2 — Write the plan and stop for approval (Planner)
 
-Create `plan_path` with:
+Create the plan file (default: `implementation_plan.md`) with:
 
 ## Required sections in `implementation_plan.md`
 1. **Objective**
@@ -145,9 +141,7 @@ After creating `implementation_plan.md`:
 **Do not execute** unless the human responds with approval.
 
 ### How the human approves
-The user must respond with either:
-- `approved=true mode=execute`, or
-- a clear explicit message like `APPROVE EXECUTION`
+The user must respond with a clear explicit message (for example: “Approved”, “Continue”, or “Agreed”).
 
 If approval is not given, end after the plan.
 
@@ -156,7 +150,7 @@ If approval is not given, end after the plan.
 # Phase 3 — Execute the plan (Implementer)
 
 **Entry condition**
-- Proceed only when `mode=execute` AND `approved=true` is explicitly provided.
+- Proceed only when the user has asked to execute and explicit approval is provided.
 
 ## 3A) Execute step-by-step
 - Implement tasks in the order listed.
@@ -166,7 +160,7 @@ If approval is not given, end after the plan.
 ## 3B) Track out-of-scope findings
 While working:
 - If you find out-of-scope issues, deviations from standards, or poor abstractions:
-  - add them to `issues_path` immediately under a dated “Discovered During Execution” section
+  - add them to the issues ledger immediately under a dated “Discovered During Execution” section
   - keep each entry concise and actionable
 
 Do not expand the implementation plan scope without human approval.
@@ -188,10 +182,10 @@ Review code you changed (and any nearby code you relied on):
 ## 4B) Fix vs log
 - If an issue is **in-scope and small**, fix it now.
 - If it is **out-of-scope** or would expand the diff materially:
-  - add it to `issues_path` with enough context to reproduce/understand
+  - add it to the issues ledger with enough context to reproduce/understand
   - do not fix it in this run
 
-## 4C) Consolidate `issues_path`
+## 4C) Consolidate the issues ledger
 - remove duplicates
 - merge near-duplicates
 - ensure each issue is actionable and not ambiguous
@@ -211,18 +205,18 @@ Perform a deliberate review pass:
 # Phase 6 — Verify and finalize (Verifier + Reporter)
 
 ## 6A) Choose verification level
-Use `verify=` if provided; otherwise `auto`:
+Use the user’s verification preference if provided; otherwise default to automatic:
 
-- `verify=fast`:
+- If the user requests fast verification:
   - run the repo’s quickest test/check target
-- `verify=full`:
+- If the user requests full verification:
   - run the repo’s full test suite and/or build checks
-- `verify=auto`:
+- Otherwise:
   - default to fast checks
   - escalate to fuller checks if:
-    - `risk=high`, or
+    - risk is high, or
     - changes touch core infrastructure, build/CI, or public APIs
-- `verify=none`:
+- If the user explicitly requests no verification:
   - only if explicitly requested; note limitations clearly in the report
 
 ## 6B) Run repo-defined commands first
@@ -237,13 +231,13 @@ If no commands exist:
 - run the most basic available checks (e.g., compile/typecheck/syntax check) only if the repo clearly supports them
 - otherwise state that verification could not be performed
 
-## 6C) Update `issues_path`
+## 6C) Update the issues ledger
 - Remove issues that are now fixed.
 - Add any new out-of-scope issues discovered during verification.
 - Ensure the ledger remains clean and deduplicated.
 
 ## 6D) Handle the plan artifact
-- If repo conventions prefer deleting: delete `plan_path`
+- If repo conventions prefer deleting: delete the plan file
 - Otherwise: mark it “Completed” with a short completion note and keep it for traceability
 
 ## 6E) Final report
@@ -251,7 +245,7 @@ Return:
 - issues fixed (with references/titles)
 - key code changes (high-level)
 - verification commands run + outcomes
-- issues added to `issues_path` (out-of-scope)
+- issues added to the issues ledger (out-of-scope)
 - any limitations (e.g., no tests available)
 
 ---

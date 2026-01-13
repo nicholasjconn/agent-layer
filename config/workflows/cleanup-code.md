@@ -15,17 +15,15 @@ Treat this as a **starting point**: adapt thresholds, scopes, and splitting stra
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `line_limit=400` (default: `400`)
-- `dead_code=auto|on|off` (default: `auto`)
-- `scope=touched|all|paths` (default: `touched`)
-- `paths=<comma-separated paths>` (only used when `scope=paths`)
-- `max_files=3` (default: `3`) — max number of oversized files to split per run
-- `file_types=auto|source|all_text` (default: `source`)
-- `exts=<comma-separated extensions>` (optional override, e.g. `.go,.rs,.java`)
-- `allow_new_tooling=never|auto` (default: `never`) — whether to install new tools (default: **never**)
+- A preferred line limit for splitting oversized files (default: 400).
+- Whether to attempt dead-code removal (default: auto, only when tooling already exists).
+- Scope preference (default: touched files; the user may request all files or provide explicit paths).
+- Maximum number of oversized files to split per run (default: 3).
+- File-type strategy (default: source files; the user may specify extensions or ask to include all text files).
+- Whether new tooling may be installed (default: never).
 
 Defaults are optimized to avoid large diffs and avoid adding dependencies.
 
@@ -50,7 +48,7 @@ Defaults are optimized to avoid large diffs and avoid adding dependencies.
   - introducing small seams for testability/splitting (e.g., dependency injection) *only if behavior is preserved*
 - Avoid style-only churn in unrelated files.
 - Avoid creating many tiny files. New files must be **logical, substantial groupings**.
-- Do not add new tooling unless `allow_new_tooling=auto` and the repo’s docs/CI clearly expect it.
+- Do not add new tooling unless the user explicitly allows it and the repo’s docs/CI clearly expect it.
 
 ---
 
@@ -76,16 +74,16 @@ Prefer *repo-defined* commands and scripts (in roughly this order):
   - dead code (or “none available”)
   - formatting/linting (or “none available”)
   - fast verification (tests/build/typecheck)
-- File-type strategy for size scanning (`exts=` chosen or `file_types=` plan)
+- File-type strategy for size scanning (extensions list or source/all-text plan)
 
 ---
 
 # Phase 1 — Dead code analysis (optional) (Dead Code Analyst)
 
 ## 1A) Decide whether to run
-- `dead_code=off`: skip.
-- `dead_code=on`: run if possible; if not possible without installing tools, stop and report.
-- `dead_code=auto`: run only if the repo already has a dead-code task/tool configured.
+- If the user asks to skip dead-code analysis, skip it.
+- If the user explicitly asks to run it, run only if tooling already exists; otherwise stop and report.
+- Otherwise, run it only if the repo already has a dead-code task/tool configured.
 
 ## 1B) Run dead-code tool (repo-first)
 Examples of acceptable “already present” dead-code runners:
@@ -124,9 +122,9 @@ When deleting:
 # Phase 2 — Code quality cleanup (Code Janitor)
 
 ## 2A) Determine the working set
-- `scope=touched`: files changed in Phase 1 + files that must change due to splitting.
-- `scope=paths`: limit to `paths=...`.
-- `scope=all`: still avoid repo-wide “beautification”; only clean where you touch or where high-impact debt exists.
+- If the user asks for touched scope, limit to files changed in Phase 1 plus files that must change due to splitting.
+- If the user provides explicit paths, limit to those paths.
+- If the user asks for all files, still avoid repo-wide “beautification”; only clean where you touch or where high-impact debt exists.
 
 ## 2B) Comment cleanup rules
 Remove:
@@ -158,9 +156,9 @@ Not allowed:
 # Phase 3 — Identify oversized files (Repo Scout)
 
 ## 3A) Define “source files”
-If `exts=` provided, use it.
+If the user provides extensions, use them.
 
-Otherwise, choose `exts` based on repo signals:
+Otherwise, choose an extension list based on repo signals:
 - Prefer the repo’s main languages (e.g., detected by presence of `go.mod`, `Cargo.toml`, `pom.xml`, `.csproj`, etc.).
 - If uncertain, use a conservative default set of common source/script extensions:
 
@@ -175,12 +173,12 @@ Otherwise, choose `exts` based on repo signals:
   - **Shell scripts:** `.sh,.bash,.zsh`
 
 Notes:
-- Many repos also contain executable scripts with **no extension**. If those are important, use `file_types=all_text` or pass `exts=` explicitly and/or include a custom “scripts/” path via `scope=paths`.
+- Many repos also contain executable scripts with **no extension**. If those are important, include all text files or provide explicit extensions and/or include a custom `scripts/` path.
 
 ## 3B) Scan for oversized files
 **Preferred (git repo):** use tracked files to avoid vendor/build artifacts.
 - Use `git ls-files` as the file list source.
-- Filter by `exts` (unless `file_types=all_text`).
+- Filter by extensions unless the user asked to include all text files.
 
 If not a git repo:
 - Use `find` with excludes for common artifact directories (vendor, node_modules, dist, build, out, target, bin, obj, .venv, .git, etc.)
@@ -189,8 +187,8 @@ If not a git repo:
 
 ## 3C) Select files to split
 - Sort descending by line count.
-- Select at most `max_files`.
-- If `scope=touched`, prefer oversized files already in the working set.
+- Select at most the max-files cap.
+- If using touched scope, prefer oversized files already in the working set.
 
 **Deliverable (Repo Scout → Orchestrator):**
 - Ranked list of oversized files.
@@ -235,7 +233,7 @@ If none match, split using the project’s existing modularization conventions.
 - Move cohesive blocks into new or existing modules.
 - Update imports/references across the repo.
 - Ensure:
-  - the original file ends under `line_limit`
+  - the original file ends under the line limit
   - no circular imports introduced
   - no public API breaks unless explicitly intended (generally avoid)
 
@@ -267,7 +265,7 @@ If no tests/build exist:
 
 ## 5B) Re-scan oversized files
 Confirm:
-- all files you modified are under `line_limit`
+- all files you modified are under the line limit
 - no new oversized files were created unintentionally
 
 If verification fails:
@@ -288,4 +286,4 @@ Provide:
   - API preservation approach (façade/re-exports vs direct import updates)
 - **Commands run:** exact commands
 - **Verification outcome:** pass/fail and any limitations
-- **Follow-ups:** remaining oversized files (if any) beyond `max_files`
+- **Follow-ups:** remaining oversized files (if any) beyond the max-files cap

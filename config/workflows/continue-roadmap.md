@@ -16,22 +16,18 @@ This workflow is **roadmap-driven**. It should not “freestyle” features from
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `mode=plan|execute` (default: `plan`)
-- `approved=false|true` (default: `false`) — required for `mode=execute`
-- `phase=auto|<N>` (default: `auto`) — roadmap phase number
-- `tasks=auto|1|2|3|all` (default: `auto`)
-  - `auto`: pick the smallest coherent set (usually 1 task) for a reviewable change
-- `plan_path=implementation_plan.md` (default: `implementation_plan.md`)
-- `checklist_path=.agent-layer/tmp/task.md` (default: `.agent-layer/tmp/task.md`)
-- `risk=low|medium|high` (default: `medium`)
-- `verify=auto|fast|full|none` (default: `auto`)
-- `update_commands=true|false` (default: `true`) — update `docs/COMMANDS.md` when learning repeatable commands
+- Whether they want planning only or to proceed to execution after approval (default: plan).
+- A specific roadmap phase number to use; otherwise select the first incomplete phase.
+- How many tasks to bundle (default: the smallest coherent set, usually one task).
+- Alternate paths for the plan and checklist files (defaults: `implementation_plan.md` and `.agent-layer/tmp/task.md`).
+- Desired risk level and verification depth (defaults: medium risk and automatic verification).
+- Whether to update `docs/COMMANDS.md` when new repeatable commands are discovered (default: yes).
 
 **Approval gate**
-- Code changes are allowed only when `mode=execute` **and** `approved=true`.
+- Code changes are allowed only when the user has asked to execute **and** explicit approval is given.
 
 ---
 
@@ -74,8 +70,8 @@ If only one agent is available, execute phases in this order with explicit headi
 # Phase 1 — Identify active phase and next tasks (Phase Scout)
 
 ## 1A) Determine the active phase
-- If `phase=<N>` is provided: use that phase.
-- Otherwise (`phase=auto`): choose the **first incomplete** roadmap phase (the first phase heading that is not marked with ✅).
+- If the user specifies a phase number, use that phase.
+- Otherwise choose the **first incomplete** roadmap phase (the first phase heading that is not marked with ✅).
 
 If no incomplete phase exists:
 - Stop and ask the user what to do next (roadmap may be complete).
@@ -88,10 +84,12 @@ Within the active phase’s **Tasks** checkbox list:
   - If exit criteria are not satisfied, stop and ask what is missing (roadmap may be out of sync).
 
 Task selection rules:
-- `tasks=1|2|3|all`: select that many unchecked tasks (in order).
-- `tasks=auto`: select the **smallest coherent set**:
+- If the user specifies a number of tasks, select that many unchecked tasks (in order).
+- If the user asks for all tasks, select all unchecked tasks.
+- Otherwise select the **smallest coherent set**:
   - usually 1 task,
-  - sometimes 2–3 if they are tightly coupled and reviewing them together is easier than splitting.
+  - select as many tasks as possible when they are tightly coupled, clearly parallelizable, or needed to reach a clean testing stopping point,
+  - prioritize maximizing the batch size without blurring review scope or spanning unrelated areas.
 
 **Deliverable (Phase Scout → Planner)**
 - Active phase title and number
@@ -181,8 +179,7 @@ Before asking for approval, critically review the plan:
    - verification commands to be run
 2. Ask the user for explicit approval.
 
-**To proceed, the user must respond with:**
-- `approved=true mode=execute`
+**To proceed, the user must provide explicit approval** (for example: “Approved”, “Continue”, or “Agreed”).
 
 If approval is not granted, stop here.
 
@@ -190,7 +187,7 @@ If approval is not granted, stop here.
 
 # Phase 5 — Execute the plan (Implementer)
 
-**Entry condition:** `mode=execute` AND `approved=true`.
+**Entry condition:** explicit approval from the user.
 
 Execution rules:
 - Implement changes in the order in `task.md`.
@@ -202,17 +199,17 @@ While executing:
   - add them to `docs/ISSUES.md` (compact entry)
   - do not expand scope
 - If you discover new reusable commands:
-  - update `docs/COMMANDS.md` if `update_commands=true`
+  - update `docs/COMMANDS.md` unless the user asked not to update commands
 
 ---
 
 # Phase 6 — Verify (Verifier)
 
 ## 6A) Choose verification level
-- `verify=none`: only if explicitly requested; document limitation.
-- `verify=fast`: run the repo’s fast checks.
-- `verify=full`: run the repo’s full checks.
-- `verify=auto`: choose fast by default, escalate to full when `risk=high` or changes touch core interfaces.
+- If the user explicitly requests no verification, document the limitation.
+- If the user requests fast checks, run the repo’s fast checks.
+- If the user requests full verification, run the repo’s full checks.
+- Otherwise choose fast by default and escalate to full when risk is high or changes touch core interfaces.
 
 ## 6B) Use `docs/COMMANDS.md` first
 Run the most relevant commands documented there (tests, typecheck, lint, build), prioritizing the smallest set that credibly verifies the change.

@@ -27,6 +27,20 @@ if [[ ! -f "$RUNNER" ]]; then
 fi
 RUNNER_DIR="$(cd "$(dirname "$RUNNER")" && pwd)"
 
+# Print the installed agent-layer version and exit.
+if [[ "${1:-}" == "--version" ]]; then
+  version=""
+  if command -v git > /dev/null 2>&1; then
+    version="$(git -C "$RUNNER_DIR" describe --tags --always --dirty 2> /dev/null || true)"
+  fi
+  if [[ -n "$version" ]]; then
+    printf "%s\n" "$version"
+  else
+    printf "%s\n" "unknown"
+  fi
+  exit 0
+fi
+
 # Optional update check. Comment this out to skip update checks.
 "$RUNNER_DIR/check-updates.sh" || true
 

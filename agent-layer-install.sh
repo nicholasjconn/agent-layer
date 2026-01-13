@@ -12,14 +12,16 @@ die() {
 
 usage() {
   cat << 'EOF'
-Usage: agent-layer-install.sh [--force] [--upgrade] [--latest-branch <branch>] [--repo-url <url>]
+Usage: agent-layer-install.sh [--force] [--upgrade] [--version <tag>] [--latest-branch <branch>] [--repo-url <url>]
 
 Installs/updates agent-layer in the current working repo and sets up a local launcher.
+Defaults to the latest tagged release for new installs (detached HEAD).
 
 Options:
   --force, -f       Overwrite ./al if it already exists
-  --upgrade, -u     Upgrade .agent-layer to the latest tagged release
-  --latest-branch   Update .agent-layer to the latest commit of a branch (detached)
+  --upgrade, -u     Upgrade .agent-layer to the latest tagged release (detached)
+  --version <tag>   Install a specific tagged release (detached)
+  --latest-branch   Update .agent-layer to the latest commit of a branch (detached; dev)
   --repo-url <url>  Override the agent-layer repo URL
   --help, -h        Show this help
 EOF
@@ -28,6 +30,8 @@ EOF
 # Default option values and repo URL configuration.
 FORCE="0"
 UPGRADE="0"
+VERSION=""
+VERSION_SET="0"
 LATEST_BRANCH=""
 LATEST_BRANCH_SET="0"
 REPO_URL_DEFAULT="https://github.com/nicholasjconn/agent-layer.git"
@@ -45,6 +49,16 @@ while [[ $# -gt 0 ]]; do
       ;;
     --upgrade | -u)
       UPGRADE="1"
+      ;;
+    --version)
+      [[ $# -ge 2 ]] || die "--version requires a value"
+      VERSION="$2"
+      VERSION_SET="1"
+      shift
+      ;;
+    --version=*)
+      VERSION="${1#*=}"
+      VERSION_SET="1"
       ;;
     --latest-branch)
       [[ $# -ge 2 ]] || die "--latest-branch requires a value"
@@ -81,8 +95,17 @@ done
 if [[ "$UPGRADE" == "1" && -n "$LATEST_BRANCH" ]]; then
   die "Choose only one: --upgrade or --latest-branch <branch>"
 fi
+if [[ "$UPGRADE" == "1" && -n "$VERSION" ]]; then
+  die "Choose only one: --upgrade or --version <tag>"
+fi
+if [[ -n "$VERSION" && -n "$LATEST_BRANCH" ]]; then
+  die "Choose only one: --version <tag> or --latest-branch <branch>"
+fi
 if [[ "$LATEST_BRANCH_SET" == "1" && -z "$LATEST_BRANCH" ]]; then
   die "--latest-branch requires a value"
+fi
+if [[ "$VERSION_SET" == "1" && -z "$VERSION" ]]; then
+  die "--version requires a value"
 fi
 
 # Require git up front because install/upgrade uses it heavily.
@@ -132,6 +155,21 @@ resolve_fetch_target() {
   die "No origin remote found. Use --repo-url <url> or set AGENT_LAYER_REPO_URL."
 }
 
+# Ensure a specific tag exists in the remote before cloning.
+ensure_version_exists_remote() {
+  local version="$1"
+  local remote="$2"
+  local refs
+
+  say "==> Checking for tag '$version' in $remote"
+  if ! refs="$(git ls-remote --tags "$remote" "refs/tags/$version" "refs/tags/$version^{}" 2> /dev/null)"; then
+    die "Failed to query tags from $remote; cannot verify '$version'."
+  fi
+  if [[ -z "$refs" ]]; then
+    die "Tag '$version' not found; cannot install requested version."
+  fi
+}
+
 # Upgrade .agent-layer to the latest local tag.
 upgrade_agent_layer() {
   local fetch_target latest_tag current_commit current_tag changes
@@ -146,7 +184,7 @@ upgrade_agent_layer() {
   git -C "$AGENT_LAYER_DIR" fetch --tags "$fetch_target"
 
   latest_tag="$(git -C "$AGENT_LAYER_DIR" tag --list --sort=-v:refname | head -n 1)"
-  [[ -n "$latest_tag" ]] || die "No tags found after fetching; cannot upgrade."
+  [[ -n "$latest_tag" ]] || die "No tags found after fetching; cannot install latest release. Use --latest-branch <branch> for dev builds."
 
   current_commit="$(git -C "$AGENT_LAYER_DIR" rev-parse --short HEAD)"
   current_tag="$(git -C "$AGENT_LAYER_DIR" describe --tags --exact-match 2> /dev/null || true)"
@@ -171,6 +209,49 @@ upgrade_agent_layer() {
   fi
 
   say "==> Note: .agent-layer is now on a detached HEAD at $latest_tag."
+}
+
+# Update .agent-layer to a specific tag.
+install_agent_layer_version() {
+  local version="$1"
+  local fetch_target current_commit current_tag changes
+
+  if [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
+    die ".agent-layer has uncommitted changes. Commit or stash before updating."
+  fi
+
+  fetch_target="$(resolve_fetch_target)"
+
+  say "==> Fetching tags for .agent-layer"
+  git -C "$AGENT_LAYER_DIR" fetch --tags "$fetch_target"
+
+  if ! git -C "$AGENT_LAYER_DIR" rev-parse -q --verify "refs/tags/$version" > /dev/null; then
+    die "Tag '$version' not found after fetching; cannot install requested version."
+  fi
+
+  current_commit="$(git -C "$AGENT_LAYER_DIR" rev-parse --short HEAD)"
+  current_tag="$(git -C "$AGENT_LAYER_DIR" describe --tags --exact-match 2> /dev/null || true)"
+
+  say "==> Current version: ${current_tag:-$current_commit}"
+  say "==> Requested tag: $version"
+
+  if [[ "$current_tag" == "$version" ]]; then
+    say "==> .agent-layer is already at $version."
+    return 0
+  fi
+
+  say "==> Checking out $version"
+  git -C "$AGENT_LAYER_DIR" checkout -q "$version"
+
+  say "==> Changes since ${current_tag:-$current_commit}:"
+  changes="$(git -C "$AGENT_LAYER_DIR" --no-pager log --oneline "$current_commit..$version" || true)"
+  if [[ -n "$changes" ]]; then
+    printf "%s\n" "$changes"
+  else
+    say "  (no commits listed)"
+  fi
+
+  say "==> Note: .agent-layer is now on a detached HEAD at $version."
 }
 
 # Update .agent-layer to the latest commit on a specific branch.
@@ -214,17 +295,24 @@ latest_branch_agent_layer() {
 # Ensure .agent-layer exists, then apply the requested upgrade behavior.
 if [[ ! -e "$AGENT_LAYER_DIR" ]]; then
   [[ -n "$REPO_URL" ]] || die "Missing repo URL (set AGENT_LAYER_REPO_URL or use --repo-url)."
+  if [[ -n "$VERSION" ]]; then
+    ensure_version_exists_remote "$VERSION" "$REPO_URL"
+  fi
   say "==> Cloning agent-layer into .agent-layer/"
   git clone "$REPO_URL" "$AGENT_LAYER_DIR"
-  if [[ "$UPGRADE" == "1" ]]; then
-    upgrade_agent_layer
+  if [[ -n "$VERSION" ]]; then
+    install_agent_layer_version "$VERSION"
   elif [[ -n "$LATEST_BRANCH" ]]; then
     latest_branch_agent_layer "$LATEST_BRANCH"
+  else
+    upgrade_agent_layer
   fi
 else
   if [[ -d "$AGENT_LAYER_DIR" ]]; then
     if git -C "$AGENT_LAYER_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-      if [[ "$UPGRADE" == "1" ]]; then
+      if [[ -n "$VERSION" ]]; then
+        install_agent_layer_version "$VERSION"
+      elif [[ "$UPGRADE" == "1" ]]; then
         upgrade_agent_layer
       elif [[ -n "$LATEST_BRANCH" ]]; then
         latest_branch_agent_layer "$LATEST_BRANCH"

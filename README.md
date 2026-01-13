@@ -86,7 +86,7 @@ The fastest way to try agent-layer in your existing project:
 
 ```bash
 # 1. Download and run installer (from your parent root)
-curl -fsSL https://raw.githubusercontent.com/nicholasjconn/agent-layer/main/agent-layer-install.sh | bash
+curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh | bash
 
 # 2. Run setup (installer already ran this; re-run if you change config or skipped install output)
 ./.agent-layer/setup.sh
@@ -143,12 +143,14 @@ From your parent root directory:
 
 ```bash
 # Download installer
-curl -fsSL https://raw.githubusercontent.com/nicholasjconn/agent-layer/main/agent-layer-install.sh -o agent-layer-install.sh
+curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh -o agent-layer-install.sh
 chmod +x agent-layer-install.sh
 
 # Run installer
 ./agent-layer-install.sh
 ```
+
+Fresh installs pin `.agent-layer/` to the latest tagged release by default (detached HEAD). Use `--latest-branch` for dev builds. Check the installed version with `./al --version`.
 
 This creates `.agent-layer/`, adds a managed `.gitignore` block (ignoring `.agent-layer/` by default), creates `./al`,
 and ensures the project memory files exist under `docs/` (`ISSUES.md`, `FEATURES.md`,
@@ -167,6 +169,8 @@ runs, existing files are kept.
 ### Upgrade Existing Installation
 
 **Upgrade to latest tagged release**:
+
+Fresh installs already pin to the latest tagged release; use this to update an existing `.agent-layer/`.
 
 ```bash
 ./agent-layer-install.sh --upgrade
@@ -187,6 +191,16 @@ Notes:
 - Requires a clean `.agent-layer` working tree (commit or stash local changes first).
 - Fetches from the remote only; checks out the latest commit in detached HEAD mode.
 - Re-run the command to pull the newest commit again.
+
+**Install a specific tagged release**:
+
+```bash
+./agent-layer-install.sh --version v0.1.0
+```
+
+Notes:
+- Requires a clean `.agent-layer` working tree (commit or stash local changes first).
+- Errors if the requested tag does not exist after fetching.
 
 ---
 
@@ -894,7 +908,7 @@ Yes! Agent-layer works fine if you only use Gemini, or only use Claude, etc. You
 **How to set up a team fork**:
 1. Fork `agent-layer` on GitHub
 2. Customize instructions/workflows in your fork
-3. Team members install your fork: `your-fork-url/agent-layer-install.sh`
+3. Team members install your fork: `your-fork-url/releases/latest/download/agent-layer-install.sh`
 4. Update team fork periodically, team members pull updates
 
 This approach keeps agent-layer consistent across all team projects without committing config to each one.

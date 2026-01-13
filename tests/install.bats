@@ -245,13 +245,14 @@ EOF
 
 # Test: installer clones from local repo when .agent-layer is missing
 @test "installer clones from local repo when .agent-layer is missing" {
-  local root work src stub_bin installer
+  local root work src stub_bin installer tag
   root="$(make_tmp_dir)"
   work="$root/work"
   src="$root/src"
   mkdir -p "$work" "$src"
   git -C "$work" init -q
   create_source_repo "$src"
+  git -C "$src" tag v0.1.0
 
   stub_bin="$(create_stub_tools "$root")"
   installer="$AGENT_LAYER_ROOT/agent-layer-install.sh"
@@ -265,10 +266,54 @@ EOF
   [ -f "$work/docs/FEATURES.md" ]
   [ -f "$work/docs/ROADMAP.md" ]
   [ -f "$work/docs/DECISIONS.md" ]
+  tag="$(git -C "$work/.agent-layer" describe --tags --exact-match)"
+  [ "$tag" = "v0.1.0" ]
   cmp -s "$src/config/templates/docs/ISSUES.md" "$work/docs/ISSUES.md"
   cmp -s "$src/config/templates/docs/FEATURES.md" "$work/docs/FEATURES.md"
   cmp -s "$src/config/templates/docs/ROADMAP.md" "$work/docs/ROADMAP.md"
   cmp -s "$src/config/templates/docs/DECISIONS.md" "$work/docs/DECISIONS.md"
+
+  rm -rf "$root"
+}
+
+# Test: installer installs a specific tag with --version
+@test "installer installs a specific tag with --version" {
+  local root work src stub_bin installer tag
+  root="$(make_tmp_dir)"
+  work="$root/work"
+  src="$root/src"
+  mkdir -p "$work" "$src"
+  git -C "$work" init -q
+  create_source_repo "$src"
+  git -C "$src" tag v0.1.0
+
+  stub_bin="$(create_stub_tools "$root")"
+  installer="$AGENT_LAYER_ROOT/agent-layer-install.sh"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --version v0.1.0 --repo-url '$src' < /dev/null"
+  [ "$status" -eq 0 ]
+  tag="$(git -C "$work/.agent-layer" describe --tags --exact-match)"
+  [ "$tag" = "v0.1.0" ]
+
+  rm -rf "$root"
+}
+
+# Test: installer errors when --version tag is missing
+@test "installer errors when --version tag is missing" {
+  local root work src stub_bin installer
+  root="$(make_tmp_dir)"
+  work="$root/work"
+  src="$root/src"
+  mkdir -p "$work" "$src"
+  git -C "$work" init -q
+  create_source_repo "$src"
+  git -C "$src" tag v0.1.0
+
+  stub_bin="$(create_stub_tools "$root")"
+  installer="$AGENT_LAYER_ROOT/agent-layer-install.sh"
+  run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --version v9.9.9 --repo-url '$src' < /dev/null"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Tag 'v9.9.9' not found"* ]]
+  [ ! -e "$work/.agent-layer" ]
 
   rm -rf "$root"
 }

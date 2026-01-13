@@ -44,6 +44,26 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al prints the current version with --version
+@test "al prints the current version with --version" {
+  local root output status
+  root="$(create_isolated_parent_root)"
+
+  git -C "$root/.agent-layer" init -q
+  git -C "$root/.agent-layer" config user.email "test@example.com"
+  git -C "$root/.agent-layer" config user.name "Test User"
+  git -C "$root/.agent-layer" add .
+  git -C "$root/.agent-layer" commit -m "init" -q
+  git -C "$root/.agent-layer" tag v0.1.0
+
+  output="$("$root/.agent-layer/al" --version)"
+  status=$?
+  [ "$status" -eq 0 ]
+  [ "$output" = "v0.1.0" ]
+
+  rm -rf "$root"
+}
+
 # Test: al sets CODEX_HOME when unset
 @test "al sets CODEX_HOME when unset" {
   local root stub_bin output

@@ -837,6 +837,37 @@ Dev-only prerequisites (not required to use the tool):
    ./dev/format.sh
    ```
 
+### Using agent-layer in this Repo (Self-Hosted Parent Root)
+
+If you want to run `./al ...` directly in this repo and have configs/docs generated here, you can make the repo act as its own parent root. This is a dev-only setup.
+
+1) Create the local `.agent-layer` symlink and `./al` launcher:
+   ```bash
+   ln -sfn . .agent-layer
+   ln -sfn .agent-layer/agent-layer ./al
+   ```
+
+2) Set `PARENT_ROOT` in `.env` (absolute path, keep only one entry):
+   ```bash
+   PARENT_ROOT=/absolute/path/to/agent-layer
+   ```
+
+3) Run setup:
+   ```bash
+   ./setup.sh
+   ```
+
+4) Seed docs into the repo root (optional but recommended for memory files):
+   ```bash
+   mkdir -p docs
+   cp config/templates/docs/ISSUES.md docs/ISSUES.md
+   cp config/templates/docs/FEATURES.md docs/FEATURES.md
+   cp config/templates/docs/ROADMAP.md docs/ROADMAP.md
+   cp config/templates/docs/DECISIONS.md docs/DECISIONS.md
+   ```
+
+Note: Ensure this repo's `.gitignore` includes the managed agent-layer block so the symlink and generated outputs stay ignored.
+
 ### Running Tests
 
 Run tests (includes sync check + formatting/lint):

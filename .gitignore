@@ -9,3 +9,24 @@ node_modules/
 **/node_modules/
 .DS_Store
 /.actrc
+
+# Allow agent-layer to be used inside agent-layer
+.agent-layer
+.vscode/settings.json
+docs/
+
+# Agent Layer launcher
+al
+
+# Agent Layer-generated instruction shims
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.github/copilot-instructions.md
+
+# Agent Layer-generated client configs + artifacts
+.mcp.json
+.codex/
+.gemini/
+.claude/
+.vscode/mcp.json

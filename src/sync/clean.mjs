@@ -7,6 +7,7 @@ import {
 } from "./utils.mjs";
 import { resolveRootsFromEnvOrScript } from "./paths.mjs";
 import { isManagedClaudeAllow, isManagedGeminiAllowed } from "./policy.mjs";
+import { enabledServers, loadServerCatalog } from "./mcp.mjs";
 
 /**
  * @typedef {Record<string, unknown>} JsonObject
@@ -44,42 +45,18 @@ function loadJsonObject(filePath) {
 }
 
 /**
- * Load MCP server names from the catalog.
+ * Load and validate the MCP server catalog, mapping sync errors to clean errors.
  * @param {string} agentlayerRoot
- * @returns {string[]}
+ * @returns {{ defaults: Record<string, unknown>, servers: unknown[] }}
  */
-function loadServerNames(agentlayerRoot) {
-  const filePath = path.join(agentlayerRoot, "config", "mcp-servers.json");
-  if (!fileExists(filePath)) {
-    fail(`${filePath} not found`);
+function loadCatalog(agentlayerRoot) {
+  try {
+    return loadServerCatalog(agentlayerRoot);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const cleaned = detail.replace(/^agent-layer sync:\s*/u, "");
+    fail(cleaned);
   }
-
-  const parsed = loadJsonObject(filePath);
-  const servers = parsed.servers;
-  if (!Array.isArray(servers)) {
-    fail(`${filePath}: servers must be an array`);
-  }
-
-  /** @type {string[]} */
-  const names = [];
-  const seen = new Set();
-  for (let i = 0; i < servers.length; i++) {
-    const server = servers[i];
-    if (!isPlainObject(server)) {
-      fail(`${filePath}: servers[${i}] must be an object`);
-    }
-    const name = server.name;
-    if (typeof name !== "string" || name.trim().length === 0) {
-      fail(`${filePath}: servers[${i}].name must be a non-empty string`);
-    }
-    if (seen.has(name)) {
-      fail(`${filePath}: duplicate server name "${name}"`);
-    }
-    seen.add(name);
-    names.push(name);
-  }
-
-  return names;
 }
 
 /**
@@ -315,13 +292,22 @@ function main() {
   const vscodeMcpPath = path.join(parentRoot, ".vscode", "mcp.json");
 
   const updates = [];
-  let managedServers = null;
+  let catalog = null;
+  const managedServersByClient = new Map();
   // Lazily resolve managed server names only when needed.
-  const getManagedServers = () => {
-    if (!managedServers) {
-      managedServers = new Set(loadServerNames(agentLayerRoot));
+  const getManagedServers = (client) => {
+    if (!catalog) {
+      catalog = loadCatalog(agentLayerRoot);
     }
-    return managedServers;
+    if (!managedServersByClient.has(client)) {
+      const servers = enabledServers(catalog.servers ?? [], client);
+      const names = new Set();
+      for (const server of servers) {
+        if (server && typeof server.name === "string") names.add(server.name);
+      }
+      managedServersByClient.set(client, names);
+    }
+    return managedServersByClient.get(client);
   };
 
   // Clean each client config file if it exists.
@@ -329,7 +315,9 @@ function main() {
     const existing = loadJsonObject(geminiPath);
     const result = cleanGeminiSettings(
       existing,
-      existing.mcpServers !== undefined ? getManagedServers() : new Set(),
+      existing.mcpServers !== undefined
+        ? getManagedServers("gemini")
+        : new Set(),
     );
     if (writeIfChanged(geminiPath, result.updated, result.changed)) {
       updates.push(
@@ -361,7 +349,7 @@ function main() {
     const existing = loadJsonObject(vscodeMcpPath);
     const result = cleanVscodeMcpConfig(
       existing,
-      existing.servers !== undefined ? getManagedServers() : new Set(),
+      existing.servers !== undefined ? getManagedServers("vscode") : new Set(),
     );
     if (writeIfChanged(vscodeMcpPath, result.updated, result.changed)) {
       updates.push(

@@ -32,6 +32,7 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   const mcpConfigs = [];
   const commandAllowlistConfigs = [];
   const codexSkills = [];
+  const vscodePrompts = [];
   const other = [];
 
   for (const rp of rels) {
@@ -66,6 +67,10 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
     }
     if (rp.startsWith(".codex/skills/")) {
       codexSkills.push(rp);
+      matched = true;
+    }
+    if (rp.startsWith(".vscode/prompts/") && rp.endsWith(".prompt.md")) {
+      vscodePrompts.push(rp);
       matched = true;
     }
     if (!matched) {
@@ -114,6 +119,14 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   if (codexSkills.length) {
     console.error("Codex skills (edit: .agent-layer/config/workflows/*.md):");
     for (const p of codexSkills) console.error(`  - ${p}`);
+    console.error("");
+  }
+
+  if (vscodePrompts.length) {
+    console.error(
+      "VS Code prompt files (edit: .agent-layer/config/workflows/*.md):",
+    );
+    for (const p of vscodePrompts) console.error(`  - ${p}`);
     console.error("");
   }
 

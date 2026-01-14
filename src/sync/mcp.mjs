@@ -1,6 +1,8 @@
 import path from "node:path";
 import { assert, fileExists, readUtf8 } from "./utils.mjs";
 
+const KNOWN_CLIENTS = new Set(["claude", "codex", "gemini", "vscode"]);
+
 /**
  * Validate the MCP server catalog schema.
  * @param {unknown} parsed
@@ -111,6 +113,33 @@ export function validateServerCatalog(parsed, filePath) {
       );
     }
 
+    if (s.clients !== undefined) {
+      assert(
+        Array.isArray(s.clients),
+        `${filePath}: ${s.name}.clients must be an array`,
+      );
+      assert(
+        s.clients.length > 0,
+        `${filePath}: ${s.name}.clients must not be empty`,
+      );
+      const seenClients = new Set();
+      for (const client of s.clients) {
+        assert(
+          typeof client === "string" && client.trim().length > 0,
+          `${filePath}: ${s.name}.clients must be string[]`,
+        );
+        assert(
+          KNOWN_CLIENTS.has(client),
+          `${filePath}: ${s.name}.clients contains unknown client "${client}"`,
+        );
+        assert(
+          !seenClients.has(client),
+          `${filePath}: ${s.name}.clients contains duplicate "${client}"`,
+        );
+        seenClients.add(client);
+      }
+    }
+
     // Optional Gemini allow/deny lists.
     if (s.includeTools !== undefined) {
       assert(
@@ -158,12 +187,22 @@ export function loadServerCatalog(agentlayerRoot) {
 /**
  * Return enabled servers from a validated catalog.
  * @param {unknown[]} servers
+ * @param {"claude"|"codex"|"gemini"|"vscode"=} client
  * @returns {unknown[]}
  */
-export function enabledServers(servers) {
-  return servers.filter(
-    (s) => s && s.name && (s.enabled === undefined || s.enabled === true),
-  );
+export function enabledServers(servers, client) {
+  if (client !== undefined) {
+    assert(
+      typeof client === "string" && KNOWN_CLIENTS.has(client),
+      `unknown client "${client}"`,
+    );
+  }
+  return servers.filter((s) => {
+    if (!s || !s.name) return false;
+    if (!(s.enabled === undefined || s.enabled === true)) return false;
+    if (!client || !Array.isArray(s.clients)) return true;
+    return s.clients.includes(client);
+  });
 }
 
 /**
@@ -191,11 +230,12 @@ function resolveServerTrust(defaults, server) {
 /**
  * List trusted server names using defaults as a fallback.
  * @param {{ defaults?: Record<string, unknown>, servers?: unknown[] }} catalog
+ * @param {"claude"|"codex"|"gemini"|"vscode"=} client
  * @returns {string[]}
  */
-export function trustedServerNames(catalog) {
+export function trustedServerNames(catalog, client) {
   const defaults = catalog.defaults ?? {};
-  const servers = enabledServers(catalog.servers ?? []);
+  const servers = enabledServers(catalog.servers ?? [], client);
   const trusted = [];
   for (const s of servers) {
     if (resolveServerTrust(defaults, s)) trusted.push(s.name);
@@ -210,7 +250,9 @@ export function trustedServerNames(catalog) {
  */
 export function buildMcpConfigs(catalog) {
   const defaults = catalog.defaults ?? {};
-  const servers = enabledServers(catalog.servers ?? []);
+  const vscodeServers = enabledServers(catalog.servers ?? [], "vscode");
+  const claudeServers = enabledServers(catalog.servers ?? [], "claude");
+  const geminiServers = enabledServers(catalog.servers ?? [], "gemini");
 
   // NOTE: VS Code can load env from an envFile. Default remains .agent-layer/.env
   // unless you set defaults.vscodeEnvFile to "${workspaceFolder}/.env".
@@ -219,7 +261,7 @@ export function buildMcpConfigs(catalog) {
 
   // VS Code
   const vscode = { servers: {} };
-  for (const s of servers) {
+  for (const s of vscodeServers) {
     vscode.servers[s.name] = {
       type: "stdio",
       command: s.command,
@@ -230,7 +272,7 @@ export function buildMcpConfigs(catalog) {
 
   // Claude Code
   const claude = { mcpServers: {} };
-  for (const s of servers) {
+  for (const s of claudeServers) {
     const env = {};
     for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
     claude.mcpServers[s.name] = {
@@ -242,7 +284,7 @@ export function buildMcpConfigs(catalog) {
 
   // Gemini CLI
   const gemini = { mcpServers: {} };
-  for (const s of servers) {
+  for (const s of geminiServers) {
     const env = {};
     for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
 
@@ -300,7 +342,7 @@ function tomlKey(key) {
  * @returns {string}
  */
 export function renderCodexConfig(catalog, regenCommand) {
-  const servers = enabledServers(catalog.servers ?? []);
+  const servers = enabledServers(catalog.servers ?? [], "codex");
   const lines = [
     "# GENERATED FILE - DO NOT EDIT DIRECTLY",
     "# Source: .agent-layer/config/mcp-servers.json",

@@ -106,9 +106,15 @@ if [[ "${AGENT_LAYER_RUN_CODEX:-}" == "1" && -z "${CODEX_HOME:-}" ]]; then
 fi
 
 # Execute the requested command with the loaded environment.
+command_path="$1"
+command_name="$(basename -- "$command_path")"
+argv0="al:${command_name}"
+
 if [[ "${TEMP_PARENT_ROOT_CREATED:-0}" == "1" ]]; then
-  "$@"
+  bash_bin="${BASH:-bash}"
+  # shellcheck disable=SC2016
+  "$bash_bin" -c 'exec -a "$1" "${@:2}"' _ "$argv0" "$@"
   exit $?
 fi
 
-exec "$@"
+exec -a "$argv0" "$@"

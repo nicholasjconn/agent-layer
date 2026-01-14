@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Launch VS Code with CODEX_HOME set to the repo-local .codex directory.
 # Requires the VS Code `code` CLI on PATH.
-# Set OPEN_VSCODE_NO_CLOSE=1 to keep the Terminal window open on macOS.
+# This launcher leaves the Terminal window open on macOS.
 
 # Resolve the repo root and expected CODEX_HOME path.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -L)"
@@ -33,17 +33,4 @@ if [[ $code_status -ne 0 ]]; then
   exit "$code_status"
 fi
 
-# Optionally close the macOS Terminal window after launch.
-if [[ -z "${OPEN_VSCODE_NO_CLOSE:-}" ]] && [[ "${TERM_PROGRAM:-}" == "Apple_Terminal" ]]; then
-  if command -v osascript >/dev/null 2>&1; then
-    osascript <<'EOF' >/dev/null 2>&1 || true
-tell application "Terminal"
-  if (count of windows) > 0 then
-    try
-      close front window
-    end try
-  end if
-end tell
-EOF
-  fi
-fi
+# Intentionally do not auto-close Terminal to avoid macOS prompt dialogs.

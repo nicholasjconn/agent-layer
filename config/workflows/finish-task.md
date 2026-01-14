@@ -30,7 +30,7 @@ If any are missing, create them from `config/templates/docs/<NAME>.md` (preserve
 If the user provides extra direction, interpret it as:
 
 - Scope: default to uncommitted changes; the user may request since last commit, a specific git range, or explicit paths.
-- Plan file path: default to `implementation_plan.md`.
+- Plan file path: use `.agent-layer/tmp/implementation_plan.md`.
 - Verification depth and risk level: default to automatic verification with medium risk.
 - Roadmap updates: default to automatic updates when the work maps to roadmap tasks; skip if the user asks to avoid updates.
 - Maximum new entries across memory files: default to 10.
@@ -94,7 +94,7 @@ If the file list is empty:
 # Phase 1 — Reflect on recent work (Change Reviewer)
 
 ## 1A) Plan alignment (if a plan exists)
-If the plan file exists:
+If `.agent-layer/tmp/implementation_plan.md` exists:
 - read it
 - compare planned tasks vs actual changes
 - list:
@@ -102,7 +102,7 @@ If the plan file exists:
   - omissions
   - deviations (and why)
 
-If the plan file does not exist:
+If `.agent-layer/tmp/implementation_plan.md` does not exist:
 - state that no plan artifact was found and skip plan alignment.
 
 ## 1B) Passive best-practice check (no broad audit)
@@ -145,7 +145,7 @@ If missing:
 - Add to **`docs/FEATURES.md`** only if it is a **new user-visible capability** request.
 - Add to **`docs/DECISIONS.md`** if the task required a significant decision:
   - record decision, reason, and tradeoffs
-  - keep it brief and keep the most recent decisions near the top
+  - keep it brief and add new entries at the bottom so the oldest decisions remain at the top
 - Update **`docs/ROADMAP.md`** only if the user asks for roadmap updates, or if automatic updates are appropriate and:
   - the completed work clearly maps to existing roadmap tasks, or
   - the roadmap is now stale/contradicted by what was implemented.
@@ -174,7 +174,7 @@ Add entries in this format (example):
     `Notes: Optional dependencies or context.`
 
 ### Decisions (`docs/DECISIONS.md`)
-Add entries near the top:
+Add entries at the bottom:
 - `- Decision 2026-01-10 abcdef: Short decision title`
     `Decision: What was chosen.`
     `Reason: Why it was chosen.`
@@ -190,7 +190,7 @@ Add entries near the top:
 - Merge duplicates.
 - Ensure entries remain compact (3–5 lines).
 - Ensure no abbreviations.
-- Keep the file easy to scan (prefer newest entries near top if that is the existing convention).
+- Keep the file easy to scan (follow the existing ordering convention for that file).
 
 ## 2G) Respect entry limits
 Do not add more than the entry cap across all memory files in a single run.
@@ -255,11 +255,11 @@ List any out-of-scope items that were observed and where they were logged (ISSUE
 
 # Phase 5 — Cleanup (Reporter)
 
-- If a plan file path was used (default: `implementation_plan.md`) and the run completed successfully:
-  - delete the plan file only if it exists
+- If `.agent-layer/tmp/implementation_plan.md` was used and the run completed successfully:
+  - delete `.agent-layer/tmp/implementation_plan.md` only if it exists
   - delete any other workflow-generated files explicitly listed in the workflow that was just completed, only if they exist and are under `.agent-layer/tmp`
   - do not delete any other files
-- If no plan file exists, state that cleanup was not needed.
+- If `.agent-layer/tmp/implementation_plan.md` does not exist, state that cleanup was not needed.
 
 ---
 
@@ -267,5 +267,5 @@ List any out-of-scope items that were observed and where they were logged (ISSUE
 - Recent work has been reviewed for plan alignment and passive best-practice concerns.
 - Project memory files are up to date, deduplicated, and compact.
 - Fixed issues/features have been removed from their ledgers.
-- Plan file cleanup is complete (plan file deleted if it existed).
+- Plan file cleanup is complete (`.agent-layer/tmp/implementation_plan.md` deleted if it existed).
 - Fast verification has been run (or explicitly skipped with a clear limitation note).

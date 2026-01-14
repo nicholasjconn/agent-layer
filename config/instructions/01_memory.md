@@ -34,7 +34,7 @@
     - Incomplete phases have **Goal**, **Tasks** (checkbox list), and **Exit criteria** sections.
     - When a phase is complete, add a green check emoji to the phase heading (✅) and replace the phase content with a **single bullet list** summarizing what was accomplished (no checkbox list).
     - There is no separate "current" or "upcoming" section; done vs not done is indicated by the ✅.
-12. **Decision logging:** When making a significant decision (architecture, storage, data model, interface boundaries, dependency choice), add an entry to `DECISIONS.md` using `Decision YYYY-MM-DD abcdef:` with decision, reason, and tradeoffs. Keep it brief and keep the most recent decisions near the top.
+12. **Decision logging:** When making a significant decision (architecture, storage, data model, interface boundaries, dependency choice), add an entry to `DECISIONS.md` using `Decision YYYY-MM-DD abcdef:` with decision, reason, and tradeoffs. Keep it brief and add new entries at the bottom so the oldest decisions remain at the top.
 13. **COMMANDS.md maintenance (seamless, selective):**
     - Maintain `docs/COMMANDS.md` without asking for confirmation when it improves future work.
     - Only add commands that are expected to be used repeatedly, such as:

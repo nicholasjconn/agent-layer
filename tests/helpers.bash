@@ -101,6 +101,7 @@ create_isolated_parent_root() {
   cp "$AGENT_LAYER_ROOT/src/sync/utils.mjs" "$agent_layer_dir/src/sync/utils.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/paths.mjs" "$agent_layer_dir/src/sync/paths.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/policy.mjs" "$agent_layer_dir/src/sync/policy.mjs"
+  cp "$AGENT_LAYER_ROOT/src/sync/mcp.mjs" "$agent_layer_dir/src/sync/mcp.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/clean.mjs" "$agent_layer_dir/src/sync/clean.mjs"
   cp "$AGENT_LAYER_ROOT/setup.sh" "$agent_layer_dir/setup.sh"
   cp "$AGENT_LAYER_ROOT/dev/bootstrap.sh" "$agent_layer_dir/dev/bootstrap.sh"

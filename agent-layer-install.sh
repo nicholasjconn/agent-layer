@@ -435,6 +435,7 @@ GEMINI.md
 .gemini/
 .claude/
 .vscode/mcp.json
+.vscode/prompts/
 # <<< agent-layer
 EOF
 )"

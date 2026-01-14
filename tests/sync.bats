@@ -38,6 +38,69 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: sync generates VS Code prompt files
+@test "sync generates VS Code prompt files" {
+  local root prompt
+  root="$(create_sync_parent_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  prompt="$root/.vscode/prompts/find-issues.prompt.md"
+  [ -f "$prompt" ]
+  run rg -n "^name: find-issues$" "$prompt"
+  [ "$status" -eq 0 ]
+  run rg -n "GENERATED FILE" "$prompt"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
+}
+
+# Test: sync removes stale generated VS Code prompt files
+@test "sync removes stale generated VS Code prompt files" {
+  local root prompt_dir stale_prompt
+  root="$(create_sync_parent_root)"
+
+  prompt_dir="$root/.vscode/prompts"
+  mkdir -p "$prompt_dir"
+  stale_prompt="$prompt_dir/stale.prompt.md"
+  cat >"$stale_prompt" <<'EOF'
+---
+name: stale
+---
+<!--
+  GENERATED FILE - DO NOT EDIT DIRECTLY
+  Source: .agent-layer/config/workflows/stale.md
+  Regenerate: node .agent-layer/src/sync/sync.mjs
+-->
+Stale prompt body.
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+  [ ! -f "$stale_prompt" ]
+
+  rm -rf "$root"
+}
+
+# Test: sync --check fails when a VS Code prompt file is missing
+@test "sync --check fails when a VS Code prompt file is missing" {
+  local root prompt
+  root="$(create_sync_parent_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  prompt="$root/.vscode/prompts/find-issues.prompt.md"
+  rm -f "$prompt"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs --check"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"VS Code prompt files are generated from .agent-layer/config/workflows/*.md."* ]]
+
+  rm -rf "$root"
+}
+
 # Test: sync handles workflow frontmatter with UTF-8 BOM
 @test "sync handles workflow frontmatter with UTF-8 BOM" {
   local root workflow_file
@@ -72,6 +135,27 @@ EOF
 
   run rg -n "\"envFile\": \"\\$\\{workspaceFolder\\}/\\.agent-layer/\\.env\"" \
     "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
+}
+
+# Test: sync filters agent-layer MCP server for VS Code and Codex
+@test "sync filters agent-layer MCP server for VS Code and Codex" {
+  local root
+  root="$(create_parent_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run rg -n "\"agent-layer\"" "$root/.vscode/mcp.json"
+  [ "$status" -ne 0 ]
+  run rg -n "^\\[mcp_servers\\.agent-layer\\]" "$root/.codex/config.toml"
+  [ "$status" -ne 0 ]
+
+  run rg -n "\"agent-layer\"" "$root/.mcp.json"
+  [ "$status" -eq 0 ]
+  run rg -n "\"agent-layer\"" "$root/.gemini/settings.json"
   [ "$status" -eq 0 ]
 
   rm -rf "$root"
@@ -547,6 +631,31 @@ EOF
   run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
   [ "$status" -ne 0 ]
   [[ "$output" == *"bad-server.geminiTrust is not supported"* ]]
+
+  rm -rf "$root"
+}
+
+# Test: sync fails when an MCP server clients list includes unknown values
+@test "sync fails when an MCP server clients list includes unknown values" {
+  local root
+  root="$(create_sync_parent_root)"
+
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "bad-client",
+      "command": "node",
+      "clients": ["unknown"]
+    }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"clients contains unknown client"* ]]
 
   rm -rf "$root"
 }

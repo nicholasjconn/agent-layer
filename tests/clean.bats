@@ -63,6 +63,25 @@ EOF
 }
 EOF
 
+  mkdir -p "$root/.vscode/prompts"
+  cat >"$root/.vscode/prompts/generated.prompt.md" <<'EOF'
+---
+name: generated
+---
+<!--
+  GENERATED FILE - DO NOT EDIT DIRECTLY
+  Source: .agent-layer/config/workflows/generated.md
+  Regenerate: node .agent-layer/src/sync/sync.mjs
+-->
+Generated prompt body.
+EOF
+  cat >"$root/.vscode/prompts/custom.prompt.md" <<'EOF'
+---
+name: custom
+---
+Custom prompt body.
+EOF
+
   mkdir -p "$root/.agent-layer/config/instructions" "$root/.agent-layer/config/workflows"
   mkdir -p "$root/.agent-layer/config/policy"
   : >"$root/.agent-layer/config/instructions/01_test.md"
@@ -111,6 +130,9 @@ EOF
   ! grep -Fq "chat.tools.terminal.autoApprove" "$root/.vscode/settings.json"
   grep -Fq "editor.tabSize" "$root/.vscode/settings.json"
 
+  [ ! -f "$root/.vscode/prompts/generated.prompt.md" ]
+  [ -f "$root/.vscode/prompts/custom.prompt.md" ]
+
   [ -f "$root/.agent-layer/config/instructions/01_test.md" ]
   [ -f "$root/.agent-layer/config/workflows/01_test.md" ]
   [ -f "$root/.agent-layer/config/mcp-servers.json" ]
@@ -139,7 +161,7 @@ EOF
 {
   "version": 1,
   "servers": [
-    { "name": "agent-layer", "command": "node" },
+    { "name": "agent-layer", "command": "node", "clients": ["claude", "gemini"] },
     { "name": "context7", "command": "npx" }
   ]
 }
@@ -149,7 +171,7 @@ EOF
   [ "$status" -eq 0 ]
 
   [ -f "$root/.vscode/mcp.json" ]
-  ! grep -Fq "\"agent-layer\"" "$root/.vscode/mcp.json"
+  grep -Fq "\"agent-layer\"" "$root/.vscode/mcp.json"
   ! grep -Fq "\"context7\"" "$root/.vscode/mcp.json"
   grep -Fq "\"custom\"" "$root/.vscode/mcp.json"
   grep -Fq "\"other\": true" "$root/.vscode/mcp.json"

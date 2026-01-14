@@ -138,6 +138,25 @@ if [[ -d ".codex/skills" ]] && [[ -z "$(ls -A ".codex/skills")" ]]; then
   removed+=(".codex/skills/")
 fi
 
+# Remove generated VS Code prompt files.
+prompt_dir=".vscode/prompts"
+if [[ -d "$prompt_dir" ]]; then
+  shopt -s nullglob
+  prompt_files=("$prompt_dir"/*.prompt.md)
+  shopt -u nullglob
+  for prompt_file in "${prompt_files[@]}"; do
+    if grep -Fq "GENERATED FILE - DO NOT EDIT DIRECTLY" "$prompt_file" &&
+      grep -Fq "Regenerate: node .agent-layer/src/sync/sync.mjs" "$prompt_file"; then
+      rm -- "$prompt_file"
+      removed+=("$prompt_file")
+    fi
+  done
+  if [[ -d "$prompt_dir" ]] && [[ -z "$(ls -A "$prompt_dir")" ]]; then
+    rmdir -- "$prompt_dir"
+    removed+=("${prompt_dir}/")
+  fi
+fi
+
 # Report removals, or confirm no action was needed.
 if [[ "${#removed[@]}" -eq 0 ]]; then
   say "No generated files removed."

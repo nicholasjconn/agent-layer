@@ -1,6 +1,6 @@
 import path from "node:path";
 import { buildVscodeAutoApprove, commandPrefixes } from "./policy.mjs";
-import { buildMcpConfigs } from "./mcp.mjs";
+import { buildMcpConfigs, enabledServers } from "./mcp.mjs";
 import {
   fileExists,
   isPlainObject,
@@ -11,7 +11,6 @@ import {
 import {
   parseCodexConfigSections,
   parseCodexServerSection,
-  isEnabledServer,
 } from "./codex-config.mjs";
 
 /**
@@ -464,11 +463,10 @@ export function collectMcpDivergences(parentRoot, catalog) {
   const items = [];
   const notes = [];
   const generated = buildMcpConfigs(catalog);
-  const catalogServers = Array.isArray(catalog.servers) ? catalog.servers : [];
+  const catalogServers = enabledServers(catalog.servers ?? [], "codex");
   const catalogMap = new Map();
   for (const entry of catalogServers) {
     if (!isPlainObject(entry) || typeof entry.name !== "string") continue;
-    if (!isEnabledServer(entry)) continue;
     const envVars = Array.isArray(entry.envVars) ? entry.envVars : [];
     catalogMap.set(entry.name, {
       command: entry.command,

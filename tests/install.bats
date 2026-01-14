@@ -81,6 +81,7 @@ EOF
   grep -q '^\.gemini/$' "$gitignore"
   grep -q '^\.claude/$' "$gitignore"
   grep -q '^\.vscode/mcp\.json$' "$gitignore"
+  grep -q '^\.vscode/prompts/$' "$gitignore"
 
   rm -rf "$root"
 }
@@ -155,6 +156,7 @@ EOF
   grep -q '^\.gemini/$' "$gitignore"
   grep -q '^\.claude/$' "$gitignore"
   grep -q '^\.vscode/mcp\.json$' "$gitignore"
+  grep -q '^\.vscode/prompts/$' "$gitignore"
 
   rm -rf "$root"
 }

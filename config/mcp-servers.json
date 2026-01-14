@@ -8,6 +8,10 @@
     {
       "name": "agent-layer",
       "enabled": true,
+      "clients": [
+        "claude",
+        "gemini"
+      ],
       "transport": "stdio",
       "command": "node",
       "args": [

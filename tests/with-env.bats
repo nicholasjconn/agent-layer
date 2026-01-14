@@ -56,6 +56,20 @@ load "helpers.bash"
   rm -rf "$root"
 }
 
+# Test: with-env.sh sets argv0 for launched command
+@test "with-env.sh sets argv0 for launched command" {
+  local root output
+  root="$(create_isolated_parent_root)"
+
+  output="$(cd "$root/sub/dir" && "$root/.agent-layer/with-env.sh" \
+    bash -c 'echo "$0"')"
+  status=$?
+  [ "$status" -eq 0 ]
+  [ "$output" = "al:bash" ]
+
+  rm -rf "$root"
+}
+
 # Test: with-env.sh --help prints usage
 @test "with-env.sh --help prints usage" {
   local root

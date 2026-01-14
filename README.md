@@ -261,7 +261,7 @@ The installer creates `.env` from `.env.example` if it is missing.
 **macOS Finder launcher**:
 - Use `.agent-layer/open-vscode.command` to launch VS Code for this repo.
 - `.agent-layer` is hidden in Finder; use Command+Shift+. to show hidden files.
-- On success, the launcher closes its Terminal window; set `OPEN_VSCODE_NO_CLOSE=1` if you run it from a terminal and want it to stay open.
+- The launcher leaves its Terminal window open after launch.
 - If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
 
 **Quick command** (from parent root):
@@ -309,8 +309,8 @@ Gemini CLI:
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 VS Code / Copilot Chat:
-- Slash command example: `/mcp.agent-layer.find-issues`
-- MCP check: `cat .vscode/mcp.json` (look for `agent-layer`)
+- Slash command example: `/find-issues` (prompt file)
+- MCP check: `cat .vscode/mcp.json` (look for tool servers like `context7` or `github`)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Claude Code CLI:
@@ -320,12 +320,12 @@ Claude Code CLI:
 
 Codex CLI:
 - Slash command example: `$find-issues` (Codex Skills)
-- MCP check: `cat .codex/config.toml` (look for `mcp_servers.agent-layer`)
+- MCP check: `cat .codex/config.toml` (look for `mcp_servers.context7` or `mcp_servers.github`)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Codex VS Code extension:
 - Slash command example: `$find-issues` (Codex Skills; requires `CODEX_HOME` pointing at the repo; see Codex section below)
-- MCP check: `cat .codex/config.toml` (requires `CODEX_HOME` in VS Code env)
+- MCP check: `cat .codex/config.toml` (look for `mcp_servers.context7` or `mcp_servers.github`; requires `CODEX_HOME` in VS Code env)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Antigravity:
@@ -379,10 +379,14 @@ Antigravity:
 - If MCP tools/prompts look stale:
   - restart MCP servers and/or run VS Code's "Chat: Reset Cached Tools" action.
 
-**Confirm slash commands (MCP prompts)**
+**Prompt files (short slash commands)**
+- Prompt files are generated into `.vscode/prompts/*.prompt.md`.
 - In Copilot Chat, invoke:
-  - `/mcp.agent-layer.find-issues`
-- If it autocompletes, the prompt is registered.
+  - `/find-issues`
+- If it autocompletes, the prompt file is registered.
+
+**MCP prompt server**
+- VS Code MCP config only includes tool servers; workflow prompts come from `.vscode/prompts`.
 
 **Common failure mode**
 - VS Code can cache tool lists. Reset cached tools and reload window if needed.
@@ -425,7 +429,7 @@ Antigravity:
 
 **MCP config + system instructions**
 - When launched via `./al codex`, `CODEX_HOME` must resolve to the repo-local `.codex/` (symlinks allowed); `./al codex` will error if it points elsewhere.
-- MCP servers are generated into `.codex/config.toml` from `.agent-layer/config/mcp-servers.json`.
+- MCP servers are generated into `.codex/config.toml` from `.agent-layer/config/mcp-servers.json` (per-client filtering skips the agent-layer prompt server).
 - System instructions are generated into `.codex/AGENTS.md` from `.agent-layer/config/instructions/*.md`.
 - Agent Layer also generates the project `AGENTS.md` from the same sources for clients that read it.
 - Agent Layer uses **Codex Skills** (and optional rules) as the primary "workflow command" mechanism.
@@ -574,7 +578,7 @@ Agent Layer uses a "source of truth" model:
 
 **Edit these (sources of truth)**:
 - `config/instructions/*.md` - System instructions for AI agents
-- `config/workflows/*.md` - Workflow definitions (become slash commands)
+- `config/workflows/*.md` - Workflow definitions (Claude/Gemini MCP prompts, VS Code prompt files, Codex skills)
 - `config/mcp-servers.json` - MCP server catalog
 - `config/policy/commands.json` - Command allowlist (safe shell commands)
 
@@ -587,6 +591,8 @@ Agent Layer uses a "source of truth" model:
 - `.codex/skills/*/SKILL.md`
 
 **Why this matters**: If you edit generated files, sync will overwrite them. Always edit sources, then run sync.
+
+**Per-client MCP servers**: In `config/mcp-servers.json`, set `clients` to an allowlist of client IDs (`claude`, `gemini`, `vscode`, `codex`). If omitted, the server is included for all clients.
 
 ### If You Accidentally Edited a Generated File
 
@@ -687,7 +693,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 
 #### Source-of-Truth Directories (in `.agent-layer/`)
 - `config/instructions/` - Unified instruction fragments (concatenated into shims)
-- `config/workflows/` - Workflow definitions (exposed as MCP prompts; also used to generate Codex skills)
+- `config/workflows/` - Workflow definitions (Claude/Gemini MCP prompts, VS Code prompt files, Codex skills)
 - `config/mcp-servers.json` - Canonical MCP server list (no secrets inside)
 - `config/policy/` - Auto-approve command allowlist (safe shell command prefixes)
 
@@ -704,6 +710,8 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
   - `.mcp.json`, `.gemini/settings.json`, `.vscode/mcp.json`, `.codex/config.toml`
 - Command allowlist configs projected per client:
   - `.gemini/settings.json`, `.claude/settings.json`, `.vscode/settings.json`, `.codex/rules/default.rules`
+- VS Code prompt files:
+  - `.vscode/prompts/*.prompt.md`
 - Codex system instructions:
   - `.codex/AGENTS.md`
 - Codex skills:
@@ -729,6 +737,9 @@ General rule:
 Workflows are exposed as MCP prompts by:
 - `src/mcp/agent-layer-prompts/server.mjs`
 
+VS Code prompt files are generated from the same workflows into:
+- `.vscode/prompts/*.prompt.md`
+
 **Note**: `setup.sh` automatically runs `npm install`. Only run this manually if you skipped setup or cleaned `node_modules`:
 ```bash
 cd .agent-layer/src/mcp/agent-layer-prompts
@@ -741,6 +752,7 @@ Dependency upgrades (maintainers):
 If you changed `config/workflows/*.md`:
 - run `node .agent-layer/src/sync/sync.mjs` (or `./al <cmd>`)
 - then refresh MCP discovery in your client (or restart the client/session)
+- VS Code prompt files update on sync; reload VS Code if prompt files do not appear
 
 ---
 

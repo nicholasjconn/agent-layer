@@ -60,6 +60,7 @@ import {
   renderCodexRules,
 } from "./policy.mjs";
 import { generateCodexSkills } from "./skills.mjs";
+import { generateVscodePrompts } from "./prompts.mjs";
 import {
   fileExists,
   isPlainObject,
@@ -395,7 +396,7 @@ async function main() {
 
   // Build MCP configs and merge with existing client settings.
   const mcpConfigs = buildMcpConfigs(catalog);
-  const trustedServers = trustedServerNames(catalog);
+  const trustedServers = trustedServerNames(catalog, "claude");
   const claudeMcpAllowed = trustedServers.map((name) => `mcp__${name}__*`);
   const claudeAllowPatterns = [
     ...new Set([...claudeAllowed, ...claudeMcpAllowed]),
@@ -495,14 +496,15 @@ async function main() {
     : codexRulesGenerated;
   outputs.push([codexRulesPath, codexRulesMerged]);
 
-  // Write or diff outputs and regenerate Codex skills.
+  // Write or diff outputs and regenerate Codex skills/prompts.
   diffOrWrite(outputs, args, parentRoot);
   generateCodexSkills(parentRoot, workflowsDir, args);
+  generateVscodePrompts(parentRoot, workflowsDir, args);
 
   // Emit a success summary unless running in --check mode.
   if (!args.check) {
     console.log(
-      "agent-layer sync: updated shims + MCP configs + allowlists + Codex skills",
+      "agent-layer sync: updated shims + MCP configs + allowlists + Codex skills + VS Code prompts",
     );
   }
 }

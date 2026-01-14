@@ -253,9 +253,68 @@ function mergeMcpConfig(
 ) {
   const merged = isPlainObject(existing) ? { ...existing } : {};
   const generatedServers = isPlainObject(generated[key]) ? generated[key] : {};
+  const generatedInputs = Array.isArray(generated.inputs)
+    ? generated.inputs
+    : null;
+
+  /**
+   * Merge VS Code MCP inputs by id, preserving existing entries.
+   * @param {unknown} existingInputs
+   * @param {Record<string, unknown>[]} generatedInputsList
+   * @returns {unknown[]}
+   */
+  function mergeMcpInputs(existingInputs, generatedInputsList) {
+    const existingList = Array.isArray(existingInputs) ? existingInputs : [];
+    if (!existingList.length) return generatedInputsList;
+    if (!generatedInputsList.length) return existingList;
+    const merged = [];
+    const seenIds = new Set();
+    const generatedById = new Map();
+
+    for (const entry of generatedInputsList) {
+      if (isPlainObject(entry) && typeof entry.id === "string") {
+        const id = entry.id.trim();
+        if (id) generatedById.set(id, entry);
+      }
+    }
+
+    const addEntry = (entry) => {
+      if (isPlainObject(entry) && typeof entry.id === "string") {
+        const id = entry.id.trim();
+        if (id) {
+          if (seenIds.has(id)) return;
+          seenIds.add(id);
+          const generatedEntry = generatedById.get(id);
+          if (generatedEntry && jsonDeepEqual(entry, generatedEntry)) {
+            merged.push(generatedEntry);
+            return;
+          }
+        }
+      }
+      merged.push(entry);
+    };
+
+    for (const entry of existingList) addEntry(entry);
+    for (const entry of generatedInputsList) {
+      if (isPlainObject(entry) && typeof entry.id === "string") {
+        const id = entry.id.trim();
+        if (id) {
+          if (seenIds.has(id)) continue;
+          seenIds.add(id);
+        }
+      }
+      merged.push(entry);
+    }
+    return merged;
+  }
 
   if (options.overwrite) {
     merged[key] = generatedServers;
+    if (generatedInputs) {
+      merged.inputs = generatedInputs;
+    } else if (Object.prototype.hasOwnProperty.call(merged, "inputs")) {
+      delete merged.inputs;
+    }
     return merged;
   }
 
@@ -280,6 +339,9 @@ function mergeMcpConfig(
   }
 
   merged[key] = mergedServers;
+  if (generatedInputs) {
+    merged.inputs = mergeMcpInputs(merged.inputs, generatedInputs);
+  }
   return merged;
 }
 

@@ -236,7 +236,7 @@ From your parent root:
 
 If you installed via the installer, setup already ran once. Re-run it only after config changes or if you cleaned dependencies. It installs MCP prompt server dependencies, runs sync (generates configs), and checks for drift. `./al` still runs sync before each command.
 
-### Step 2: Configure Environment (Optional)
+### Step 2: Configure Environment (Required)
 
 Agent-layer needs API tokens for MCP servers. Create `.agent-layer/.env` for agent-only secrets:
 
@@ -249,9 +249,19 @@ cp .agent-layer/.env.example .agent-layer/.env
 
 The installer creates `.env` from `.env.example` if it is missing.
 
-**Recommended tokens**:
-- `GITHUB_TOKEN` (GitHub MCP server)
-- `CONTEXT7_API_KEY` (Context7 MCP server)
+**Required tokens (unless you disable the servers in `.agent-layer/config/mcp-servers.json`)**:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP server; setup: https://github.com/github/github-mcp-server)
+- `CONTEXT7_API_KEY` (Context7 MCP server; setup: https://github.com/upstash/context7)
+
+To disable a server, set `enabled: false` or limit `clients` in `.agent-layer/config/mcp-servers.json`.
+
+Required: review `.agent-layer/config/mcp-servers.json` to confirm which servers are enabled.
+
+Optional customization:
+- Edit instructions: `.agent-layer/config/instructions/*.md`
+- Edit workflows: `.agent-layer/config/workflows/*.md`
+
+**Gemini note**: when the GitHub MCP server is enabled, sync inlines your personal access token into `.gemini/settings.json`. Keep `.gemini/` gitignored (the installer adds this by default).
 
 **Note**: Keep agent-only secrets separate from your application's `.env` (if you have one). Agent-layer reads `.agent-layer/.env`, not your parent root `.env`.
 
@@ -356,7 +366,7 @@ Antigravity:
   - `/find-issues`
 - If it's present, it will expand and run the workflow prompt.
 - If it's missing:
-  1) run `node .agent-layer/src/sync/sync.mjs`
+  1) run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs` if you do not use `./al`)
   2) restart Gemini
   3) confirm `.gemini/settings.json` still lists `agent-layer` under `mcpServers`
 
@@ -420,7 +430,7 @@ Antigravity:
 - In Claude Code CLI, invoke the MCP prompt using its MCP prompt UI/namespace (varies by client build).
 - Quick sanity check: the prompt list should include your workflow prompt name (e.g., `find-issues`).
 - If missing:
-  1) run `node .agent-layer/src/sync/sync.mjs`
+  1) run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs` if you do not use `./al`)
   2) restart Claude Code CLI
   3) ensure the MCP server process can run (Node installed, deps installed)
 
@@ -460,7 +470,7 @@ echo "$CODEX_HOME"
   - (if your build supports it) list skills with `$skills`
 
 **If a skill is missing**
-1) run `node .agent-layer/src/sync/sync.mjs`
+1) run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs` if you do not use `./al`)
 2) verify the workflow exists: `config/workflows/<workflow>.md`
 3) verify `.codex/skills/<workflow>/SKILL.md` was generated
 
@@ -476,7 +486,7 @@ echo "$CODEX_HOME"
 When you see commands like:
 ```bash
 ./al gemini
-node .agent-layer/src/sync/sync.mjs
+./al --sync
 ```
 
 Run them from your parent root (where `./al` lives), not from inside `.agent-layer/`.
@@ -563,7 +573,7 @@ For a one-off run that also includes project env (if configured), from the paren
 ### Verify Environment Variables Are Loaded
 
 ```bash
-./al env | grep -E 'GITHUB_TOKEN|CONTEXT7_API_KEY'
+./al env | grep -E 'GITHUB_PERSONAL_ACCESS_TOKEN|CONTEXT7_API_KEY'
 ```
 
 ---
@@ -601,17 +611,18 @@ Delete it and re-sync (example from parent root):
 
 ```bash
 rm .mcp.json
-node .agent-layer/src/sync/sync.mjs
+./al --sync
+# or: node .agent-layer/src/sync/sync.mjs
 ```
 
 If the file is tracked in your repo, `git checkout -- <file>` also works.
 
 ### Regenerate After Changes
 
-```bash
-# ./al runs sync automatically; use this only if you want to regenerate without launching a CLI
-node .agent-layer/src/sync/sync.mjs
-```
+`./al` runs sync automatically; use this only if you want to regenerate without launching a CLI.
+
+- `./al --sync`
+- `node .agent-layer/src/sync/sync.mjs`
 
 ### Instruction File Ordering (Why the Numbers)
 
@@ -626,6 +637,7 @@ Numeric prefixes (e.g. `00_`, `10_`, `20_`) ensure a **stable, predictable order
 Agent Layer treats `.agent-layer/config/mcp-servers.json` as the source of truth for MCP tool approvals.
 Set `trust: true` per server (or `defaults.trust` for the default) to auto-approve that server's
 tools where supported.
+The default config sets `defaults.trust: true`; change it to `false` if you want prompts by default.
 
 Behavior by client:
 - Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
@@ -651,14 +663,14 @@ Notes:
 
 Next steps:
 - Run: node .agent-layer/src/sync/inspect.mjs (JSON report)
-- Add them to .agent-layer/config/policy/commands.json or .agent-layer/config/mcp-servers.json, then re-run sync
+- Add them to .agent-layer/config/policy/commands.json or .agent-layer/config/mcp-servers.json, then re-run sync (`./al --sync`)
 - Or re-run with: node .agent-layer/src/sync/sync.mjs --overwrite (discard client-only entries)
 - Or re-run with: node .agent-layer/src/sync/sync.mjs --interactive (review and choose)
 ```
 
 The inspect script emits a JSON report of divergent approvals and MCP servers and **never** edits files.
 Use the report to update `.agent-layer/config/policy/commands.json` (approvals) or `.agent-layer/config/mcp-servers.json` (MCP servers),
-then run `node .agent-layer/src/sync/sync.mjs` to regenerate outputs.
+then run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs`) to regenerate outputs.
 
 If you want Agent Layer to overwrite client configs instead of preserving divergent entries, run:
 - `node .agent-layer/src/sync/sync.mjs --overwrite` (non-interactive)
@@ -685,7 +697,7 @@ Codex MCP config documents env requirements in comments only, so divergence chec
 ### Environment Variables
 
 `./al` and `with-env.sh` load `.agent-layer/.env` when it exists. The default MCP servers in `config/mcp-servers.json` expect:
-- `GITHUB_TOKEN` (GitHub MCP server)
+- `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP server)
 - `CONTEXT7_API_KEY` (Context7 MCP server)
 
 VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaults to `.agent-layer/.env`.
@@ -732,7 +744,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 ### Refresh / Restart Guidance (Failure Modes)
 
 General rule:
-- After changing source-of-truth files (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/commands.json`) → run `node .agent-layer/src/sync/sync.mjs` (or run your CLI via `./al ...`) → then refresh/restart the client as needed.
+- After changing source-of-truth files (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/commands.json`) → run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs`) → then refresh/restart the client as needed.
 
 #### MCP Prompt Server (Workflows as "Slash Commands")
 
@@ -755,7 +767,7 @@ Dependency upgrades (maintainers):
 - update `src/mcp/agent-layer-prompts/package.json`, then run `npm install` to refresh `package-lock.json`.
 
 If you changed `config/workflows/*.md`:
-- run `node .agent-layer/src/sync/sync.mjs` (or `./al <cmd>`)
+- run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs`)
 - then refresh MCP discovery in your client (or restart the client/session)
 - VS Code prompt files update on sync; reload VS Code if prompt files do not appear
 
@@ -767,9 +779,9 @@ If you changed `config/workflows/*.md`:
 
 1. **Run `./al` instead of direct CLI** to ensure sync runs
 2. **Restart your AI client** after config changes
-3. **Check `.agent-layer/.env`** has required tokens (`GITHUB_TOKEN`, `CONTEXT7_API_KEY`)
+3. **Check `.agent-layer/.env`** has required tokens (`GITHUB_PERSONAL_ACCESS_TOKEN`, `CONTEXT7_API_KEY`)
 4. **Verify MCP server deps**: `cd .agent-layer/src/mcp/agent-layer-prompts && npm install`
-5. **Re-run sync manually**: `node .agent-layer/src/sync/sync.mjs`
+5. **Re-run sync manually**: `./al --sync` (or `node .agent-layer/src/sync/sync.mjs`)
 
 ### Common Issues
 
@@ -779,15 +791,15 @@ Generated JSON files (`.mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json`) 
 Fix:
 1) revert the generated file(s)
 2) edit the source-of-truth (`config/mcp-servers.json`)
-3) run `node .agent-layer/src/sync/sync.mjs`
+3) run `./al --sync` (or `node .agent-layer/src/sync/sync.mjs`)
 
 #### "I edited instructions but the agent didn't follow them."
-- Did you run `node .agent-layer/src/sync/sync.mjs` (or run via `./al ...`)?
+- Did you run `./al --sync` (or run via `./al ...`)?
 - Did you restart the session/client (many tools read system instructions at session start)?
 - For Gemini CLI, refresh memory (often `/memory refresh`) or start a new session.
 
 #### "I edited workflows but the prompt/command list didn't update."
-- Run `node .agent-layer/src/sync/sync.mjs`
+- Run `./al --sync`
 - Restart/refresh MCP discovery:
   - Gemini: restart Gemini and/or run MCP refresh if available in your build
   - VS Code: restart servers / reset cached tools
@@ -986,7 +998,7 @@ Most users find it better to keep agent-layer consistent and put project-specifi
 
 ### What about .env and PARENT_ROOT? (For Contributors/Advanced Users)
 
-**User-facing**: `.agent-layer/.env` is for API tokens (like `GITHUB_TOKEN`, `CONTEXT7_API_KEY`) used by MCP servers. This is the typical use case.
+**User-facing**: `.agent-layer/.env` is for API tokens (like `GITHUB_PERSONAL_ACCESS_TOKEN`, `CONTEXT7_API_KEY`) used by MCP servers. This is the typical use case.
 
 **Advanced/contributor-facing**: `$AGENT_LAYER_ROOT/.env` can also optionally contain `PARENT_ROOT` to explicitly set the parent root path. In the agent-layer repo, this is `./.env`; in a consumer repo, it's `.agent-layer/.env`.
 

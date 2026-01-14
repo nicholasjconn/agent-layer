@@ -2,7 +2,7 @@
   "version": 1,
   "defaults": {
     "vscodeEnvFile": "${workspaceFolder}/.agent-layer/.env",
-    "trust": false
+    "trust": true
   },
   "servers": [
     {
@@ -37,15 +37,10 @@
     {
       "name": "github",
       "enabled": true,
-      "transport": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "envVars": [
-        "GITHUB_TOKEN"
-      ],
+      "transport": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {},
+      "bearerTokenEnvVar": "GITHUB_PERSONAL_ACCESS_TOKEN",
       "trust": true
     }
   ]

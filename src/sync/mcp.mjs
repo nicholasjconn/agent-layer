@@ -1,7 +1,132 @@
 import path from "node:path";
-import { assert, fileExists, readUtf8 } from "./utils.mjs";
+import { fileURLToPath } from "node:url";
+import { assert, fileExists, isPlainObject, readUtf8 } from "./utils.mjs";
 
 const KNOWN_CLIENTS = new Set(["claude", "codex", "gemini", "vscode"]);
+const DEFAULT_AGENT_LAYER_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
+
+/**
+ * Resolve the agent-layer root for reading the local .env file.
+ * @returns {string}
+ */
+function resolveAgentLayerRoot() {
+  const envRoot = String(process.env.AGENT_LAYER_ROOT ?? "").trim();
+  return envRoot ? path.resolve(envRoot) : DEFAULT_AGENT_LAYER_ROOT;
+}
+
+/**
+ * Read a single environment variable from an .env file.
+ * @param {string} filePath
+ * @param {string} name
+ * @returns {string|null}
+ */
+function readEnvVarFromFile(filePath, name) {
+  if (!fileExists(filePath)) return null;
+  const lines = readUtf8(filePath).split(/\r?\n/);
+  const keyPattern = new RegExp(`^${name}\\s*=`);
+  const barePattern = new RegExp(`^${name}(\\b|\\s)`);
+  let found = null;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const line = trimmed.startsWith("export ")
+      ? trimmed.slice("export ".length).trim()
+      : trimmed;
+
+    if (!line.startsWith(name)) continue;
+    if (!keyPattern.test(line)) {
+      assert(false, `${filePath}: invalid ${name} entry (use ${name}=<value>)`);
+    }
+    if (found !== null) {
+      assert(
+        false,
+        `${filePath}: multiple ${name} entries found (keep only one)`,
+      );
+    }
+    const value = line.slice(line.indexOf("=") + 1).trim();
+    if (!value) {
+      found = "";
+      continue;
+    }
+    const quote = value[0];
+    if (
+      (quote === "'" || quote === '"') &&
+      value.length >= 2 &&
+      value[value.length - 1] === quote
+    ) {
+      found = value.slice(1, -1);
+    } else {
+      found = value;
+    }
+  }
+
+  return found;
+}
+
+/**
+ * Resolve an environment variable from process.env or the local .env.
+ * @param {string} name
+ * @returns {string|null}
+ */
+function getEnvVarValue(name) {
+  const direct = process.env[name];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const envPath = path.join(resolveAgentLayerRoot(), ".env");
+  const fileValue = readEnvVarFromFile(envPath, name);
+  if (fileValue && String(fileValue).trim()) return String(fileValue).trim();
+  return null;
+}
+
+/**
+ * Resolve the effective transport type for a server.
+ * @param {Record<string, unknown>} server
+ * @returns {"stdio" | "http"}
+ */
+function resolveTransport(server) {
+  return server.transport === "http" ? "http" : "stdio";
+}
+
+/**
+ * Build headers from a base object with an optional Authorization override.
+ * @param {Record<string, string>|undefined} baseHeaders
+ * @param {string|undefined} authorization
+ * @returns {Record<string, string>|undefined}
+ */
+function buildHeaders(baseHeaders, authorization) {
+  const headers = { ...(baseHeaders ?? {}) };
+  if (authorization) headers.Authorization = authorization;
+  return Object.keys(headers).length ? headers : undefined;
+}
+
+/**
+ * Create a stable VS Code input id from a server name.
+ * @param {string} name
+ * @returns {string}
+ */
+function buildVscodeInputId(name) {
+  const safe = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+  return `${safe}-pat`;
+}
+
+/**
+ * Resolve a bearer token value for Gemini HTTP configs.
+ * @param {string} envVar
+ * @param {string} serverName
+ * @returns {string}
+ */
+function resolveBearerToken(envVar, serverName) {
+  const token = getEnvVarValue(envVar);
+  assert(
+    token,
+    `Missing ${envVar} for Gemini HTTP server "${serverName}". Set it in .agent-layer/.env or your shell environment.`,
+  );
+  return token;
+}
 
 /**
  * Validate the MCP server catalog schema.
@@ -75,42 +200,101 @@ export function validateServerCatalog(parsed, filePath) {
       `${filePath}: ${s.name}.geminiTrust is not supported; use ${s.name}.trust`,
     );
 
+    let transport = "stdio";
     if (s.transport !== undefined) {
       assert(
         typeof s.transport === "string",
         `${filePath}: ${s.name}.transport must be a string`,
       );
       assert(
-        s.transport === "stdio",
-        `${filePath}: ${s.name}.transport must be "stdio" (this generator supports only stdio currently)`,
+        s.transport === "stdio" || s.transport === "http",
+        `${filePath}: ${s.name}.transport must be "stdio" or "http"`,
       );
+      transport = s.transport;
     }
 
-    assert(
-      typeof s.command === "string" && s.command.trim(),
-      `${filePath}: ${s.name}.command must be a non-empty string`,
-    );
+    if (transport === "http") {
+      assert(
+        typeof s.url === "string" && s.url.trim(),
+        `${filePath}: ${s.name}.url must be a non-empty string for HTTP servers`,
+      );
+      assert(
+        s.command === undefined,
+        `${filePath}: ${s.name}.command is not allowed for HTTP servers`,
+      );
+      assert(
+        s.args === undefined,
+        `${filePath}: ${s.name}.args is not allowed for HTTP servers`,
+      );
+      assert(
+        s.envVars === undefined,
+        `${filePath}: ${s.name}.envVars is not allowed for HTTP servers`,
+      );
+      if (s.headers !== undefined) {
+        assert(
+          isPlainObject(s.headers),
+          `${filePath}: ${s.name}.headers must be an object`,
+        );
+        for (const [key, value] of Object.entries(s.headers)) {
+          assert(
+            typeof value === "string",
+            `${filePath}: ${s.name}.headers.${key} must be a string`,
+          );
+        }
+      }
+      if (s.bearerTokenEnvVar !== undefined) {
+        assert(
+          typeof s.bearerTokenEnvVar === "string" && s.bearerTokenEnvVar.trim(),
+          `${filePath}: ${s.name}.bearerTokenEnvVar must be a non-empty string`,
+        );
+      }
+      if (isPlainObject(s.headers) && s.bearerTokenEnvVar) {
+        const hasAuth = Object.keys(s.headers).some(
+          (key) => key.toLowerCase() === "authorization",
+        );
+        assert(
+          !hasAuth,
+          `${filePath}: ${s.name}.headers cannot set Authorization when bearerTokenEnvVar is used`,
+        );
+      }
+    } else {
+      assert(
+        typeof s.command === "string" && s.command.trim(),
+        `${filePath}: ${s.name}.command must be a non-empty string`,
+      );
+      assert(
+        s.url === undefined,
+        `${filePath}: ${s.name}.url is not allowed for stdio servers`,
+      );
+      assert(
+        s.headers === undefined,
+        `${filePath}: ${s.name}.headers is not allowed for stdio servers`,
+      );
+      assert(
+        s.bearerTokenEnvVar === undefined,
+        `${filePath}: ${s.name}.bearerTokenEnvVar is not allowed for stdio servers`,
+      );
+      if (s.args !== undefined) {
+        assert(
+          Array.isArray(s.args),
+          `${filePath}: ${s.name}.args must be an array`,
+        );
+        assert(
+          s.args.every((x) => typeof x === "string"),
+          `${filePath}: ${s.name}.args must be string[]`,
+        );
+      }
 
-    if (s.args !== undefined) {
-      assert(
-        Array.isArray(s.args),
-        `${filePath}: ${s.name}.args must be an array`,
-      );
-      assert(
-        s.args.every((x) => typeof x === "string"),
-        `${filePath}: ${s.name}.args must be string[]`,
-      );
-    }
-
-    if (s.envVars !== undefined) {
-      assert(
-        Array.isArray(s.envVars),
-        `${filePath}: ${s.name}.envVars must be an array`,
-      );
-      assert(
-        s.envVars.every((x) => typeof x === "string"),
-        `${filePath}: ${s.name}.envVars must be string[]`,
-      );
+      if (s.envVars !== undefined) {
+        assert(
+          Array.isArray(s.envVars),
+          `${filePath}: ${s.name}.envVars must be an array`,
+        );
+        assert(
+          s.envVars.every((x) => typeof x === "string"),
+          `${filePath}: ${s.name}.envVars must be string[]`,
+        );
+      }
     }
 
     if (s.clients !== undefined) {
@@ -261,41 +445,106 @@ export function buildMcpConfigs(catalog) {
 
   // VS Code
   const vscode = { servers: {} };
+  const vscodeInputs = [];
+  const vscodeInputIds = new Set();
   for (const s of vscodeServers) {
-    vscode.servers[s.name] = {
-      type: "stdio",
-      command: s.command,
-      args: s.args ?? [],
-      envFile: vscodeEnvFile,
-    };
+    const transport = resolveTransport(s);
+    if (transport === "http") {
+      let authorization;
+      if (s.bearerTokenEnvVar) {
+        const inputId = buildVscodeInputId(s.name);
+        authorization = `Bearer \${input:${inputId}}`;
+        if (!vscodeInputIds.has(inputId)) {
+          vscodeInputIds.add(inputId);
+          vscodeInputs.push({
+            type: "promptString",
+            id: inputId,
+            description:
+              s.name === "github"
+                ? "GitHub Personal Access Token"
+                : `${s.name} Personal Access Token`,
+            password: true,
+          });
+        }
+      }
+      const headers = buildHeaders(
+        isPlainObject(s.headers) ? s.headers : undefined,
+        authorization,
+      );
+      vscode.servers[s.name] = {
+        type: "http",
+        url: s.url,
+        ...(headers ? { headers } : {}),
+      };
+    } else {
+      vscode.servers[s.name] = {
+        command: s.command,
+        args: s.args ?? [],
+        envFile: vscodeEnvFile,
+      };
+    }
   }
+  if (vscodeInputs.length) vscode.inputs = vscodeInputs;
 
   // Claude Code
   const claude = { mcpServers: {} };
   for (const s of claudeServers) {
-    const env = {};
-    for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
-    claude.mcpServers[s.name] = {
-      command: s.command,
-      args: s.args ?? [],
-      ...(Object.keys(env).length ? { env } : {}),
-    };
+    const transport = resolveTransport(s);
+    if (transport === "http") {
+      const authorization = s.bearerTokenEnvVar
+        ? `Bearer \${${s.bearerTokenEnvVar}}`
+        : undefined;
+      const headers = buildHeaders(
+        isPlainObject(s.headers) ? s.headers : undefined,
+        authorization,
+      );
+      claude.mcpServers[s.name] = {
+        type: "http",
+        url: s.url,
+        ...(headers ? { headers } : {}),
+      };
+    } else {
+      const env = {};
+      for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
+      claude.mcpServers[s.name] = {
+        command: s.command,
+        args: s.args ?? [],
+        ...(Object.keys(env).length ? { env } : {}),
+      };
+    }
   }
 
   // Gemini CLI
   const gemini = { mcpServers: {} };
   for (const s of geminiServers) {
-    const env = {};
-    for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
-
     const trust = resolveServerTrust(defaults, s);
-
-    const entry = {
-      command: s.command,
-      args: s.args ?? [],
-      ...(Object.keys(env).length ? { env } : {}),
-      trust,
-    };
+    const transport = resolveTransport(s);
+    let entry;
+    if (transport === "http") {
+      let authorization;
+      if (s.bearerTokenEnvVar) {
+        const token = resolveBearerToken(s.bearerTokenEnvVar, s.name);
+        authorization = `Bearer ${token}`;
+      }
+      const headers = buildHeaders(
+        isPlainObject(s.headers) ? s.headers : undefined,
+        authorization,
+      );
+      entry = {
+        httpUrl: s.url,
+        ...(headers ? { headers } : {}),
+        trust,
+      };
+    } else {
+      const env = {};
+      for (const v of s.envVars ?? []) env[v] = `\${${v}}`;
+      entry = {
+        command: s.command,
+        args: s.args ?? [],
+        ...(Object.keys(env).length ? { env } : {}),
+        trust,
+      };
+    }
 
     if (Array.isArray(s.includeTools)) entry.includeTools = s.includeTools;
     if (Array.isArray(s.excludeTools)) entry.excludeTools = s.excludeTools;
@@ -357,6 +606,23 @@ export function renderCodexConfig(catalog, regenCommand) {
   }
 
   for (const s of servers) {
+    const transport = resolveTransport(s);
+    if (transport === "http") {
+      if (isPlainObject(s.headers) && Object.keys(s.headers).length) {
+        assert(
+          false,
+          `codex config does not support HTTP headers for ${s.name} yet`,
+        );
+      }
+      lines.push(`[mcp_servers.${tomlKey(s.name)}]`);
+      lines.push(`url = ${tomlString(s.url)}`);
+      if (s.bearerTokenEnvVar) {
+        lines.push(`bearer_token_env_var = ${tomlString(s.bearerTokenEnvVar)}`);
+      }
+      lines.push("");
+      continue;
+    }
+
     if (Array.isArray(s.envVars) && s.envVars.length) {
       lines.push(`# Requires env: ${s.envVars.join(", ")}`);
     }

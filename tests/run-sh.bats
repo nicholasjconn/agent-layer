@@ -108,6 +108,35 @@ EOF
   rm -rf "$root"
 }
 
+# Test: run.sh --sync skips with-env
+@test "run.sh --sync skips with-env" {
+  local root stub_bin node_log env_log bash_bin
+  root="$(create_isolated_parent_root)"
+  stub_bin="$root/stub-bin"
+  node_log="$root/node-args.log"
+  env_log="$root/env-args.log"
+  bash_bin="$(command -v bash)"
+
+  mkdir -p "$stub_bin"
+  write_stub_node "$stub_bin"
+
+  cat >"$root/.agent-layer/with-env.sh" <<'EOF'
+#!/usr/bin/env bash
+printf "%s\n" "$@" > "$ENV_LOG"
+exit 0
+EOF
+  chmod +x "$root/.agent-layer/with-env.sh"
+
+  run "$bash_bin" -c "cd '$root/sub/dir' && NODE_ARGS_LOG='$node_log' ENV_LOG='$env_log' PATH='$stub_bin:/usr/bin:/bin' '$root/.agent-layer/run.sh' --sync echo ok"
+  [ "$status" -eq 0 ]
+
+  run rg -n "sync.mjs" "$node_log"
+  [ "$status" -eq 0 ]
+  [ ! -f "$env_log" ]
+
+  rm -rf "$root"
+}
+
 # Test: run.sh --check-env reruns sync on failed check
 @test "run.sh --check-env reruns sync on failed check" {
   local root stub_bin node_log env_log bash_bin

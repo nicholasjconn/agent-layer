@@ -31,7 +31,7 @@ import {
  * @property {string} source
  * @property {string} filePath
  * @property {string} name
- * @property {object|null} server
+ * @property {{ transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headerKeys: string[], bearerTokenEnvVar?: string, trust?: boolean } | null} server
  * @property {boolean} parseable
  * @property {string=} reason
  * @property {boolean=} trust
@@ -227,14 +227,36 @@ function parseEnvVars(env) {
 }
 
 /**
- * Extract server definitions from a parsed MCP config entry.
+ * Parse headers into a normalized object.
+ * @param {unknown} headers
+ * @param {string} filePath
+ * @param {string} name
+ * @returns {{ headers: Record<string, string> } | { reason: string }}
+ */
+function parseHeaders(headers, filePath, name) {
+  if (headers === undefined) return { headers: {} };
+  if (!isPlainObject(headers)) {
+    return { reason: `${filePath}: ${name}.headers must be an object` };
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value !== "string") {
+      return {
+        reason: `${filePath}: ${name}.headers.${key} must be a string`,
+      };
+    }
+  }
+  return { headers };
+}
+
+/**
+ * Extract stdio server definitions from a parsed MCP config entry.
  * @param {string} name
  * @param {unknown} entry
  * @param {string} filePath
  * @param {boolean=} trust
- * @returns {{ server: { command: string, args: string[], envVars: string[], envVarsKnown: boolean }, reason?: string }}
+ * @returns {{ server: { transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean }, reason?: string }}
  */
-function parseServerEntry(name, entry, filePath, trust) {
+function parseStdioEntry(name, entry, filePath, trust) {
   if (!isPlainObject(entry)) {
     return { reason: `${filePath}: ${name} is not an object` };
   }
@@ -253,6 +275,7 @@ function parseServerEntry(name, entry, filePath, trust) {
 
   return {
     server: {
+      transport: "stdio",
       command,
       args: args ?? [],
       envVars: envVarsResult.envVars,
@@ -260,6 +283,149 @@ function parseServerEntry(name, entry, filePath, trust) {
       ...(trust !== undefined ? { trust } : {}),
     },
   };
+}
+
+/**
+ * Extract HTTP server definitions from a parsed MCP config entry.
+ * @param {string} name
+ * @param {unknown} entry
+ * @param {string} filePath
+ * @param {string} urlKey
+ * @param {boolean=} trust
+ * @returns {{ server: { transport: "http", url: string, headers: Record<string, string>, trust?: boolean }, reason?: string }}
+ */
+function parseHttpEntry(name, entry, filePath, urlKey, trust) {
+  if (!isPlainObject(entry)) {
+    return { reason: `${filePath}: ${name} is not an object` };
+  }
+  const url = entry[urlKey];
+  if (typeof url !== "string" || !url.trim()) {
+    return { reason: `${filePath}: ${name}.${urlKey} must be a string` };
+  }
+  const headersResult = parseHeaders(entry.headers, filePath, name);
+  if ("reason" in headersResult) return { reason: headersResult.reason };
+  return {
+    server: {
+      transport: "http",
+      url,
+      headers: headersResult.headers,
+      ...(trust !== undefined ? { trust } : {}),
+    },
+  };
+}
+
+/**
+ * Parse a Claude MCP entry.
+ * @param {string} name
+ * @param {unknown} entry
+ * @param {string} filePath
+ * @returns {{ server: { transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean } | { transport: "http", url: string, headers: Record<string, string> }, reason?: string }}
+ */
+function parseClaudeEntry(name, entry, filePath) {
+  if (!isPlainObject(entry)) {
+    return { reason: `${filePath}: ${name} is not an object` };
+  }
+  if (entry.type === "http") {
+    return parseHttpEntry(name, entry, filePath, "url");
+  }
+  if (entry.command !== undefined) {
+    return parseStdioEntry(name, entry, filePath);
+  }
+  return { reason: `${filePath}: ${name} must set command or type=http` };
+}
+
+/**
+ * Parse a VS Code MCP entry.
+ * @param {string} name
+ * @param {unknown} entry
+ * @param {string} filePath
+ * @returns {{ server: { transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean } | { transport: "http", url: string, headers: Record<string, string> }, reason?: string }}
+ */
+function parseVscodeEntry(name, entry, filePath) {
+  if (!isPlainObject(entry)) {
+    return { reason: `${filePath}: ${name} is not an object` };
+  }
+  if (entry.type === "http" || entry.url !== undefined) {
+    return parseHttpEntry(name, entry, filePath, "url");
+  }
+  if (entry.command !== undefined) {
+    return parseStdioEntry(name, entry, filePath);
+  }
+  return { reason: `${filePath}: ${name} must set command or type=http` };
+}
+
+/**
+ * Parse a Gemini MCP entry.
+ * @param {string} name
+ * @param {unknown} entry
+ * @param {string} filePath
+ * @param {boolean=} trust
+ * @returns {{ server: { transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headers: Record<string, string>, trust?: boolean }, reason?: string }}
+ */
+function parseGeminiEntry(name, entry, filePath, trust) {
+  if (!isPlainObject(entry)) {
+    return { reason: `${filePath}: ${name} is not an object` };
+  }
+  if (entry.httpUrl !== undefined) {
+    return parseHttpEntry(name, entry, filePath, "httpUrl", trust);
+  }
+  if (entry.command !== undefined) {
+    return parseStdioEntry(name, entry, filePath, trust);
+  }
+  return { reason: `${filePath}: ${name} must set command or httpUrl` };
+}
+
+/**
+ * Redact server details for output (avoid leaking secrets).
+ * @param {{ transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headers: Record<string, string>, bearerTokenEnvVar?: string|null, trust?: boolean }} server
+ * @returns {{ transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headerKeys: string[], bearerTokenEnvVar?: string, trust?: boolean }}
+ */
+function redactServer(server) {
+  if (server.transport === "http") {
+    const bearerTokenEnvVar =
+      typeof server.bearerTokenEnvVar === "string"
+        ? server.bearerTokenEnvVar
+        : undefined;
+    return {
+      transport: "http",
+      url: server.url,
+      headerKeys: Object.keys(server.headers ?? {}).sort(),
+      ...(bearerTokenEnvVar ? { bearerTokenEnvVar } : {}),
+      ...(server.trust !== undefined ? { trust: server.trust } : {}),
+    };
+  }
+  return server;
+}
+
+/**
+ * Compare normalized MCP server entries.
+ * @param {{ transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headers: Record<string, string>, trust?: boolean }} parsed
+ * @param {{ transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean, trust?: boolean } | { transport: "http", url: string, headers: Record<string, string>, trust?: boolean } | null} expected
+ * @param {boolean} compareTrust
+ * @returns {boolean}
+ */
+function entriesMatch(parsed, expected, compareTrust) {
+  if (!expected) return false;
+  if (parsed.transport !== expected.transport) return false;
+  if (parsed.transport === "http") {
+    const parsedHeaders = parsed.headers ?? {};
+    const expectedHeaders = expected.headers ?? {};
+    if (parsed.url !== expected.url) return false;
+    if (
+      !equalStringSets(Object.keys(parsedHeaders), Object.keys(expectedHeaders))
+    )
+      return false;
+    for (const key of Object.keys(parsedHeaders)) {
+      if (parsedHeaders[key] !== expectedHeaders[key]) return false;
+    }
+    if (compareTrust && parsed.trust !== expected.trust) return false;
+    return true;
+  }
+  if (parsed.command !== expected.command) return false;
+  if (!equalStringArrays(parsed.args, expected.args)) return false;
+  if (!equalStringSets(parsed.envVars, expected.envVars)) return false;
+  if (compareTrust && parsed.trust !== expected.trust) return false;
+  return true;
 }
 
 /**
@@ -467,12 +633,24 @@ export function collectMcpDivergences(parentRoot, catalog) {
   const catalogMap = new Map();
   for (const entry of catalogServers) {
     if (!isPlainObject(entry) || typeof entry.name !== "string") continue;
-    const envVars = Array.isArray(entry.envVars) ? entry.envVars : [];
-    catalogMap.set(entry.name, {
-      command: entry.command,
-      args: Array.isArray(entry.args) ? entry.args : [],
-      envVars,
-    });
+    if (entry.transport === "http") {
+      catalogMap.set(entry.name, {
+        transport: "http",
+        url: entry.url,
+        bearerTokenEnvVar:
+          typeof entry.bearerTokenEnvVar === "string"
+            ? entry.bearerTokenEnvVar
+            : null,
+      });
+    } else {
+      const envVars = Array.isArray(entry.envVars) ? entry.envVars : [];
+      catalogMap.set(entry.name, {
+        transport: "stdio",
+        command: entry.command,
+        args: Array.isArray(entry.args) ? entry.args : [],
+        envVars,
+      });
+    }
   }
 
   const geminiPath = path.join(parentRoot, ".gemini", "settings.json");
@@ -481,31 +659,31 @@ export function collectMcpDivergences(parentRoot, catalog) {
     for (const [name, entry] of Object.entries(gemini.mcpServers)) {
       const expected = generated.gemini.mcpServers?.[name];
       const trust = isPlainObject(entry) ? entry.trust : undefined;
-      const parsed = parseServerEntry(name, entry, geminiPath, trust);
+      const parsed = parseGeminiEntry(name, entry, geminiPath, trust);
       if ("server" in parsed) {
-        const expectedEntry = isPlainObject(expected) ? expected : null;
-        const expectedCommand = expectedEntry?.command;
-        const expectedArgs = Array.isArray(expectedEntry?.args)
-          ? expectedEntry?.args
-          : [];
-        const expectedEnv = parseEnvVars(expectedEntry?.env);
-        const expectedEnvVars =
-          "envVars" in expectedEnv ? expectedEnv.envVars : [];
-        const shouldInclude =
-          !expectedEntry ||
-          parsed.server.command !== expectedCommand ||
-          !equalStringArrays(parsed.server.args, expectedArgs) ||
-          !equalStringSets(parsed.server.envVars, expectedEnvVars) ||
-          trust !== expectedEntry?.trust;
+        let expectedServer = null;
+        if (isPlainObject(expected)) {
+          const expectedTrust = expected.trust;
+          const expectedParsed = parseGeminiEntry(
+            name,
+            expected,
+            "<generated gemini config>",
+            expectedTrust,
+          );
+          if ("server" in expectedParsed)
+            expectedServer = expectedParsed.server;
+        }
+        const shouldInclude = !expectedServer
+          ? true
+          : !entriesMatch(parsed.server, expectedServer, true);
         if (shouldInclude) {
           items.push({
             kind: "mcp",
             source: "gemini",
             filePath: geminiPath,
             name,
-            server: parsed.server,
+            server: redactServer(parsed.server),
             parseable: true,
-            ...(trust !== undefined ? { trust } : {}),
           });
         }
       } else {
@@ -527,28 +705,28 @@ export function collectMcpDivergences(parentRoot, catalog) {
   if (isPlainObject(claude) && isPlainObject(claude.mcpServers)) {
     for (const [name, entry] of Object.entries(claude.mcpServers)) {
       const expected = generated.claude.mcpServers?.[name];
-      const parsed = parseServerEntry(name, entry, claudePath);
+      const parsed = parseClaudeEntry(name, entry, claudePath);
       if ("server" in parsed) {
-        const expectedEntry = isPlainObject(expected) ? expected : null;
-        const expectedCommand = expectedEntry?.command;
-        const expectedArgs = Array.isArray(expectedEntry?.args)
-          ? expectedEntry?.args
-          : [];
-        const expectedEnv = parseEnvVars(expectedEntry?.env);
-        const expectedEnvVars =
-          "envVars" in expectedEnv ? expectedEnv.envVars : [];
-        const shouldInclude =
-          !expectedEntry ||
-          parsed.server.command !== expectedCommand ||
-          !equalStringArrays(parsed.server.args, expectedArgs) ||
-          !equalStringSets(parsed.server.envVars, expectedEnvVars);
+        let expectedServer = null;
+        if (isPlainObject(expected)) {
+          const expectedParsed = parseClaudeEntry(
+            name,
+            expected,
+            "<generated claude config>",
+          );
+          if ("server" in expectedParsed)
+            expectedServer = expectedParsed.server;
+        }
+        const shouldInclude = !expectedServer
+          ? true
+          : !entriesMatch(parsed.server, expectedServer, false);
         if (shouldInclude) {
           items.push({
             kind: "mcp",
             source: "claude",
             filePath: claudePath,
             name,
-            server: parsed.server,
+            server: redactServer(parsed.server),
             parseable: true,
           });
         }
@@ -571,24 +749,28 @@ export function collectMcpDivergences(parentRoot, catalog) {
   if (isPlainObject(vscodeMcp) && isPlainObject(vscodeMcp.servers)) {
     for (const [name, entry] of Object.entries(vscodeMcp.servers)) {
       const expected = generated.vscode.servers?.[name];
-      const parsed = parseServerEntry(name, entry, vscodeMcpPath);
+      const parsed = parseVscodeEntry(name, entry, vscodeMcpPath);
       if ("server" in parsed) {
-        const expectedEntry = isPlainObject(expected) ? expected : null;
-        const expectedCommand = expectedEntry?.command;
-        const expectedArgs = Array.isArray(expectedEntry?.args)
-          ? expectedEntry?.args
-          : [];
-        const shouldInclude =
-          !expectedEntry ||
-          parsed.server.command !== expectedCommand ||
-          !equalStringArrays(parsed.server.args, expectedArgs);
+        let expectedServer = null;
+        if (isPlainObject(expected)) {
+          const expectedParsed = parseVscodeEntry(
+            name,
+            expected,
+            "<generated vscode config>",
+          );
+          if ("server" in expectedParsed)
+            expectedServer = expectedParsed.server;
+        }
+        const shouldInclude = !expectedServer
+          ? true
+          : !entriesMatch(parsed.server, expectedServer, false);
         if (shouldInclude) {
           items.push({
             kind: "mcp",
             source: "vscode",
             filePath: vscodeMcpPath,
             name,
-            server: parsed.server,
+            server: redactServer(parsed.server),
             parseable: true,
           });
         }
@@ -614,25 +796,42 @@ export function collectMcpDivergences(parentRoot, catalog) {
       const expected = catalogMap.get(name);
       const parsedSection = parseCodexServerSection(lines);
       if ("server" in parsedSection) {
-        const expectedEnvVars = expected?.envVars ?? [];
-        const envMatches =
-          !parsedSection.server.envVarsKnown ||
-          equalStringArrays(
-            parsedSection.server.envVars.slice().sort(),
-            expectedEnvVars.slice().sort(),
-          );
-        const shouldInclude =
-          !expected ||
-          parsedSection.server.command !== expected.command ||
-          !equalStringArrays(parsedSection.server.args, expected.args) ||
-          !envMatches;
+        let shouldInclude = false;
+        if (!expected) {
+          shouldInclude = true;
+        } else if (parsedSection.server.transport !== expected.transport) {
+          shouldInclude = true;
+        } else if (parsedSection.server.transport === "http") {
+          if (parsedSection.server.url !== expected.url) shouldInclude = true;
+          if (
+            parsedSection.server.bearerTokenEnvVar !==
+            expected.bearerTokenEnvVar
+          ) {
+            shouldInclude = true;
+          }
+        } else {
+          const expectedEnvVars = expected.envVars ?? [];
+          const envMatches =
+            !parsedSection.server.envVarsKnown ||
+            equalStringArrays(
+              parsedSection.server.envVars.slice().sort(),
+              expectedEnvVars.slice().sort(),
+            );
+          if (
+            parsedSection.server.command !== expected.command ||
+            !equalStringArrays(parsedSection.server.args, expected.args) ||
+            !envMatches
+          ) {
+            shouldInclude = true;
+          }
+        }
         if (shouldInclude) {
           items.push({
             kind: "mcp",
             source: "codex",
             filePath: codexConfigPath,
             name,
-            server: parsedSection.server,
+            server: redactServer(parsedSection.server),
             parseable: true,
           });
         }

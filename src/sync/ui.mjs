@@ -48,12 +48,22 @@ function formatDivergenceDetails(divergence, parentRoot) {
       const filePath = formatRelativePath(item.filePath, parentRoot);
       const detailParts = [];
       if (item.parseable && item.server) {
-        const args = item.server.args?.length
-          ? ` ${item.server.args.join(" ")}`
-          : "";
-        detailParts.push(`${item.server.command}${args}`.trim());
-        if (item.server.envVarsKnown && item.server.envVars.length) {
-          detailParts.push(`env=${item.server.envVars.join(",")}`);
+        if (item.server.transport === "http") {
+          detailParts.push(`http=${item.server.url}`);
+          if (item.server.headerKeys?.length) {
+            detailParts.push(`headers=${item.server.headerKeys.join(",")}`);
+          }
+          if (item.server.bearerTokenEnvVar) {
+            detailParts.push(`auth_env=${item.server.bearerTokenEnvVar}`);
+          }
+        } else {
+          const args = item.server.args?.length
+            ? ` ${item.server.args.join(" ")}`
+            : "";
+          detailParts.push(`${item.server.command}${args}`.trim());
+          if (item.server.envVarsKnown && item.server.envVars.length) {
+            detailParts.push(`env=${item.server.envVars.join(",")}`);
+          }
         }
         if (item.server.trust !== undefined) {
           detailParts.push(`trust=${item.server.trust}`);

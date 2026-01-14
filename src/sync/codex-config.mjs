@@ -50,13 +50,15 @@ export function parseCodexConfigSections(content) {
 /**
  * Parse a Codex config section into a server definition.
  * @param {string[]} lines
- * @returns {{ server: { command: string, args: string[], envVars: string[], envVarsKnown: boolean }, reason?: string }}
+ * @returns {{ server: { transport: "stdio", command: string, args: string[], envVars: string[], envVarsKnown: boolean } | { transport: "http", url: string, bearerTokenEnvVar: string|null }, reason?: string }}
  */
 export function parseCodexServerSection(lines) {
   let command = null;
   let args = [];
   let envVars = [];
   let envVarsKnown = false;
+  let url = null;
+  let bearerTokenEnvVar = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -72,6 +74,26 @@ export function parseCodexServerSection(lines) {
         command = JSON.parse(raw);
       } catch {
         return { reason: "command is not a JSON string" };
+      }
+      continue;
+    }
+    const urlMatch = trimmed.match(/^url\s*=\s*(.+)$/);
+    if (urlMatch) {
+      const raw = urlMatch[1].trim();
+      try {
+        url = JSON.parse(raw);
+      } catch {
+        return { reason: "url is not a JSON string" };
+      }
+      continue;
+    }
+    const bearerMatch = trimmed.match(/^bearer_token_env_var\s*=\s*(.+)$/);
+    if (bearerMatch) {
+      const raw = bearerMatch[1].trim();
+      try {
+        bearerTokenEnvVar = JSON.parse(raw);
+      } catch {
+        return { reason: "bearer_token_env_var is not a JSON string" };
       }
       continue;
     }
@@ -101,11 +123,28 @@ export function parseCodexServerSection(lines) {
     }
   }
 
+  if (url) {
+    if (command) {
+      return { reason: "command is not allowed for HTTP servers" };
+    }
+    return {
+      server: {
+        transport: "http",
+        url,
+        bearerTokenEnvVar,
+      },
+    };
+  }
+
+  if (bearerTokenEnvVar) {
+    return { reason: "bearer_token_env_var requires url" };
+  }
+
   if (!command) {
     return { reason: "missing command" };
   }
   return {
-    server: { command, args, envVars, envVarsKnown },
+    server: { transport: "stdio", command, args, envVars, envVarsKnown },
   };
 }
 

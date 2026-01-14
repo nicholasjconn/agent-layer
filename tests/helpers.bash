@@ -8,6 +8,9 @@ unset PARENT_ROOT AGENT_LAYER_ROOT
 AGENT_LAYER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export AGENT_LAYER_ROOT
 
+# Ensure a default GitHub token is available for sync tests that inline it.
+export GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-agent-layer-test-token}"
+
 # Join arguments into a newline-delimited string.
 multiline() {
   printf '%s\n' "$@"

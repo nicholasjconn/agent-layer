@@ -82,3 +82,34 @@ EOF
 
   rm -rf "$root"
 }
+
+# Test: setup.sh prints required vs optional steps
+@test "setup.sh prints required vs optional steps" {
+  local root stub_bin bash_bin
+  root="$(create_isolated_parent_root)"
+  stub_bin="$root/stub-bin"
+  bash_bin="$(command -v bash)"
+
+  mkdir -p "$stub_bin"
+  ln -s "$bash_bin" "$stub_bin/bash"
+  ln -s "$(command -v env)" "$stub_bin/env"
+  ln -s "$(command -v basename)" "$stub_bin/basename"
+  ln -s "$(command -v cat)" "$stub_bin/cat"
+  ln -s "$(command -v dirname)" "$stub_bin/dirname"
+  write_stub_cmd "$stub_bin" "node"
+  write_stub_cmd "$stub_bin" "npm"
+  write_stub_cmd "$stub_bin" "git"
+
+  mkdir -p "$root/.agent-layer/src/mcp/agent-layer-prompts"
+  printf "{}\n" > "$root/.agent-layer/src/mcp/agent-layer-prompts/package.json"
+
+  run "$bash_bin" -c "cd '$root' && PATH='$stub_bin' '$bash_bin' '$root/.agent-layer/setup.sh' --skip-checks"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Required manual steps"* ]]
+  [[ "$output" == *"Create/fill .agent-layer/.env"* ]]
+  [[ "$output" == *"Review MCP servers: .agent-layer/config/mcp-servers.json"* ]]
+  [[ "$output" == *"Optional customization"* ]]
+  [[ "$output" == *"./al --sync"* ]]
+
+  rm -rf "$root"
+}

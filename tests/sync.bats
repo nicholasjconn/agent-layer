@@ -699,6 +699,133 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync fails when HTTP server is missing url
+@test "sync fails when HTTP server is missing url" {
+  local root
+  root="$(create_sync_parent_root)"
+
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "missing-url",
+      "transport": "http"
+    }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"missing-url.url must be a non-empty string"* ]]
+
+  rm -rf "$root"
+}
+
+# Test: sync fails when stdio server includes url
+@test "sync fails when stdio server includes url" {
+  local root
+  root="$(create_sync_parent_root)"
+
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "bad-stdio",
+      "command": "node",
+      "url": "https://example.com"
+    }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"bad-stdio.url is not allowed for stdio servers"* ]]
+
+  rm -rf "$root"
+}
+
+# Test: sync fails when Gemini HTTP server token is missing
+@test "sync fails when Gemini HTTP server token is missing" {
+  local root
+  root="$(create_sync_parent_root)"
+
+  rm -f "$root/.agent-layer/.env"
+
+  run bash -c "cd \"$root\" && env -u GITHUB_PERSONAL_ACCESS_TOKEN -u AGENT_LAYER_ROOT node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Missing GITHUB_PERSONAL_ACCESS_TOKEN"* ]]
+
+  rm -rf "$root"
+}
+
+# Test: sync generates HTTP MCP configs for GitHub
+@test "sync generates HTTP MCP configs for GitHub" {
+  local root token
+  root="$(create_sync_parent_root)"
+  token="test-gh-token"
+
+  run bash -c "cd \"$root\" && GITHUB_PERSONAL_ACCESS_TOKEN=\"$token\" node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run rg -n "https://api.githubcopilot.com/mcp/" "$root/.mcp.json"
+  [ "$status" -eq 0 ]
+  run rg -n -- "Bearer \\$\\{GITHUB_PERSONAL_ACCESS_TOKEN\\}" "$root/.mcp.json"
+  [ "$status" -eq 0 ]
+
+  run rg -n "input:github-pat" "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+  run rg -n "type\": \"http\"" "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+
+  run rg -n "httpUrl" "$root/.gemini/settings.json"
+  [ "$status" -eq 0 ]
+  run rg -n "Bearer $token" "$root/.gemini/settings.json"
+  [ "$status" -eq 0 ]
+
+  run rg -n "bearer_token_env_var = \"GITHUB_PERSONAL_ACCESS_TOKEN\"" "$root/.codex/config.toml"
+  [ "$status" -eq 0 ]
+  run rg -n "url = \"https://api.githubcopilot.com/mcp/\"" "$root/.codex/config.toml"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
+}
+
+# Test: sync merges VS Code inputs with generated HTTP inputs
+@test "sync merges VS Code inputs with generated HTTP inputs" {
+  local root token
+  root="$(create_sync_parent_root)"
+  token="test-gh-token"
+
+  mkdir -p "$root/.vscode"
+  cat >"$root/.vscode/mcp.json" <<'EOF'
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "custom-token",
+      "description": "Custom token",
+      "password": true
+    }
+  ],
+  "servers": {}
+}
+EOF
+
+  run bash -c "cd \"$root\" && GITHUB_PERSONAL_ACCESS_TOKEN=\"$token\" node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run rg -n "\"id\": \"custom-token\"" "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+  run rg -n "\"id\": \"github-pat\"" "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+
+  rm -rf "$root"
+}
+
 # Test: inspect ignores Codex env var comments
 @test "inspect ignores Codex env var comments" {
   local root

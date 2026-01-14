@@ -50,6 +50,10 @@ while [[ $# -gt 0 ]]; do
       mode="sync-only"
       shift
       ;;
+    --sync)
+      mode="sync-only"
+      shift
+      ;;
     --check-env)
       mode="check-env"
       shift

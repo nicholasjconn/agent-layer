@@ -161,6 +161,45 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync removes filtered MCP servers from existing VS Code and Codex configs
+@test "sync removes filtered MCP servers from existing VS Code and Codex configs" {
+  local root
+  root="$(create_parent_root)"
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const data = JSON.parse(fs.readFileSync(file, "utf8"));
+data.servers = data.servers || {};
+data.servers["agent-layer"] = {
+  type: "stdio",
+  command: "node",
+  args: ["./.agent-layer/src/mcp/agent-layer-prompts/server.mjs"],
+};
+fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
+' "$root/.vscode/mcp.json"
+  [ "$status" -eq 0 ]
+
+  cat >>"$root/.codex/config.toml" <<'EOF'
+[mcp_servers.agent-layer]
+command = "node"
+args = ["./.agent-layer/src/mcp/agent-layer-prompts/server.mjs"]
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+
+  run rg -n "\"agent-layer\"" "$root/.vscode/mcp.json"
+  [ "$status" -ne 0 ]
+  run rg -n "^\\[mcp_servers\\.agent-layer\\]" "$root/.codex/config.toml"
+  [ "$status" -ne 0 ]
+
+  rm -rf "$root"
+}
+
 # Test: sync ignores MCP server key order differences
 @test "sync ignores MCP server key order differences" {
   local root baseline

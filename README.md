@@ -9,7 +9,8 @@ Agent Layer is an opinionated framework for AI‑assisted development: one set o
 **Primary uses**
 - A unified instruction set (system/developer-style guidance) usable across tools.
 - Repeatable "workflows" exposed as:
-  - MCP prompts (slash commands) in clients that support MCP prompts.
+  - MCP prompts (slash commands) in Claude and Gemini.
+  - VS Code prompt files for Copilot Chat.
   - Codex Skills (repo-local) for Codex.
 - An MCP server catalog maintained in your agent-layer fork, projected into each client's config format.
 - A safe command allowlist maintained in your agent-layer fork, projected into each client's auto-approval settings.
@@ -702,6 +703,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 - `docs/FEATURES.md` - Deferred user feature requests (near-term and backlog)
 - `docs/ROADMAP.md` - Phased plan of work; guides architecture and sequencing
 - `docs/DECISIONS.md` - Rolling log of important decisions (brief)
+- `docs/COMMANDS.md` - Canonical, repeatable commands for this repository
 
 #### Generated Outputs (in parent root)
 - Instruction shims:
@@ -734,11 +736,14 @@ General rule:
 
 #### MCP Prompt Server (Workflows as "Slash Commands")
 
-Workflows are exposed as MCP prompts by:
+Workflows are exposed as MCP prompts for Claude and Gemini by:
 - `src/mcp/agent-layer-prompts/server.mjs`
 
 VS Code prompt files are generated from the same workflows into:
 - `.vscode/prompts/*.prompt.md`
+
+Codex skills are generated from the same workflows into:
+- `.codex/skills/*/SKILL.md`
 
 **Note**: `setup.sh` automatically runs `npm install`. Only run this manually if you skipped setup or cleaned `node_modules`:
 ```bash

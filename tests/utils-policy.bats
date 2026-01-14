@@ -68,6 +68,37 @@ if (!parsed || parsed.answer !== 42 || parsed.values.length !== 2) {
   [ "$status" -eq 0 ]
 }
 
+# Test: readJsonRelaxed surfaces parse error details
+@test "readJsonRelaxed surfaces parse error details" {
+  local tmp file
+  tmp="$(make_tmp_dir)"
+  file="$tmp/invalid.json"
+
+  cat >"$file" <<'EOF'
+{
+  "answer":
+}
+EOF
+
+  UTILS_PATH="$AGENT_LAYER_ROOT/src/sync/utils.mjs" run node --input-type=module -e '
+import { pathToFileURL } from "node:url";
+
+const { readJsonRelaxed } = await import(
+  pathToFileURL(process.env.UTILS_PATH).href,
+);
+
+try {
+  readJsonRelaxed(process.argv[1], null);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  process.exit(1);
+}
+' "$file"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Unexpected token"* ]]
+}
+
 # Test: validateCommandPolicy rejects invalid argv entries
 @test "validateCommandPolicy rejects invalid argv entries" {
   POLICY_PATH="$AGENT_LAYER_ROOT/src/sync/policy.mjs" run node --input-type=module -e '

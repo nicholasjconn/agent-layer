@@ -41,6 +41,7 @@ import { REGEN_COMMAND } from "./constants.mjs";
 import { banner, concatInstructions } from "./instructions.mjs";
 import {
   buildMcpConfigs,
+  enabledServers,
   loadServerCatalog,
   renderCodexConfig,
   trustedServerNames,
@@ -240,9 +241,16 @@ function jsonDeepEqual(a, b) {
  * @param {unknown} existing
  * @param {Record<string, unknown>} generated
  * @param {string} key
+ * @param {Set<string>} managedServers
  * @returns {Record<string, unknown>}
  */
-function mergeMcpConfig(existing, generated, key, options = {}) {
+function mergeMcpConfig(
+  existing,
+  generated,
+  key,
+  options = {},
+  managedServers,
+) {
   const merged = isPlainObject(existing) ? { ...existing } : {};
   const generatedServers = isPlainObject(generated[key]) ? generated[key] : {};
 
@@ -253,6 +261,9 @@ function mergeMcpConfig(existing, generated, key, options = {}) {
 
   const existingServers = isPlainObject(merged[key]) ? merged[key] : {};
   const mergedServers = {};
+  const generatedNames = new Set(Object.keys(generatedServers));
+  const managed = managedServers ?? new Set();
+
   for (const [name, entry] of Object.entries(generatedServers)) {
     const existingEntry = existingServers[name];
     if (isPlainObject(existingEntry) && !jsonDeepEqual(existingEntry, entry)) {
@@ -263,9 +274,9 @@ function mergeMcpConfig(existing, generated, key, options = {}) {
   }
 
   for (const [name, entry] of Object.entries(existingServers)) {
-    if (!Object.prototype.hasOwnProperty.call(mergedServers, name)) {
-      mergedServers[name] = entry;
-    }
+    if (Object.prototype.hasOwnProperty.call(mergedServers, name)) continue;
+    if (managed.has(name) && !generatedNames.has(name)) continue;
+    mergedServers[name] = entry;
   }
 
   merged[key] = mergedServers;
@@ -276,14 +287,22 @@ function mergeMcpConfig(existing, generated, key, options = {}) {
  * Merge Codex config.toml sections, preserving existing sections when they differ.
  * @param {string|null} existingContent
  * @param {string} generatedContent
+ * @param {Set<string>} managedServers
  * @returns {string}
  */
-function mergeCodexConfig(existingContent, generatedContent, options = {}) {
+function mergeCodexConfig(
+  existingContent,
+  generatedContent,
+  options = {},
+  managedServers,
+) {
   if (options.overwrite) return generatedContent;
   if (!existingContent) return generatedContent;
   const existing = parseCodexConfigSections(existingContent);
   const generated = parseCodexConfigSections(generatedContent);
   const mergedSections = new Map();
+  const managed = managedServers ?? new Set();
+  const generatedNames = new Set(generated.sections.keys());
 
   for (const [name, lines] of generated.sections.entries()) {
     const existingLines = existing.sections.get(name);
@@ -295,7 +314,9 @@ function mergeCodexConfig(existingContent, generatedContent, options = {}) {
   }
 
   for (const [name, lines] of existing.sections.entries()) {
-    if (!mergedSections.has(name)) mergedSections.set(name, lines);
+    if (mergedSections.has(name)) continue;
+    if (managed.has(name) && !generatedNames.has(name)) continue;
+    mergedSections.set(name, lines);
   }
 
   const generatedHeader = generated.header.join("\n");
@@ -396,6 +417,12 @@ async function main() {
 
   // Build MCP configs and merge with existing client settings.
   const mcpConfigs = buildMcpConfigs(catalog);
+  const managedServerNames = new Set();
+  for (const server of enabledServers(catalog.servers ?? [])) {
+    if (server && typeof server.name === "string") {
+      managedServerNames.add(server.name);
+    }
+  }
   const trustedServers = trustedServerNames(catalog, "claude");
   const claudeMcpAllowed = trustedServers.map((name) => `mcp__${name}__*`);
   const claudeAllowPatterns = [
@@ -409,6 +436,7 @@ async function main() {
     mcpConfigs.vscode,
     "servers",
     { overwrite: args.overwrite },
+    managedServerNames,
   );
 
   const claudeMcpPath = path.join(parentRoot, ".mcp.json");
@@ -418,15 +446,21 @@ async function main() {
     mcpConfigs.claude,
     "mcpServers",
     { overwrite: args.overwrite },
+    managedServerNames,
   );
 
   const codexConfigPath = path.join(parentRoot, ".codex", "config.toml");
   const codexExisting = fileExists(codexConfigPath)
     ? readUtf8(codexConfigPath)
     : null;
-  const codexMerged = mergeCodexConfig(codexExisting, codexConfig, {
-    overwrite: args.overwrite,
-  });
+  const codexMerged = mergeCodexConfig(
+    codexExisting,
+    codexConfig,
+    {
+      overwrite: args.overwrite,
+    },
+    managedServerNames,
+  );
 
   // Add MCP config outputs for VS Code, Claude, and Codex.
   outputs.push(
@@ -443,7 +477,7 @@ async function main() {
     /** @type {{ mcpServers: Record<string, unknown> }} */ (mcpConfigs.gemini),
     geminiAllowed,
     geminiSettingsPath,
-    { overwrite: args.overwrite },
+    { overwrite: args.overwrite, managedServers: managedServerNames },
   );
   outputs.push([
     geminiSettingsPath,

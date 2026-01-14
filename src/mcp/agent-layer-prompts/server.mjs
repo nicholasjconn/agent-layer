@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,24 @@ const AGENT_LAYER_ROOT = ROOTS ? ROOTS.agentLayerRoot : null;
 const WORKFLOWS_DIR = AGENT_LAYER_ROOT
   ? path.join(AGENT_LAYER_ROOT, "config", "workflows")
   : null;
+
+/**
+ * Resolve the server version by matching the launcher git describe behavior.
+ * @param {string | null} agentLayerRoot
+ * @returns {string}
+ */
+function resolveServerVersion(agentLayerRoot) {
+  if (!agentLayerRoot) return "unknown";
+  const result = spawnSync(
+    "git",
+    ["-C", agentLayerRoot, "describe", "--tags", "--always", "--dirty"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+  );
+  const version = result.status === 0 ? result.stdout.trim() : "";
+  return version || "unknown";
+}
+
+const SERVER_VERSION = resolveServerVersion(AGENT_LAYER_ROOT);
 
 /**
  * List workflow markdown files from the workflows directory.
@@ -71,7 +90,7 @@ function loadWorkflows() {
 
 // Instantiate the MCP server with prompt/tool capabilities enabled.
 const server = new Server(
-  { name: "agent-layer-prompts", version: "0.1.0" },
+  { name: "agent-layer-prompts", version: SERVER_VERSION },
   { capabilities: { prompts: {}, tools: {} } },
 );
 

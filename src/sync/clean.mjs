@@ -254,6 +254,48 @@ function cleanVscodeMcpConfig(existing, managedServers) {
 }
 
 /**
+ * Remove agent-layer-managed entries from Claude MCP config.
+ * @param {JsonObject} existing
+ * @param {Set<string>} managedServers
+ * @returns {{ updated: JsonObject, changed: boolean, removedServers: number }}
+ */
+function cleanClaudeMcpConfig(existing, managedServers) {
+  const updated = { ...existing };
+  let changed = false;
+  let removedServers = 0;
+
+  const servers = existing.mcpServers;
+  if (servers !== undefined) {
+    if (!isPlainObject(servers)) {
+      fail(".mcp.json: mcpServers must be an object");
+    }
+
+    let serversChanged = false;
+    /** @type {JsonObject} */
+    const preserved = {};
+    for (const [name, value] of Object.entries(servers)) {
+      if (managedServers.has(name)) {
+        removedServers += 1;
+        serversChanged = true;
+      } else {
+        preserved[name] = value;
+      }
+    }
+
+    if (serversChanged) {
+      changed = true;
+      if (Object.keys(preserved).length === 0) {
+        delete updated.mcpServers;
+      } else {
+        updated.mcpServers = preserved;
+      }
+    }
+  }
+
+  return { updated, changed, removedServers };
+}
+
+/**
  * Write JSON to disk when changes are present.
  * @param {string} filePath
  * @param {JsonObject} updated
@@ -290,24 +332,25 @@ function main() {
   const claudePath = path.join(parentRoot, ".claude", "settings.json");
   const vscodePath = path.join(parentRoot, ".vscode", "settings.json");
   const vscodeMcpPath = path.join(parentRoot, ".vscode", "mcp.json");
+  const claudeMcpPath = path.join(parentRoot, ".mcp.json");
 
   const updates = [];
   let catalog = null;
-  const managedServersByClient = new Map();
+  let managedServers = null;
   // Lazily resolve managed server names only when needed.
-  const getManagedServers = (client) => {
-    if (!catalog) {
-      catalog = loadCatalog(agentLayerRoot);
-    }
-    if (!managedServersByClient.has(client)) {
-      const servers = enabledServers(catalog.servers ?? [], client);
+  const getManagedServers = () => {
+    if (!managedServers) {
+      if (!catalog) {
+        catalog = loadCatalog(agentLayerRoot);
+      }
       const names = new Set();
+      const servers = enabledServers(catalog.servers ?? []);
       for (const server of servers) {
         if (server && typeof server.name === "string") names.add(server.name);
       }
-      managedServersByClient.set(client, names);
+      managedServers = names;
     }
-    return managedServersByClient.get(client);
+    return managedServers;
   };
 
   // Clean each client config file if it exists.
@@ -315,9 +358,7 @@ function main() {
     const existing = loadJsonObject(geminiPath);
     const result = cleanGeminiSettings(
       existing,
-      existing.mcpServers !== undefined
-        ? getManagedServers("gemini")
-        : new Set(),
+      existing.mcpServers !== undefined ? getManagedServers() : new Set(),
     );
     if (writeIfChanged(geminiPath, result.updated, result.changed)) {
       updates.push(
@@ -349,11 +390,24 @@ function main() {
     const existing = loadJsonObject(vscodeMcpPath);
     const result = cleanVscodeMcpConfig(
       existing,
-      existing.servers !== undefined ? getManagedServers("vscode") : new Set(),
+      existing.servers !== undefined ? getManagedServers() : new Set(),
     );
     if (writeIfChanged(vscodeMcpPath, result.updated, result.changed)) {
       updates.push(
         `.vscode/mcp.json (removed ${result.removedServers} server entries)`,
+      );
+    }
+  }
+
+  if (fileExists(claudeMcpPath)) {
+    const existing = loadJsonObject(claudeMcpPath);
+    const result = cleanClaudeMcpConfig(
+      existing,
+      existing.mcpServers !== undefined ? getManagedServers() : new Set(),
+    );
+    if (writeIfChanged(claudeMcpPath, result.updated, result.changed)) {
+      updates.push(
+        `.mcp.json (removed ${result.removedServers} mcpServers entries)`,
       );
     }
   }

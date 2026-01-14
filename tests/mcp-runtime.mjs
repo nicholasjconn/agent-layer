@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -25,6 +25,23 @@ const SERVER_PATH = path.join(
   "agent-layer-prompts",
   "server.mjs",
 );
+
+/**
+ * Match the launcher version logic using git describe.
+ * @param {string} agentLayerRoot
+ * @returns {string}
+ */
+function resolveExpectedVersion(agentLayerRoot) {
+  const result = spawnSync(
+    "git",
+    ["-C", agentLayerRoot, "describe", "--tags", "--always", "--dirty"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+  );
+  const version = result.status === 0 ? result.stdout.trim() : "";
+  return version || "unknown";
+}
+
+const EXPECTED_VERSION = resolveExpectedVersion(AGENT_LAYER_ROOT);
 
 /**
  * Extract a Zod schema shape, if available.
@@ -188,6 +205,14 @@ async function run() {
   const initResponse = await waitForResponse(initializeId).catch(fail);
   if (!initResponse?.result?.capabilities) {
     fail(new Error("Initialize response missing capabilities."));
+  }
+  const serverVersion = initResponse?.result?.serverInfo?.version;
+  if (serverVersion !== EXPECTED_VERSION) {
+    fail(
+      new Error(
+        `Initialize response version mismatch: expected ${EXPECTED_VERSION}, got ${serverVersion}.`,
+      ),
+    );
   }
 
   sendMessage({

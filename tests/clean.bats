@@ -16,7 +16,9 @@ load "helpers.bash"
   : >"$root/CLAUDE.md"
   : >"$root/GEMINI.md"
   : >"$root/.github/copilot-instructions.md"
-  : >"$root/.mcp.json"
+  cat >"$root/.mcp.json" <<'EOF'
+{}
+EOF
   cat >"$root/.vscode/mcp.json" <<'EOF'
 {}
 EOF
@@ -171,10 +173,48 @@ EOF
   [ "$status" -eq 0 ]
 
   [ -f "$root/.vscode/mcp.json" ]
-  grep -Fq "\"agent-layer\"" "$root/.vscode/mcp.json"
+  ! grep -Fq "\"agent-layer\"" "$root/.vscode/mcp.json"
   ! grep -Fq "\"context7\"" "$root/.vscode/mcp.json"
   grep -Fq "\"custom\"" "$root/.vscode/mcp.json"
   grep -Fq "\"other\": true" "$root/.vscode/mcp.json"
+
+  rm -rf "$root"
+}
+
+# Test: clean.mjs removes managed Claude MCP servers
+@test "clean.mjs removes managed Claude MCP servers" {
+  local root
+  root="$(create_isolated_parent_root)"
+
+  mkdir -p "$root/.agent-layer/config"
+  cat >"$root/.mcp.json" <<'EOF'
+{
+  "mcpServers": {
+    "agent-layer": { "command": "node" },
+    "context7": { "command": "npx" },
+    "custom": { "command": "custom" }
+  },
+  "other": true
+}
+EOF
+  cat >"$root/.agent-layer/config/mcp-servers.json" <<'EOF'
+{
+  "version": 1,
+  "servers": [
+    { "name": "agent-layer", "command": "node", "clients": ["claude", "gemini"] },
+    { "name": "context7", "command": "npx" }
+  ]
+}
+EOF
+
+  run bash -c "cd \"$root\" && node .agent-layer/src/sync/clean.mjs"
+  [ "$status" -eq 0 ]
+
+  [ -f "$root/.mcp.json" ]
+  ! grep -Fq "\"agent-layer\"" "$root/.mcp.json"
+  ! grep -Fq "\"context7\"" "$root/.mcp.json"
+  grep -Fq "\"custom\"" "$root/.mcp.json"
+  grep -Fq "\"other\": true" "$root/.mcp.json"
 
   rm -rf "$root"
 }

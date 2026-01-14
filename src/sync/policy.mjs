@@ -191,6 +191,7 @@ export function buildVscodeAutoApprove(prefixes) {
  * @param {{ mcpServers: Record<string, unknown> }} generated
  * @param {string[]} allowed
  * @param {string} filePath
+ * @param {{ overwrite?: boolean, managedServers?: Set<string> }} options
  * @returns {Record<string, unknown>}
  */
 export function mergeGeminiSettings(
@@ -200,7 +201,7 @@ export function mergeGeminiSettings(
   filePath,
   options = {},
 ) {
-  const { overwrite = false } = options;
+  const { overwrite = false, managedServers } = options;
   assert(isPlainObject(existing), `${filePath} must contain a JSON object`);
 
   const existingMcp = existing.mcpServers;
@@ -238,6 +239,13 @@ export function mergeGeminiSettings(
     ? { ...(generated.mcpServers ?? {}) }
     : { ...(existingMcp ?? {}) };
   if (!overwrite) {
+    const generatedNames = new Set(Object.keys(generated.mcpServers ?? {}));
+    const managed = managedServers ?? new Set();
+    for (const name of Object.keys(mergedMcpServers)) {
+      if (managed.has(name) && !generatedNames.has(name)) {
+        delete mergedMcpServers[name];
+      }
+    }
     for (const [name, entry] of Object.entries(generated.mcpServers ?? {})) {
       const existingEntry = existingMcp?.[name];
       if (

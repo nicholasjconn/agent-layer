@@ -10,10 +10,14 @@ node_modules/
 .DS_Store
 /.actrc
 
-# Allow agent-layer to be used inside agent-layer
-.agent-layer
 .vscode/settings.json
 /docs/
+
+# When using agent-layer inside agent-layer, it is a symbolic link, so also ignore the file
+.agent-layer
+
+# >>> agent-layer
+.agent-layer/
 
 # Agent Layer launcher
 al
@@ -31,3 +35,4 @@ GEMINI.md
 .claude/
 .vscode/mcp.json
 .vscode/prompts/
+# <<< agent-layer

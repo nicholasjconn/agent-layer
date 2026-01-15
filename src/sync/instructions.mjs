@@ -112,7 +112,7 @@ export function slugify(s) {
 export function banner(sourceHint, regenHint) {
   return (
     `<!--\n` +
-    `  GENERATED FILE - DO NOT EDIT DIRECTLY\n` +
+    `  GENERATED FILE\n` +
     `  Source: ${sourceHint}\n` +
     `  Regenerate: ${regenHint}\n` +
     `-->\n\n`

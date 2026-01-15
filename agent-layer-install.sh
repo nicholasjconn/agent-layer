@@ -409,7 +409,8 @@ if [[ -e "$AL_PATH" ]]; then
     say "==> Overwriting ./al"
     write_launcher
   else
-    say "==> ./al exists; leaving as-is (use --force to overwrite)"
+    say "==> NOTE: ./al already exists; not overwriting."
+    say "==> Re-run the installer with --force to replace ./al."
   fi
 else
   say "==> Creating ./al"

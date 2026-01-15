@@ -6,6 +6,7 @@ import {
   readJsonRelaxed,
   writeUtf8,
 } from "../sync/utils.mjs";
+import { resolveAgentLayerRoot } from "../sync/paths.mjs";
 
 /**
  * @typedef {object} AgentEntry

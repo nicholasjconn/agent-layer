@@ -145,7 +145,7 @@ if [[ -d "$prompt_dir" ]]; then
   prompt_files=("$prompt_dir"/*.prompt.md)
   shopt -u nullglob
   for prompt_file in "${prompt_files[@]}"; do
-    if grep -Fq "GENERATED FILE - DO NOT EDIT DIRECTLY" "$prompt_file" &&
+    if grep -Fq "GENERATED FILE" "$prompt_file" &&
       grep -Fq "Regenerate: node .agent-layer/src/sync/sync.mjs" "$prompt_file"; then
       rm -- "$prompt_file"
       removed+=("$prompt_file")

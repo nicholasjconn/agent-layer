@@ -1,22 +1,8 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolveAgentLayerRoot } from "./paths.mjs";
 import { assert, fileExists, isPlainObject, readUtf8 } from "./utils.mjs";
 
 const KNOWN_CLIENTS = new Set(["claude", "codex", "gemini", "vscode"]);
-const DEFAULT_AGENT_LAYER_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-);
-
-/**
- * Resolve the agent-layer root for reading the local .env file.
- * @returns {string}
- */
-function resolveAgentLayerRoot() {
-  const envRoot = String(process.env.AGENT_LAYER_ROOT ?? "").trim();
-  return envRoot ? path.resolve(envRoot) : DEFAULT_AGENT_LAYER_ROOT;
-}
 
 /**
  * Read a single environment variable from an .env file.
@@ -126,6 +112,17 @@ function resolveBearerToken(envVar, serverName) {
     `Missing ${envVar} for Gemini HTTP server "${serverName}". Set it in .agent-layer/.env or your shell environment.`,
   );
   return token;
+}
+
+/**
+ * Check whether a client is enabled.
+ * @param {Set<string>|undefined} enabledAgents
+ * @param {"claude"|"codex"|"gemini"|"vscode"} client
+ * @returns {boolean}
+ */
+function isClientEnabled(enabledAgents, client) {
+  if (!enabledAgents) return true;
+  return enabledAgents.has(client);
 }
 
 /**
@@ -430,13 +427,23 @@ export function trustedServerNames(catalog, client) {
 /**
  * Build MCP config objects for each client from the server catalog.
  * @param {{ defaults?: Record<string, unknown>, servers?: unknown[] }} catalog
+ * @param {Set<string>=} enabledAgents
  * @returns {{ vscode: Record<string, unknown>, claude: Record<string, unknown>, gemini: Record<string, unknown> }}
  */
-export function buildMcpConfigs(catalog) {
+export function buildMcpConfigs(catalog, enabledAgents) {
   const defaults = catalog.defaults ?? {};
-  const vscodeServers = enabledServers(catalog.servers ?? [], "vscode");
-  const claudeServers = enabledServers(catalog.servers ?? [], "claude");
-  const geminiServers = enabledServers(catalog.servers ?? [], "gemini");
+  const vscodeEnabled = isClientEnabled(enabledAgents, "vscode");
+  const claudeEnabled = isClientEnabled(enabledAgents, "claude");
+  const geminiEnabled = isClientEnabled(enabledAgents, "gemini");
+  const vscodeServers = vscodeEnabled
+    ? enabledServers(catalog.servers ?? [], "vscode")
+    : [];
+  const claudeServers = claudeEnabled
+    ? enabledServers(catalog.servers ?? [], "claude")
+    : [];
+  const geminiServers = geminiEnabled
+    ? enabledServers(catalog.servers ?? [], "gemini")
+    : [];
 
   // NOTE: VS Code can load env from an envFile. Default remains .agent-layer/.env
   // unless you set defaults.vscodeEnvFile to "${workspaceFolder}/.env".
@@ -593,7 +600,7 @@ function tomlKey(key) {
 export function renderCodexConfig(catalog, regenCommand) {
   const servers = enabledServers(catalog.servers ?? [], "codex");
   const lines = [
-    "# GENERATED FILE - DO NOT EDIT DIRECTLY",
+    "# GENERATED FILE",
     "# Source: .agent-layer/config/mcp-servers.json",
     `# Regenerate: ${regenCommand}`,
     "",

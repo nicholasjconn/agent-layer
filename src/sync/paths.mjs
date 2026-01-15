@@ -1,4 +1,20 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const DEFAULT_AGENT_LAYER_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
+
+/**
+ * Resolve the agent-layer root from the environment or fallback to this repo.
+ * @returns {string}
+ */
+export function resolveAgentLayerRoot() {
+  const envRoot = String(process.env.AGENT_LAYER_ROOT ?? "").trim();
+  return envRoot ? path.resolve(envRoot) : DEFAULT_AGENT_LAYER_ROOT;
+}
 
 /**
  * Resolve roots from the environment when provided.

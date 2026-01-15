@@ -71,7 +71,7 @@ EOF
 name: generated
 ---
 <!--
-  GENERATED FILE - DO NOT EDIT DIRECTLY
+  GENERATED FILE
   Source: .agent-layer/config/workflows/generated.md
   Regenerate: node .agent-layer/src/sync/sync.mjs
 -->

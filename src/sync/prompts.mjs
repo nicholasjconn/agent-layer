@@ -72,7 +72,7 @@ function isGeneratedVscodePrompt(promptFile) {
   if (!fileExists(promptFile)) return false;
   const txt = readUtf8(promptFile);
   return (
-    txt.includes("GENERATED FILE - DO NOT EDIT DIRECTLY") &&
+    txt.includes("GENERATED FILE") &&
     txt.includes(`Regenerate: ${REGEN_COMMAND}`)
   );
 }

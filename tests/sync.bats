@@ -101,7 +101,7 @@ teardown() {
 name: stale
 ---
 <!--
-  GENERATED FILE - DO NOT EDIT DIRECTLY
+  GENERATED FILE
   Source: .agent-layer/config/workflows/stale.md
   Regenerate: node .agent-layer/src/sync/sync.mjs
 -->
@@ -477,7 +477,7 @@ EOF
 EOF
   mkdir -p "$root/.codex"
   cat >"$root/.codex/config.toml" <<'EOF'
-# GENERATED FILE - DO NOT EDIT DIRECTLY
+# GENERATED FILE
 [mcp_servers.extra]
 command = "node"
 EOF
@@ -544,7 +544,7 @@ EOF
 EOF
   mkdir -p "$root/.codex"
   cat >"$root/.codex/config.toml" <<'EOF'
-# GENERATED FILE - DO NOT EDIT DIRECTLY
+# GENERATED FILE
 [mcp_servers.extra]
 command = "node"
 EOF
@@ -815,6 +815,19 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync succeeds without Gemini HTTP token when Gemini is disabled
+@test "sync succeeds without Gemini HTTP token when Gemini is disabled" {
+  local root
+  root="$(create_sync_parent_root)"
+  write_agent_config "$root/.agent-layer/config/agents.json" false true true true
+
+  run bash -c "cd \"$root\" && env -u GITHUB_PERSONAL_ACCESS_TOKEN -u AGENT_LAYER_ROOT node .agent-layer/src/sync/sync.mjs"
+  [ "$status" -eq 0 ]
+  [ ! -f "$root/.gemini/settings.json" ]
+
+  rm -rf "$root"
+}
+
 # Test: sync generates HTTP MCP configs for GitHub
 @test "sync generates HTTP MCP configs for GitHub" {
   local root token
@@ -956,7 +969,7 @@ EOF
 
   mkdir -p "$root/.codex"
   cat >"$root/.codex/config.toml" <<'EOF'
-# GENERATED FILE - DO NOT EDIT DIRECTLY
+# GENERATED FILE
 [mcp_servers.empty-args]
 command = "node"
 EOF

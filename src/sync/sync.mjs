@@ -553,7 +553,7 @@ async function main() {
   }
 
   // Build MCP configs and merge with existing client settings.
-  const mcpConfigs = buildMcpConfigs(catalog);
+  const mcpConfigs = buildMcpConfigs(catalog, enabledAgents);
   const managedServerNames = new Set();
   for (const server of enabledServers(catalog.servers ?? [])) {
     if (server && typeof server.name === "string") {

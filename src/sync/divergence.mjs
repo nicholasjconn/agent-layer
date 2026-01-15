@@ -653,7 +653,7 @@ export function collectMcpDivergences(parentRoot, catalog, enabledAgents) {
   /** @type {McpItem[]} */
   const items = [];
   const notes = [];
-  const generated = buildMcpConfigs(catalog);
+  const generated = buildMcpConfigs(catalog, enabledAgents);
   const catalogMap = new Map();
   if (shouldCheckAgent(enabledAgents, "codex")) {
     const catalogServers = enabledServers(catalog.servers ?? [], "codex");

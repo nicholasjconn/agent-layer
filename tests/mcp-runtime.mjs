@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -17,14 +17,24 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_LAYER_ROOT = path.resolve(HERE, "..");
-const REPO_ROOT = path.resolve(AGENT_LAYER_ROOT, "..");
-const SERVER_PATH = path.join(
-  AGENT_LAYER_ROOT,
-  "src",
-  "mcp",
-  "agent-layer-prompts",
-  "server.mjs",
-);
+const SERVER_PATH = path.join(AGENT_LAYER_ROOT, "src", "cli.mjs");
+
+/**
+ * Match the launcher version logic using git describe.
+ * @param {string} agentLayerRoot
+ * @returns {string}
+ */
+function resolveExpectedVersion(agentLayerRoot) {
+  const result = spawnSync(
+    "git",
+    ["-C", agentLayerRoot, "describe", "--tags", "--always", "--dirty"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+  );
+  const version = result.status === 0 ? result.stdout.trim() : "";
+  return version || "unknown";
+}
+
+const EXPECTED_VERSION = resolveExpectedVersion(AGENT_LAYER_ROOT);
 
 /**
  * Extract a Zod schema shape, if available.
@@ -70,15 +80,23 @@ function getMethod(schema) {
  * @returns {import("node:child_process").ChildProcess}
  */
 function createTransport() {
-  const child = spawn(process.execPath, [SERVER_PATH], {
-    cwd: REPO_ROOT,
-    stdio: ["pipe", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      PARENT_ROOT: REPO_ROOT,
+  const child = spawn(
+    process.execPath,
+    [
+      SERVER_PATH,
+      "--mcp-prompts",
+      "--temp-parent-root",
+      "--agent-layer-root",
       AGENT_LAYER_ROOT,
+    ],
+    {
+      cwd: AGENT_LAYER_ROOT,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+      },
     },
-  });
+  );
   return child;
 }
 
@@ -188,6 +206,14 @@ async function run() {
   const initResponse = await waitForResponse(initializeId).catch(fail);
   if (!initResponse?.result?.capabilities) {
     fail(new Error("Initialize response missing capabilities."));
+  }
+  const serverVersion = initResponse?.result?.serverInfo?.version;
+  if (serverVersion !== EXPECTED_VERSION) {
+    fail(
+      new Error(
+        `Initialize response version mismatch: expected ${EXPECTED_VERSION}, got ${serverVersion}.`,
+      ),
+    );
   }
 
   sendMessage({

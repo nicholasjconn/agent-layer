@@ -58,7 +58,7 @@ export function isGeneratedCodexSkill(skillDir) {
   if (!fileExists(p)) return false;
   const txt = readUtf8(p);
   return (
-    txt.includes("GENERATED FILE - DO NOT EDIT DIRECTLY") &&
+    txt.includes("GENERATED FILE") &&
     txt.includes(`Regenerate: ${REGEN_COMMAND}`)
   );
 }

@@ -22,32 +22,18 @@ After presenting findings, ask the user which items should be:
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `mode=audit|propose|apply` (default: `audit`)
-  - `audit`: report findings only
-  - `propose`: include patch-style fix proposals and ready-to-paste issue entries, but do not apply
-  - `apply`: apply only the user-approved subset (explicit approval required)
-- `scope=all|paths|since` (default: `all`)
-  - `all`: all tracked `*.md`
-  - `paths`: only the provided `paths=...`
-  - `since`: only Markdown files changed since a git ref (`since_ref=...`)
-- `paths=<comma-separated paths>` (only if `scope=paths`)
-- `since_ref=HEAD` (only if `scope=since`)
-- `max_findings=30` (default: `30`) — cap; prioritize most important
-- `include_snippets=none|short` (default: `short`) — short excerpts only
-- `log_issues=ask|off|on` (default: `ask`)
-  - `ask`: present issue candidates and ask user which to log
-  - `off`: do not propose logging
-  - `on`: in `apply` mode, log user-approved items automatically
-- `update_docs=ask|off|on` (default: `ask`)
-  - `ask`: propose doc edits and wait for selection
-  - `off`: do not propose doc edits
-  - `on`: in `apply` mode, apply user-approved doc edits automatically
+- Mode: default to audit-only; the user may request proposals or apply changes (apply requires explicit approval).
+- Scope: default to all tracked Markdown files; the user may specify paths or request only files changed since a git ref.
+- Maximum findings: default to 30, prioritizing the most important.
+- Snippet length: default to short excerpts; omit if the user requests none.
+- Issue logging preference: default to asking which findings to log; the user may request no logging or automatic logging during apply.
+- Documentation update preference: default to asking which doc fixes to apply; the user may request no doc fixes or automatic fixes during apply.
 
 **Approval gate**
-- If `mode=apply`, you must have explicit user approval and a selection list (see “User response protocol”).
+- If the user asks to apply changes, you must have explicit approval and a selection list (see “User response protocol”).
 
 ---
 
@@ -77,9 +63,9 @@ If the user provides arguments after the command, interpret them as:
 Preferred (git repo):
 - `git ls-files '*.md'`
 
-If `scope=paths`, filter to `paths`.
-If `scope=since`, use:
-- `git diff --name-only {"}}since_ref{{"}..HEAD -- '*.md'`
+If the user provides paths, filter to those paths.
+If the user requests changes since a git ref, use:
+- `git diff --name-only <ref>..HEAD -- '*.md'`
 
 If not a git repo:
 - `find . -type f -name "*.md" -not -path "*/node_modules/*" -not -path "*/.git/*" -print`
@@ -88,7 +74,7 @@ If not a git repo:
 Tag each file into one category:
 - **Primary**: `README*.md`
 - **Docs**: `docs/**`
-- **Templates**: `templates/**` or `config/templates/**`
+- **Templates**: `.agent-layer/config/templates/**`
 - **Workflows**: `workflows/**` or `.agent-layer/**`
 - **Other**: everything else
 
@@ -201,13 +187,13 @@ Prioritization rubric:
 - **Medium**: confusing/likely to drift into mistakes; not immediately hazardous.
 - **Low**: wording polish, minor clarifications, non-blocking cleanup.
 
-Cap total findings at `max_findings`, but include “additional findings omitted” count if applicable.
+Cap total findings at the agreed limit (default: 30), but include “additional findings omitted” count if applicable.
 
 ---
 
 # Phase 5 — Propose fixes and issue candidates (Fix Proposer)
 
-Trigger when `mode=propose|apply`.
+Trigger when the user asks for proposals or apply mode.
 
 ## 5A) Propose documentation fixes (patch-style)
 For each fixable doc mismatch:
@@ -216,7 +202,7 @@ For each fixable doc mismatch:
 - do not introduce new policies not present elsewhere
 
 ## 5B) Propose issue entries (ready-to-paste)
-If `log_issues=ask|on`, generate an issue candidate for each relevant finding using the project issue format:
+If issue logging is requested or allowed, generate an issue candidate for each relevant finding using the project issue format:
 
 - `- Issue 2026-01-11 abcdef: Short title`
     `Priority: <Critical/High/Medium/Low>. Area: <area>`
@@ -224,7 +210,7 @@ If `log_issues=ask|on`, generate an issue candidate for each relevant finding us
     `Next step: <smallest concrete action>`
     `Notes: <optional>`
 
-Do not write to `docs/ISSUES.md` unless the user selects it (or `log_issues=on` and `mode=apply`).
+Do not write to `docs/ISSUES.md` unless the user selects it, or the user asked for automatic issue logging during apply.
 
 ---
 
@@ -241,21 +227,21 @@ Do not write to `docs/ISSUES.md` unless the user selects it (or `log_issues=on` 
 ## User response protocol (required)
 The user replies with one line per finding ID:
 
-- `A: fix` — apply doc fix (only in `mode=apply`)
-- `A: log` — add an issue entry to `docs/ISSUES.md` (only in `mode=apply`)
-- `A: fix+log` — do both (only in `mode=apply`)
+- `A: fix` — apply doc fix (only when apply mode has been explicitly approved)
+- `A: log` — add an issue entry to `docs/ISSUES.md` (only when apply mode has been explicitly approved)
+- `A: fix+log` — do both (only when apply mode has been explicitly approved)
 - `A: ignore` — do not act on it
 - `A: other <instruction>` — user provides a specific edit (e.g., “fix but do not log” or “log as Low priority”)
 
 **Stop after presenting the findings.**
-Do not modify any files until the user selects actions and explicitly approves `mode=apply`.
+Do not modify any files until the user selects actions and explicitly approves apply mode.
 
 ---
 
 # Phase 7 — Apply approved changes (Applier)
 
 Trigger only when:
-- `mode=apply`, AND
+- the user has requested apply mode, AND
 - the user has explicitly approved, AND
 - the user has provided selections for at least one finding.
 

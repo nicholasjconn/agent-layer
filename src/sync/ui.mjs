@@ -48,12 +48,22 @@ function formatDivergenceDetails(divergence, parentRoot) {
       const filePath = formatRelativePath(item.filePath, parentRoot);
       const detailParts = [];
       if (item.parseable && item.server) {
-        const args = item.server.args?.length
-          ? ` ${item.server.args.join(" ")}`
-          : "";
-        detailParts.push(`${item.server.command}${args}`.trim());
-        if (item.server.envVarsKnown && item.server.envVars.length) {
-          detailParts.push(`env=${item.server.envVars.join(",")}`);
+        if (item.server.transport === "http") {
+          detailParts.push(`http=${item.server.url}`);
+          if (item.server.headerKeys?.length) {
+            detailParts.push(`headers=${item.server.headerKeys.join(",")}`);
+          }
+          if (item.server.bearerTokenEnvVar) {
+            detailParts.push(`auth_env=${item.server.bearerTokenEnvVar}`);
+          }
+        } else {
+          const args = item.server.args?.length
+            ? ` ${item.server.args.join(" ")}`
+            : "";
+          detailParts.push(`${item.server.command}${args}`.trim());
+          if (item.server.envVarsKnown && item.server.envVars.length) {
+            detailParts.push(`env=${item.server.envVars.join(",")}`);
+          }
         }
         if (item.server.trust !== undefined) {
           detailParts.push(`trust=${item.server.trust}`);
@@ -95,15 +105,20 @@ export async function promptDivergenceAction(divergence, parentRoot) {
   console.warn(
     `agent-layer sync: WARNING: client configs diverge from .agent-layer sources${detail}.`,
   );
+  console.warn("");
+  console.warn("Details:");
   console.warn(formatDivergenceDetails(divergence, parentRoot));
   console.warn("");
+  console.warn("Notes:");
   console.warn(
-    "By default, sync preserves existing client entries. Choose overwrite to discard client-only entries.",
+    "- Sync preserves existing client entries by default; it will not overwrite them unless you pass --overwrite or choose overwrite in --interactive.",
   );
   console.warn("");
+  console.warn("Next steps:");
   console.warn(
-    "Run: node .agent-layer/src/sync/inspect.mjs (JSON report) to see what differs, then update .agent-layer sources.",
+    "- Run: ./al --inspect (JSON report) to see what differs, then update .agent-layer sources.",
   );
+  console.warn("- Or choose overwrite to discard client-only entries now.");
   console.warn("");
 
   const rl = readline.createInterface({

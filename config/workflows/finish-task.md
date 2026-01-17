@@ -22,22 +22,18 @@ This is **not** a full codebase audit. Only document what you touched or passive
 - `docs/ROADMAP.md` — numbered phases; guides architecture and sequencing.
 - `docs/DECISIONS.md` — rolling log of important decisions (brief).
 
-If any are missing, create them from `config/templates/docs/<NAME>.md` (preserve headings and markers).
+If any are missing, ask the user before creating them. If approved, copy `.agent-layer/config/templates/docs/<NAME>.md` into `docs/<NAME>.md` (preserve headings and markers).
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `scope=uncommitted|since_last_commit|range|paths` (default: `uncommitted`)
-- `range=<git-range>` (only if `scope=range`, e.g. `HEAD~5..HEAD`)
-- `paths=<comma-separated paths>` (only if `scope=paths`)
-- `plan_path=implementation_plan.md` (default: `implementation_plan.md`)
-- `verify=auto|fast|full|none` (default: `auto`)
-- `risk=low|medium|high` (default: `medium`)
-- `update_roadmap=auto|on|off` (default: `auto`)
-- `max_new_entries=10` (default: `10`) — across all memory files
-- `dry_run=false|true` (default: `false`) — if `true`, do not edit files; only propose changes
+- Scope: default to uncommitted changes; the user may request since last commit, a specific git range, or explicit paths.
+- Plan file path: use `.agent-layer/tmp/implementation_plan.md`.
+- Verification depth and risk level: default to automatic verification with medium risk.
+- Roadmap updates: default to automatic updates when the work maps to roadmap tasks; skip if the user asks to avoid updates.
+- Maximum new entries across memory files: default to 10.
 
 ---
 
@@ -75,15 +71,15 @@ If only one agent is available, execute phases in this order with explicit headi
 
 3. Build the review file list based on `scope`:
 
-- `scope=uncommitted` (default):
+- Default to uncommitted changes:
   - staged: `git diff --name-only --staged`
   - unstaged: `git diff --name-only`
-- `scope=since_last_commit`:
+- If the user requests since last commit:
   - `git show --name-only --pretty="" HEAD`
-- `scope=range`:
+- If the user provides a git range:
   - `git diff --name-only <range>`
-- `scope=paths`:
-  - use the provided `paths=...`
+- If the user provides explicit paths:
+  - use those paths directly
 
 If the file list is empty:
 - state “No changed files detected” and proceed with memory cleanup only (dedup/removal).
@@ -98,7 +94,7 @@ If the file list is empty:
 # Phase 1 — Reflect on recent work (Change Reviewer)
 
 ## 1A) Plan alignment (if a plan exists)
-If `plan_path` exists:
+If `.agent-layer/tmp/implementation_plan.md` exists:
 - read it
 - compare planned tasks vs actual changes
 - list:
@@ -106,7 +102,7 @@ If `plan_path` exists:
   - omissions
   - deviations (and why)
 
-If `plan_path` does not exist:
+If `.agent-layer/tmp/implementation_plan.md` does not exist:
 - state that no plan artifact was found and skip plan alignment.
 
 ## 1B) Passive best-practice check (no broad audit)
@@ -141,7 +137,7 @@ For each of:
 - `docs/DECISIONS.md`
 
 If missing:
-- create it from `config/templates/docs/<NAME>.md` (preserve headings and markers).
+- ask the user before creating it. If approved, copy `.agent-layer/config/templates/docs/<NAME>.md` into `docs/<NAME>.md` (preserve headings and markers).
 
 ## 2B) Decide where each finding belongs
 - Add to **`docs/ISSUES.md`** if it is:
@@ -149,8 +145,8 @@ If missing:
 - Add to **`docs/FEATURES.md`** only if it is a **new user-visible capability** request.
 - Add to **`docs/DECISIONS.md`** if the task required a significant decision:
   - record decision, reason, and tradeoffs
-  - keep it brief and keep the most recent decisions near the top
-- Update **`docs/ROADMAP.md`** only if `update_roadmap=on`, or `update_roadmap=auto` and:
+  - keep it brief and add new entries at the bottom so the oldest decisions remain at the top
+- Update **`docs/ROADMAP.md`** only if the user asks for roadmap updates, or if automatic updates are appropriate and:
   - the completed work clearly maps to existing roadmap tasks, or
   - the roadmap is now stale/contradicted by what was implemented.
 
@@ -178,7 +174,7 @@ Add entries in this format (example):
     `Notes: Optional dependencies or context.`
 
 ### Decisions (`docs/DECISIONS.md`)
-Add entries near the top:
+Add entries at the bottom:
 - `- Decision 2026-01-10 abcdef: Short decision title`
     `Decision: What was chosen.`
     `Reason: Why it was chosen.`
@@ -194,30 +190,25 @@ Add entries near the top:
 - Merge duplicates.
 - Ensure entries remain compact (3–5 lines).
 - Ensure no abbreviations.
-- Keep the file easy to scan (prefer newest entries near top if that is the existing convention).
+- Keep the file easy to scan (follow the existing ordering convention for that file).
 
 ## 2G) Respect entry limits
-Do not add more than `max_new_entries` new entries across all memory files in a single run.
+Do not add more than the entry cap across all memory files in a single run.
 If more exist:
 - add the most impactful first
 - summarize the remainder in the final report as “not logged due to limit”
-
-## 2H) Dry run support
-If `dry_run=true`:
-- do not modify files
-- produce a proposed diff-style summary of what would change
 
 ---
 
 # Phase 3 — Regression test and verification (Verifier)
 
 ## 3A) Choose verification level
-- `verify=none`: skip verification and clearly document the limitation.
-- `verify=fast`: run the repo’s fast checks.
-- `verify=full`: run the repo’s full checks.
-- `verify=auto`:
+- If the user explicitly requests no verification, skip it and clearly document the limitation.
+- If the user requests fast verification, run the repo’s fast checks.
+- If the user requests full verification, run the repo’s full checks.
+- Otherwise:
   - default to fast checks
-  - escalate toward full checks when `risk=high` or changes touch core infrastructure, build pipelines, or public interfaces.
+  - escalate toward full checks when risk is high or changes touch core infrastructure, build pipelines, or public interfaces.
 
 ## 3B) Prefer repo-defined commands
 Attempt, in order, depending on what exists in the repository:
@@ -234,7 +225,7 @@ If no credible commands exist:
 ## 3C) If verification fails
 - Fix failures only if the fix is directly connected to the recent work and remains in-scope.
 - If the failure indicates a broader problem:
-  - log it to `docs/ISSUES.md` (unless `dry_run=true`)
+  - log it to `docs/ISSUES.md`
   - stop further scope expansion.
 
 ---
@@ -258,7 +249,17 @@ Provide a structured summary:
   - limitations (if any)
 
 ## Out-of-scope discoveries
-List any out-of-scope items that were observed and where they were logged (ISSUES/FEATURES), or note if they were not logged due to `max_new_entries` or `dry_run=true`.
+List any out-of-scope items that were observed and where they were logged (ISSUES/FEATURES), or note if they were not logged due to the entry cap.
+
+---
+
+# Phase 5 — Cleanup (Reporter)
+
+- If `.agent-layer/tmp/implementation_plan.md` was used and the run completed successfully:
+  - delete `.agent-layer/tmp/implementation_plan.md` only if it exists
+  - delete any other workflow-generated files explicitly listed in the workflow that was just completed, only if they exist and are under `.agent-layer/tmp`
+  - do not delete any other files
+- If `.agent-layer/tmp/implementation_plan.md` does not exist, state that cleanup was not needed.
 
 ---
 
@@ -266,4 +267,5 @@ List any out-of-scope items that were observed and where they were logged (ISSUE
 - Recent work has been reviewed for plan alignment and passive best-practice concerns.
 - Project memory files are up to date, deduplicated, and compact.
 - Fixed issues/features have been removed from their ledgers.
+- Plan file cleanup is complete (`.agent-layer/tmp/implementation_plan.md` deleted if it existed).
 - Fast verification has been run (or explicitly skipped with a clear limitation note).

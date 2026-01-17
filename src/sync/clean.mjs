@@ -1,16 +1,22 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   fileExists,
   isPlainObject,
   readJsonRelaxed,
   writeUtf8,
 } from "./utils.mjs";
-import { resolveRootsFromEnvOrScript } from "./paths.mjs";
 import { isManagedClaudeAllow, isManagedGeminiAllowed } from "./policy.mjs";
+import { enabledServers, loadServerCatalog } from "./mcp.mjs";
 
 /**
  * @typedef {Record<string, unknown>} JsonObject
  */
+
+export const CLEAN_USAGE = [
+  "Usage:",
+  "  ./al --clean [--parent-root <path>] [--temp-parent-root] [--agent-layer-root <path>]",
+].join("\n");
 
 /**
  * Throw a clean-specific error.
@@ -44,42 +50,18 @@ function loadJsonObject(filePath) {
 }
 
 /**
- * Load MCP server names from the catalog.
+ * Load and validate the MCP server catalog, mapping sync errors to clean errors.
  * @param {string} agentlayerRoot
- * @returns {string[]}
+ * @returns {{ defaults: Record<string, unknown>, servers: unknown[] }}
  */
-function loadServerNames(agentlayerRoot) {
-  const filePath = path.join(agentlayerRoot, "config", "mcp-servers.json");
-  if (!fileExists(filePath)) {
-    fail(`${filePath} not found`);
+function loadCatalog(agentlayerRoot) {
+  try {
+    return loadServerCatalog(agentlayerRoot);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const cleaned = detail.replace(/^agent-layer sync:\s*/u, "");
+    fail(cleaned);
   }
-
-  const parsed = loadJsonObject(filePath);
-  const servers = parsed.servers;
-  if (!Array.isArray(servers)) {
-    fail(`${filePath}: servers must be an array`);
-  }
-
-  /** @type {string[]} */
-  const names = [];
-  const seen = new Set();
-  for (let i = 0; i < servers.length; i++) {
-    const server = servers[i];
-    if (!isPlainObject(server)) {
-      fail(`${filePath}: servers[${i}] must be an object`);
-    }
-    const name = server.name;
-    if (typeof name !== "string" || name.trim().length === 0) {
-      fail(`${filePath}: servers[${i}].name must be a non-empty string`);
-    }
-    if (seen.has(name)) {
-      fail(`${filePath}: duplicate server name "${name}"`);
-    }
-    seen.add(name);
-    names.push(name);
-  }
-
-  return names;
 }
 
 /**
@@ -277,6 +259,48 @@ function cleanVscodeMcpConfig(existing, managedServers) {
 }
 
 /**
+ * Remove agent-layer-managed entries from Claude MCP config.
+ * @param {JsonObject} existing
+ * @param {Set<string>} managedServers
+ * @returns {{ updated: JsonObject, changed: boolean, removedServers: number }}
+ */
+function cleanClaudeMcpConfig(existing, managedServers) {
+  const updated = { ...existing };
+  let changed = false;
+  let removedServers = 0;
+
+  const servers = existing.mcpServers;
+  if (servers !== undefined) {
+    if (!isPlainObject(servers)) {
+      fail(".mcp.json: mcpServers must be an object");
+    }
+
+    let serversChanged = false;
+    /** @type {JsonObject} */
+    const preserved = {};
+    for (const [name, value] of Object.entries(servers)) {
+      if (managedServers.has(name)) {
+        removedServers += 1;
+        serversChanged = true;
+      } else {
+        preserved[name] = value;
+      }
+    }
+
+    if (serversChanged) {
+      changed = true;
+      if (Object.keys(preserved).length === 0) {
+        delete updated.mcpServers;
+      } else {
+        updated.mcpServers = preserved;
+      }
+    }
+  }
+
+  return { updated, changed, removedServers };
+}
+
+/**
  * Write JSON to disk when changes are present.
  * @param {string} filePath
  * @param {JsonObject} updated
@@ -291,35 +315,50 @@ function writeIfChanged(filePath, updated, changed) {
 
 /**
  * Remove agent-layer-managed settings from client config files.
+ * @param {string} parentRoot
+ * @param {string} agentLayerRoot
  * @returns {void}
  */
-function main() {
-  // Resolve roots from env or the entry script path.
-  const entryPath = process.argv[1];
-  const roots = resolveRootsFromEnvOrScript(entryPath);
-  if (!roots) {
-    fail(
-      "PARENT_ROOT must be set when running outside an installed .agent-layer.",
-    );
+export function runClean(parentRoot, agentLayerRoot) {
+  if (
+    !parentRoot ||
+    !agentLayerRoot ||
+    typeof parentRoot !== "string" ||
+    typeof agentLayerRoot !== "string"
+  ) {
+    fail("parentRoot and agentLayerRoot are required.");
   }
-  const parentRoot = path.resolve(roots.parentRoot);
-  const agentLayerRoot = path.resolve(roots.agentLayerRoot);
-  if (!fileExists(agentLayerRoot)) {
+  const resolvedParent = path.resolve(parentRoot);
+  const resolvedAgentLayer = path.resolve(agentLayerRoot);
+  if (!fileExists(resolvedParent)) {
+    fail(`parent root does not exist: ${resolvedParent}`);
+  }
+  if (!fileExists(resolvedAgentLayer)) {
     fail("Missing .agent-layer directory for this command.");
   }
 
   // Build client config paths relative to the parent root.
-  const geminiPath = path.join(parentRoot, ".gemini", "settings.json");
-  const claudePath = path.join(parentRoot, ".claude", "settings.json");
-  const vscodePath = path.join(parentRoot, ".vscode", "settings.json");
-  const vscodeMcpPath = path.join(parentRoot, ".vscode", "mcp.json");
+  const geminiPath = path.join(resolvedParent, ".gemini", "settings.json");
+  const claudePath = path.join(resolvedParent, ".claude", "settings.json");
+  const vscodePath = path.join(resolvedParent, ".vscode", "settings.json");
+  const vscodeMcpPath = path.join(resolvedParent, ".vscode", "mcp.json");
+  const claudeMcpPath = path.join(resolvedParent, ".mcp.json");
 
   const updates = [];
+  let catalog = null;
   let managedServers = null;
   // Lazily resolve managed server names only when needed.
   const getManagedServers = () => {
     if (!managedServers) {
-      managedServers = new Set(loadServerNames(agentLayerRoot));
+      if (!catalog) {
+        catalog = loadCatalog(resolvedAgentLayer);
+      }
+      const names = new Set();
+      const servers = enabledServers(catalog.servers ?? []);
+      for (const server of servers) {
+        if (server && typeof server.name === "string") names.add(server.name);
+      }
+      managedServers = names;
     }
     return managedServers;
   };
@@ -370,6 +409,19 @@ function main() {
     }
   }
 
+  if (fileExists(claudeMcpPath)) {
+    const existing = loadJsonObject(claudeMcpPath);
+    const result = cleanClaudeMcpConfig(
+      existing,
+      existing.mcpServers !== undefined ? getManagedServers() : new Set(),
+    );
+    if (writeIfChanged(claudeMcpPath, result.updated, result.changed)) {
+      updates.push(
+        `.mcp.json (removed ${result.removedServers} mcpServers entries)`,
+      );
+    }
+  }
+
   // Emit a summary if any files were updated.
   if (updates.length > 0) {
     console.log("agent-layer clean: updated settings");
@@ -379,4 +431,7 @@ function main() {
   }
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  console.error("agent-layer clean: use ./al --clean");
+  process.exit(2);
+}

@@ -9,3 +9,30 @@ node_modules/
 **/node_modules/
 .DS_Store
 /.actrc
+
+.vscode/settings.json
+/docs/
+
+# When using agent-layer inside agent-layer, it is a symbolic link, so also ignore the file
+.agent-layer
+
+# >>> agent-layer
+.agent-layer/
+
+# Agent Layer launcher
+al
+
+# Agent Layer-generated instruction shims
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.github/copilot-instructions.md
+
+# Agent Layer-generated client configs + artifacts
+.mcp.json
+.codex/
+.gemini/
+.claude/
+.vscode/mcp.json
+.vscode/prompts/
+# <<< agent-layer

@@ -9,7 +9,8 @@ Agent Layer is an opinionated framework for AI‑assisted development: one set o
 **Primary uses**
 - A unified instruction set (system/developer-style guidance) usable across tools.
 - Repeatable "workflows" exposed as:
-  - MCP prompts (slash commands) in clients that support MCP prompts.
+  - MCP prompts (slash commands) in Claude and Gemini.
+  - VS Code prompt files for Copilot Chat.
   - Codex Skills (repo-local) for Codex.
 - An MCP server catalog maintained in your agent-layer fork, projected into each client's config format.
 - A safe command allowlist maintained in your agent-layer fork, projected into each client's auto-approval settings.
@@ -26,9 +27,63 @@ Agent Layer is an opinionated framework for AI‑assisted development: one set o
 | Codex VS Code extension | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Antigravity | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Note: Codex artifacts live in `.codex/`. The CLI uses them when launched via `./al codex`, and `./al codex` enforces `CODEX_HOME` to resolve to the repo-local `.codex/`. The VS Code extension only uses them if the extension host sees the same `CODEX_HOME` (see "Codex (CLI / VS Code extension)" below). Antigravity is not supported yet; if you're experimenting there, try the same `CODEX_HOME` setup.
+Note: Codex artifacts live in `.codex/`. The CLI uses them when launched via `./al codex`, and `./al codex` warns if `CODEX_HOME` is set to a different path (it never overrides; it only sets repo-local `.codex/` when unset). The VS Code extension only uses them if the extension host sees the same `CODEX_HOME` (see "Codex (CLI / VS Code extension)" below). Antigravity is not supported yet; if you're experimenting there, try the same `CODEX_HOME` setup.
 
 ---
+
+## Quick Start (2 Minutes)
+
+The fastest way to try agent-layer in your existing project:
+
+```bash
+# 1. Download and run installer (from your parent root)
+curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh | bash
+
+# 2. Run setup once (installer already ran this; re-run only after config changes or if dependencies were cleaned)
+./al --setup
+
+# 3. Try it with gemini, codex, or claude
+./al gemini
+```
+
+Once Gemini starts, type:
+```
+Please explain how you handle memory.
+```
+
+If you see a response that mentions your project's memory files (issues, features, roadmap, decisions) and summarizes the agent instructions, it's working!
+
+**What just happened?**
+1. Installer created `.agent-layer/` in your project (gitignored by default)
+2. Setup installed dependencies and generated configs
+3. `./al gemini` synced configs and launched Gemini with your project context
+4. Gemini read your instructions and can now help with your project
+
+**Note**: `.agent-layer/` is gitignored, so you can try this without team buy-in or committing anything.
+
+**Next**: See [Installation](#installation) for details and customization options.
+
+---
+
+## Table of Contents
+
+- [Key Concepts](#key-concepts)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [First Steps](#first-steps)
+- [Agent-Specific Guide](#agent-specific-guide)
+- [How Commands Work in This README](#how-commands-work-in-this-readme)
+- [Parent Root Resolution](#parent-root-resolution)
+- [Day-to-Day Usage](#day-to-day-usage)
+- [Customizing Your Agent](#customizing-your-agent)
+- [Approvals and Permissions](#approvals-and-permissions)
+- [Reference](#reference)
+- [Troubleshooting](#troubleshooting)
+- [Cleanup / Uninstall](#cleanup--uninstall)
+- [Contributing](#contributing)
+- [FAQ](#faq)
+- [License](#license)
+- [Attribution](#attribution)
 
 ## Key Concepts
 
@@ -46,7 +101,7 @@ This is where instructions, workflows, and MCP server configs live.
 **By default**, `.agent-layer/` is not committed to your project repo (it's gitignored). This lets you use agent-layer individually without requiring team buy-in. For team use, fork and maintain your own version of agent-layer instead of committing config to each project.
 
 ### 3. Launcher (`./al`)
-A script in your parent root that syncs configs and launches AI tools.
+A script in your parent root that syncs configs and launches AI tools. It executes `.agent-layer/agent-layer`.
 Example: `./al gemini` (runs Gemini with your project's agent config)
 
 **Mental Model**:
@@ -56,10 +111,11 @@ my-app/                        ← Your project (parent root)
 │   ├── config/                ← Your instructions, workflows, MCP servers
 │   │   ├── instructions/      ← System instructions (source of truth)
 │   │   ├── workflows/         ← Workflow definitions (source of truth)
+│   │   ├── agents.json        ← Agent enablement + default args (source of truth)
 │   │   ├── mcp-servers.json   ← MCP server catalog (source of truth)
 │   │   └── policy/            ← Command allowlist (source of truth)
-│   ├── setup.sh               ← Setup script
-│   └── src/sync/sync.mjs      ← Generator (builds configs)
+│   ├── agent-layer            ← CLI entrypoint (used by ./al)
+│   └── src/cli.mjs            ← CLI implementation (sync/inspect/clean/setup/mcp)
 ├── al                         ← Launcher (wrapper script, or symlink)
 ├── .mcp.json                  ← Generated (don't edit)
 ├── AGENTS.md                  ← Generated (don't edit)
@@ -77,40 +133,6 @@ my-app/                        ← Your project (parent root)
 4. All your AI tools stay aligned with the same instructions across all projects
 
 **Note**: Agent-layer is designed to be used across multiple projects with minimal per-project customization. You maintain one version of `.agent-layer/` and install it in each project you work on.
-
----
-
-## Quick Demo (2 Minutes)
-
-The fastest way to try agent-layer in your existing project:
-
-```bash
-# 1. Download and run installer (from your parent root)
-curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh | bash
-
-# 2. Run setup (installer already ran this; re-run if you change config or skipped install output)
-./.agent-layer/setup.sh
-
-# 3. Try it with gemini, codex, or claude
-./al gemini
-```
-
-Once Gemini starts, type:
-```
-What are the repo rules?
-```
-
-If you see a response summarizing your project's agent instructions, it's working!
-
-**What just happened?**
-1. Installer created `.agent-layer/` in your project (gitignored by default)
-2. Setup installed dependencies and generated configs
-3. `./al gemini` synced configs and launched Gemini with your project context
-4. Gemini read your instructions and can now help with your project
-
-**Note**: `.agent-layer/` is gitignored, so you can try this without team buy-in or committing anything.
-
-**Next**: See [Installation](#installation) for details and customization options.
 
 ---
 
@@ -152,19 +174,17 @@ chmod +x agent-layer-install.sh
 
 Fresh installs pin `.agent-layer/` to the latest tagged release by default (detached HEAD). Use `--latest-branch` for dev builds. Check the installed version with `./al --version`.
 
+Cleanup: if you downloaded `agent-layer-install.sh`, remove it after install. The installer deletes itself when run from a downloaded file outside `.agent-layer/`.
+
 This creates `.agent-layer/`, adds a managed `.gitignore` block (ignoring `.agent-layer/` by default), creates `./al`,
 and ensures the project memory files exist under `docs/` (`ISSUES.md`, `FEATURES.md`,
 `ROADMAP.md`, `DECISIONS.md`). Templates live in `.agent-layer/config/templates/docs`; if a file
 already exists, the installer prompts to keep it (default yes). In non-interactive
 runs, existing files are kept.
+On fresh installs, the installer prompts to enable each supported agent (default yes) and writes the choices to `.agent-layer/config/agents.json`.
+In non-interactive runs, all agents are enabled; edit the file later and re-run `./al --sync` to change the selection.
 
 **Note**: `.agent-layer/` is gitignored by default so you can use it individually without team buy-in. For team use, fork agent-layer and have team members install your fork instead of committing config to each project repo.
-
-**If you already have agent-layer checked out locally**:
-
-```bash
-/path/to/.agent-layer/agent-layer-install.sh
-```
 
 ### Upgrade Existing Installation
 
@@ -173,33 +193,36 @@ runs, existing files are kept.
 Fresh installs already pin to the latest tagged release; use this to update an existing `.agent-layer/`.
 
 ```bash
-./agent-layer-install.sh --upgrade
+./.agent-layer/agent-layer-install.sh --upgrade
 ```
 
 Notes:
-- Requires a clean `.agent-layer` working tree (commit or stash local changes first).
+- Preserves user config unless `--force` is passed.
+- Other local changes require a clean `.agent-layer` working tree (commit or stash first).
 - Checks out the latest tag (detached HEAD) and prints the commit list since the current version.
 - If no `origin` remote is configured, pass `--repo-url` or set `AGENT_LAYER_REPO_URL`.
 
 **Update to latest commit of a branch** (for developers):
 
 ```bash
-./agent-layer-install.sh --latest-branch main
+./.agent-layer/agent-layer-install.sh --latest-branch main
 ```
 
 Notes:
-- Requires a clean `.agent-layer` working tree (commit or stash local changes first).
+- Preserves user config unless `--force` is passed.
+- Other local changes require a clean `.agent-layer` working tree (commit or stash first).
 - Fetches from the remote only; checks out the latest commit in detached HEAD mode.
 - Re-run the command to pull the newest commit again.
 
 **Install a specific tagged release**:
 
 ```bash
-./agent-layer-install.sh --version v0.1.0
+./.agent-layer/agent-layer-install.sh --version v0.1.0
 ```
 
 Notes:
-- Requires a clean `.agent-layer` working tree (commit or stash local changes first).
+- Preserves user config unless `--force` is passed.
+- Other local changes require a clean `.agent-layer` working tree (commit or stash first).
 - Errors if the requested tag does not exist after fetching.
 
 ---
@@ -213,12 +236,12 @@ After installation, follow these steps to get agent-layer working:
 From your parent root:
 
 ```bash
-./.agent-layer/setup.sh
+./al --setup
 ```
 
-If you installed via the installer, setup already ran once. Re-run it when you change config or want to refresh outputs. It installs MCP prompt server dependencies, runs sync (generates configs), and checks for drift.
+If you installed via the installer, setup already ran once. Re-run it only after config changes or if you cleaned dependencies. It installs MCP prompt server dependencies, runs sync (generates configs), and checks for drift. `./al` still runs sync before each command.
 
-### Step 2: Configure Environment (Optional)
+### Step 2: Configure Environment (Required)
 
 Agent-layer needs API tokens for MCP servers. Create `.agent-layer/.env` for agent-only secrets:
 
@@ -231,48 +254,43 @@ cp .agent-layer/.env.example .agent-layer/.env
 
 The installer creates `.env` from `.env.example` if it is missing.
 
-**Recommended tokens**:
-- `GITHUB_TOKEN` (GitHub MCP server)
-- `CONTEXT7_API_KEY` (Context7 MCP server)
+**Required tokens (unless you disable the servers in `.agent-layer/config/mcp-servers.json`)**:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP server; setup: https://github.com/github/github-mcp-server)
+- `CONTEXT7_API_KEY` (Context7 MCP server; setup: https://github.com/upstash/context7)
+- `TAVILY_API_KEY` (Tavily MCP server; setup: https://tavily.com/)
+
+To disable a server, set `enabled: false` or limit `clients` in `.agent-layer/config/mcp-servers.json`.
+
+Required: review `.agent-layer/config/mcp-servers.json` to confirm which servers are enabled.
+
+Optional customization:
+- Edit instructions: `.agent-layer/config/instructions/*.md`
+- Edit workflows: `.agent-layer/config/workflows/*.md`
+
+**Gemini note**: when the GitHub MCP server is enabled, sync inlines your personal access token into `.gemini/settings.json`. Keep `.gemini/` gitignored (the installer adds this by default).
 
 **Note**: Keep agent-only secrets separate from your application's `.env` (if you have one). Agent-layer reads `.agent-layer/.env`, not your parent root `.env`.
 
-### Step 3: Verify Launcher Exists
-
-The installer created `./al` in your parent root. Verify:
-
-```bash
-# From parent root:
-ls -la ./al
-```
-
-You should see a file or symlink. If it's missing, the installer had an issue.
-
-**For advanced users**: The installer creates a wrapper script. You can replace it with a symlink if you prefer:
-```bash
-ln -sf .agent-layer/al ./al
-```
-
-### Step 4: Codex Users (Special Setup)
+### Step 3: Codex Users (Special Setup)
 
 **If you use the Codex VS Code extension**, you need to launch VS Code with `CODEX_HOME` set.
+
+**macOS Finder launcher**:
+- Use `./al --open-vscode` to launch VS Code for this repo. If `CODEX_HOME` is set to a different path, it warns and leaves it unchanged.
+- `.agent-layer` is hidden in Finder; use `Command+Shift+.` to show hidden files.
+- The launcher leaves its Terminal window open after launch.
+- If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
 
 **Quick command** (from parent root):
 ```bash
 CODEX_HOME="$PWD/.codex" code .
 ```
 
-**macOS Finder launcher**:
-- Use `.agent-layer/open-vscode.command` to launch VS Code for this repo.
-- `.agent-layer` is hidden in Finder; use Command+Shift+. to show hidden files.
-- On success, the launcher closes its Terminal window; set `OPEN_VSCODE_NO_CLOSE=1` if you run it from a terminal and want it to stay open.
-- If you need to switch repos, fully quit VS Code first so `CODEX_HOME` is re-read.
-
 **Why**: The Codex VS Code extension only works when `CODEX_HOME` points at the repo-local `.codex/`. If you launch VS Code normally, it won't see the Codex artifacts.
 
 See the [Codex section](#codex-cli--vs-code-extension) for full details.
 
-### Step 5: Try It Now
+### Step 4: Try It Now
 
 Test that agent-layer is working:
 
@@ -283,7 +301,7 @@ Test that agent-layer is working:
 
 Once Gemini starts, try:
 ```
-What are the repo rules?
+Please explain how you handle memory.
 ```
 
 **Expected result**: Gemini should summarize your project's agent instructions.
@@ -298,200 +316,7 @@ What are the repo rules?
 
 ---
 
-## How Commands Work in This README
-
-**Most commands assume you're in your parent root directory** (the parent root).
-
-When you see commands like:
-```bash
-./al gemini
-node .agent-layer/src/sync/sync.mjs
-```
-
-Run them from your parent root (where `./al` lives), not from inside `.agent-layer/`.
-
-**Alternate style** (also works, but less common in this README):
-```bash
-cd .agent-layer
-./setup.sh
-```
-
-Both styles work - the README prefers staying in your parent root for consistency.
-
-**Quick reminder**:
-- `./al` means "run the al script in my current directory"
-- `.agent-layer/` means "the .agent-layer subdirectory"
-
----
-
-## Parent Root Resolution
-
-Agent-layer resolves `PARENT_ROOT` in this precedence order (first match wins):
-1. `--parent-root <path>`
-2. `--temp-parent-root`
-3. `PARENT_ROOT` from `$AGENT_LAYER_ROOT/.env` (parsed only; not sourced)
-4. Discovery (only when the agent layer directory is named `.agent-layer`)
-5. Error
-
-All resolved paths are normalized with `pwd -P` (realpath) before comparisons.
-
-### Scenarios (Summary)
-
-1) **Installed `.agent-layer` (discovery)**  
-   You’re in a consumer repo and `.agent-layer/` is the directory name. With no flags and no `PARENT_ROOT` in `.env`, agent-layer uses the parent of `.agent-layer` as `PARENT_ROOT`.
-
-2) **Explicit parent root (flag or `.env`)**  
-   Use `--parent-root <path>` or set `PARENT_ROOT=/path` (no spaces around `=`) in `$AGENT_LAYER_ROOT/.env`. The parent root must contain a `.agent-layer` entry (dir or symlink) that resolves to the running agent-layer.
-
-3) **Temporary parent root (always allowed)**  
-   Use `--temp-parent-root` to create a temporary parent root, symlink `.agent-layer` into it, and clean it up on exit (unless `PARENT_ROOT_KEEP_TEMP=1`).
-
-4) **No valid parent root (error)**  
-   In the agent-layer dev repo (directory name `agent-layer`), discovery is blocked. You must use `--parent-root`, `--temp-parent-root`, or set `PARENT_ROOT` in `./.env`.
-
-### How to Tell Which Scenario You’re In
-
-- If your agent layer directory is named `.agent-layer` inside a repo and you didn’t pass any root flags, you’re in discovery (Scenario 1).
-- If you passed `--parent-root` or set `PARENT_ROOT` in `.env`, you’re in explicit parent root (Scenario 2).
-- If you passed `--temp-parent-root`, you’re in temp root (Scenario 3).
-- If the directory name is `agent-layer` and you didn’t provide flags or `PARENT_ROOT`, you’ll get the Scenario 4 error.
-
-### `.env` Bootstrap vs Runtime
-
-- **Bootstrap**: shell scripts parse only `PARENT_ROOT` from `$AGENT_LAYER_ROOT/.env` (no `source`).
-- **Runtime**: `with-env.sh` sources `$AGENT_LAYER_ROOT/.env` (and optionally the project `.env`) to load API keys and runtime vars.
-
----
-
-## Day-to-Day Usage
-
-### Prefer `./al` for Running CLIs
-
-`./al` is intentionally minimal and delegates the work to `.agent-layer/run.sh`. By default it:
-
-1) Runs sync (regenerates configs from sources)
-2) Loads `.env` (API tokens and settings)
-3) Executes the command
-
-**Examples**:
-
-```bash
-./al gemini
-./al claude
-./al codex
-```
-
-For a one-off run that also includes project env (if configured), from the parent root use:
-
-```bash
-./.agent-layer/with-env.sh --project-env gemini
-```
-
-`with-env.sh` loads environment variables for the parent root and does not change your working directory.
-
-### Verify Environment Variables Are Loaded
-
-```bash
-./al env | grep -E 'GITHUB_TOKEN|CONTEXT7_API_KEY'
-```
-
----
-
-## Customizing Your Agent
-
-### What Files to Edit (Sources of Truth)
-
-Agent Layer uses a "source of truth" model:
-- **You edit sources** (in `.agent-layer/config/`)
-- **Sync generates outputs** (in your parent root)
-- **Clients read outputs** (automatically)
-
-**Edit these (sources of truth)**:
-- `config/instructions/*.md` - System instructions for AI agents
-- `config/workflows/*.md` - Workflow definitions (become slash commands)
-- `config/mcp-servers.json` - MCP server catalog
-- `config/policy/commands.json` - Command allowlist (safe shell commands)
-
-**Never edit these directly (generated by sync)**:
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
-- `.github/copilot-instructions.md`
-- `.mcp.json`, `.gemini/settings.json`, `.claude/settings.json`
-- `.vscode/mcp.json`, `.vscode/settings.json`
-- `.codex/AGENTS.md`, `.codex/config.toml`, `.codex/rules/default.rules`
-- `.codex/skills/*/SKILL.md`
-
-**Why this matters**: If you edit generated files, sync will overwrite them. Always edit sources, then run sync.
-
-### If You Accidentally Edited a Generated File
-
-Delete it and re-sync (example from parent root):
-
-```bash
-rm .mcp.json
-node .agent-layer/src/sync/sync.mjs
-```
-
-If the file is tracked in your repo, `git checkout -- <file>` also works.
-
-### Regenerate After Changes
-
-```bash
-# ./al runs sync automatically; use this only if you want to regenerate without launching a CLI
-node .agent-layer/src/sync/sync.mjs
-```
-
-### Instruction File Ordering (Why the Numbers)
-
-`src/sync/sync.mjs` concatenates `config/instructions/*.md` in **lexicographic order**.
-
-Numeric prefixes (e.g. `00_`, `10_`, `20_`) ensure a **stable, predictable ordering** without requiring a separate manifest/config file. If you add new instruction fragments, follow the same pattern.
-
----
-
-## Approvals and Permissions
-
-Agent Layer treats `.agent-layer/config/mcp-servers.json` as the source of truth for MCP tool approvals.
-Set `trust: true` per server (or `defaults.trust` for the default) to auto-approve that server's
-tools where supported.
-
-Behavior by client:
-- Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
-- Claude Code: `permissions.allow` includes `mcp__<server>__*` for trusted servers, alongside the
-  Bash allowlist from `config/policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
-  preserved by default (use `--overwrite` to drop them).
-- Codex CLI / VS Code extension: there is no per-server MCP allowlist in generated config; use
-  Codex CLI approval flags if you want to bypass prompts globally.
-
-### Inspect Divergent Configs
-
-If you approve commands or edit MCP settings directly in a client, Agent Layer may detect divergence and print:
-
-```
-agent-layer sync: WARNING: client configs diverge from .agent-layer sources.
-Detected divergent approvals/MCP servers.
-Sync preserves existing client entries by default; it will not overwrite them unless you pass --overwrite or choose overwrite in --interactive.
-Run: node .agent-layer/src/sync/inspect.mjs (JSON report)
-Then either:
-  - Add them to .agent-layer/config/policy/commands.json or .agent-layer/config/mcp-servers.json, then re-run sync
-  - Or re-run with: node .agent-layer/src/sync/sync.mjs --overwrite (discard client-only entries)
-  - Or re-run with: node .agent-layer/src/sync/sync.mjs --interactive (review and choose)
-```
-
-The inspect script emits a JSON report of divergent approvals and MCP servers and **never** edits files.
-Use the report to update `.agent-layer/config/policy/commands.json` (approvals) or `.agent-layer/config/mcp-servers.json` (MCP servers),
-then run `node .agent-layer/src/sync/sync.mjs` to regenerate outputs.
-
-If you want Agent Layer to overwrite client configs instead of preserving divergent entries, run:
-- `node .agent-layer/src/sync/sync.mjs --overwrite` (non-interactive)
-- `node .agent-layer/src/sync/sync.mjs --interactive` (TTY only; prints divergence details and prompts)
-
-Some entries may be flagged as `parseable: false` and require manual updates.
-Codex approvals are read only from `.codex/rules/default.rules`. If other `.rules` files exist under `.codex/rules`, Agent Layer ignores them and warns so you can either integrate their entries into `.agent-layer/config/policy/commands.json` and re-sync, or delete the extra rules files to clear the warning.
-Codex MCP config documents env requirements in comments only, so divergence checks ignore env var differences unless an explicit `env = { ... }` entry is present.
-
----
-
-## Client-Specific Guides
+## Agent-Specific Guide
 
 ### Quick Examples (Per Client)
 
@@ -501,8 +326,8 @@ Gemini CLI:
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 VS Code / Copilot Chat:
-- Slash command example: `/mcp.agent-layer.find-issues`
-- MCP check: `cat .vscode/mcp.json` (look for `agent-layer`)
+- Slash command example: `/find-issues` (prompt file)
+- MCP check: `cat .vscode/mcp.json` (look for tool servers like `context7` or `github`)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Claude Code CLI:
@@ -512,12 +337,12 @@ Claude Code CLI:
 
 Codex CLI:
 - Slash command example: `$find-issues` (Codex Skills)
-- MCP check: `cat .codex/config.toml` (look for `mcp_servers.agent-layer`)
+- MCP check: `cat .codex/config.toml` (look for `mcp_servers.context7` or `mcp_servers.github`)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Codex VS Code extension:
 - Slash command example: `$find-issues` (Codex Skills; requires `CODEX_HOME` pointing at the repo; see Codex section below)
-- MCP check: `cat .codex/config.toml` (requires `CODEX_HOME` in VS Code env)
+- MCP check: `cat .codex/config.toml` (look for `mcp_servers.context7` or `mcp_servers.github`; requires `CODEX_HOME` in VS Code env)
 - Prompt example: `Summarize the repo rules in 3 bullets.`
 
 Antigravity:
@@ -536,7 +361,7 @@ Antigravity:
   Confirm you see `"mcpServers"` with the servers you expect (e.g., `agent-layer`, `context7`).
 
 **Confirm the MCP server can start**
-- If you ran `setup.sh`, Node deps are already installed. If you skipped setup or cleaned `node_modules`, install them:
+- If you ran `./al --setup`, Node deps are already installed. If you skipped setup or cleaned `node_modules`, install them:
   ```bash
   cd .agent-layer/src/mcp/agent-layer-prompts && npm install && cd -
   ```
@@ -547,7 +372,7 @@ Antigravity:
   - `/find-issues`
 - If it's present, it will expand and run the workflow prompt.
 - If it's missing:
-  1) run `node .agent-layer/src/sync/sync.mjs`
+  1) run `./al --sync`
   2) restart Gemini
   3) confirm `.gemini/settings.json` still lists `agent-layer` under `mcpServers`
 
@@ -571,10 +396,14 @@ Antigravity:
 - If MCP tools/prompts look stale:
   - restart MCP servers and/or run VS Code's "Chat: Reset Cached Tools" action.
 
-**Confirm slash commands (MCP prompts)**
+**Prompt files (short slash commands)**
+- Prompt files are generated into `.vscode/prompts/*.prompt.md`.
 - In Copilot Chat, invoke:
-  - `/mcp.agent-layer.find-issues`
-- If it autocompletes, the prompt is registered.
+  - `/find-issues`
+- If it autocompletes, the prompt file is registered.
+
+**MCP prompt server**
+- VS Code MCP config only includes tool servers; workflow prompts come from `.vscode/prompts`.
 
 **Common failure mode**
 - VS Code can cache tool lists. Reset cached tools and reload window if needed.
@@ -607,7 +436,7 @@ Antigravity:
 - In Claude Code CLI, invoke the MCP prompt using its MCP prompt UI/namespace (varies by client build).
 - Quick sanity check: the prompt list should include your workflow prompt name (e.g., `find-issues`).
 - If missing:
-  1) run `node .agent-layer/src/sync/sync.mjs`
+  1) run `./al --sync`
   2) restart Claude Code CLI
   3) ensure the MCP server process can run (Node installed, deps installed)
 
@@ -616,8 +445,8 @@ Antigravity:
 ### Codex (CLI / VS Code extension)
 
 **MCP config + system instructions**
-- When launched via `./al codex`, `CODEX_HOME` must resolve to the repo-local `.codex/` (symlinks allowed); `./al codex` will error if it points elsewhere.
-- MCP servers are generated into `.codex/config.toml` from `.agent-layer/config/mcp-servers.json`.
+- When launched via `./al codex`, `CODEX_HOME` should resolve to the repo-local `.codex/` (symlinks allowed); `./al codex` warns if it points elsewhere and never overrides it.
+- MCP servers are generated into `.codex/config.toml` from `.agent-layer/config/mcp-servers.json` (per-client filtering skips the agent-layer prompt server).
 - System instructions are generated into `.codex/AGENTS.md` from `.agent-layer/config/instructions/*.md`.
 - Agent Layer also generates the project `AGENTS.md` from the same sources for clients that read it.
 - Agent Layer uses **Codex Skills** (and optional rules) as the primary "workflow command" mechanism.
@@ -625,7 +454,7 @@ Antigravity:
 **Getting the Codex VS Code extension to use repo-local `CODEX_HOME`**
 - The extension reads `CODEX_HOME` from the VS Code/Antigravity process environment at startup (no workspace setting).
 - Set `CODEX_HOME` to the absolute path of this repo's `.codex/`, then fully restart the app.
-- See First Steps step 4 for the recommended launcher commands.
+- See First Steps step 3 for the recommended launcher commands.
 
 Optional wrapper (handy if you work across multiple repos):
 - Create a small script that exports `CODEX_HOME` and launches VS Code/Antigravity.
@@ -647,7 +476,7 @@ echo "$CODEX_HOME"
   - (if your build supports it) list skills with `$skills`
 
 **If a skill is missing**
-1) run `node .agent-layer/src/sync/sync.mjs`
+1) run `./al --sync`
 2) verify the workflow exists: `config/workflows/<workflow>.md`
 3) verify `.codex/skills/<workflow>/SKILL.md` was generated
 
@@ -655,6 +484,238 @@ echo "$CODEX_HOME"
 - Codex may require a restart to pick up new/updated skills.
 
 ---
+
+## How Commands Work in This README
+
+**Most commands assume you're in your parent root directory** (the parent root).
+
+When you see commands like:
+```bash
+./al gemini
+./al --sync
+```
+
+Run them from your parent root (where `./al` lives), not from inside `.agent-layer/`.
+
+This README sticks to that style for consistency.
+
+**Quick reminder**:
+- `./al` means "run the al script in my current directory"
+- `.agent-layer/` means "the .agent-layer subdirectory"
+
+---
+
+## Parent Root Resolution
+
+Agent-layer resolves `PARENT_ROOT` in this precedence order (first match wins):
+1. `--parent-root <path>`
+2. `--temp-parent-root`
+3. `PARENT_ROOT` in `.agent-layer/.env` (explicit config)
+4. Discovery (only when the agent layer directory is named `.agent-layer`)
+5. Error
+
+All resolved paths are normalized with `pwd -P` (realpath) before comparisons.
+Note: the `.env` file lives at `AGENT_LAYER_ROOT/.env` (typically `.agent-layer/.env`; in the agent-layer repo it is `./.env`).
+
+### Scenarios (Summary)
+
+1) **Explicit parent root (flag)**  
+   Use `--parent-root <path>`. The parent root must contain a `.agent-layer` entry (dir or symlink) that resolves to the running agent-layer.
+
+2) **Temporary parent root (flag)**  
+   Use `--temp-parent-root` to create a temporary parent root, symlink `.agent-layer` into it, and clean it up on exit (unless `PARENT_ROOT_KEEP_TEMP=1`).
+
+3) **Explicit parent root (.env)**  
+   Set `PARENT_ROOT` in `.agent-layer/.env`. Relative paths are resolved from the agent-layer root. The parent root must contain a `.agent-layer` entry (dir or symlink) that resolves to the running agent-layer.
+
+4) **Installed `.agent-layer` (discovery)**  
+   You’re in a consumer repo and `.agent-layer/` is the directory name. With no flags and no `PARENT_ROOT` in `.agent-layer/.env`, agent-layer uses the parent of `.agent-layer` as `PARENT_ROOT`.
+
+5) **No valid parent root (error)**  
+   In the agent-layer dev repo (directory name `agent-layer`), discovery is blocked. You must use `--parent-root`, `--temp-parent-root`, or set `PARENT_ROOT` in `.agent-layer/.env`.
+
+### How to Tell Which Scenario You're In
+
+- If you passed `--parent-root`, you're in explicit parent root (Scenario 1).
+- If you passed `--temp-parent-root`, you're in temp root (Scenario 2).
+- If `PARENT_ROOT` is set in `.agent-layer/.env` and you didn't provide flags, you're in explicit parent root via .env (Scenario 3).
+- If your agent layer directory is named `.agent-layer` and you didn't provide flags or a `PARENT_ROOT` in `.env`, you're in discovery (Scenario 4).
+- If the directory name is `agent-layer` and you didn't provide flags or a `PARENT_ROOT` in `.env`, you'll get an error (Scenario 5).
+
+### Environment Loading
+
+- `./al` loads `$AGENT_LAYER_ROOT/.env` when it exists.
+- If `.agent-layer/.env` defines `PARENT_ROOT` and no root flags are used, it becomes the explicit parent root.
+- `./al` does not load the parent root `.env`; export it in your shell if needed.
+
+---
+
+## Day-to-Day Usage
+
+### CLI options (short list)
+
+| Option | What it's for |
+| --- | --- |
+| `./al <command>` | Sync + load `.agent-layer/.env` + run a command. |
+| `./al --no-sync <command>` | Run without syncing first. |
+| `./al --sync` | Regenerate configs from sources. |
+| `./al --inspect` | Print divergence report (JSON). |
+| `./al --clean` | Remove agent-layer-managed outputs. |
+| `./al --setup` | Run setup (sync + MCP deps + check). |
+| `./al --mcp-prompts` | Run the MCP prompt server. |
+| `./al --open-vscode` | Launch VS Code with repo-local `CODEX_HOME` when unset (warns and keeps existing value when set elsewhere). |
+| `./al --version` | Print version. |
+| `./al --help` | Show usage. |
+
+Root flags for development/testing: `--parent-root <path>`, `--temp-parent-root`, `--agent-layer-root <path>`.
+
+### Prefer `./al` for Running CLIs
+
+`./al` runs the Node CLI entrypoint. By default it:
+
+1) Runs sync (regenerates configs from sources)
+2) Loads `.env` (API tokens and settings)
+3) Executes the command
+
+**Examples**:
+
+```bash
+./al gemini
+./al claude
+./al codex
+```
+
+If a launch fails with "is disabled", update `.agent-layer/config/agents.json` and re-run `./al --sync`.
+
+If you want to skip the sync step for a fast launch when you know outputs are current:
+```bash
+./al --no-sync gemini
+```
+`./al` does not change your working directory.
+
+### Verify Environment Variables Are Loaded
+
+```bash
+./al env | grep -E 'GITHUB_PERSONAL_ACCESS_TOKEN|CONTEXT7_API_KEY'
+```
+
+---
+
+## Customizing Your Agent
+
+### What Files to Edit (Sources of Truth)
+
+Agent Layer uses a "source of truth" model:
+- **You edit sources** (in `.agent-layer/config/`)
+- **Sync generates outputs** (in your parent root)
+- **Clients read outputs** (automatically)
+
+**Edit these (sources of truth)**:
+- `config/instructions/*.md` - System instructions for AI agents
+- `config/workflows/*.md` - Workflow definitions (Claude/Gemini MCP prompts, VS Code prompt files, Codex skills)
+- `config/agents.json` - Agent enablement and default CLI args (applied by `./al`)
+- `config/mcp-servers.json` - MCP server catalog
+- `config/policy/commands.json` - Command allowlist (safe shell commands)
+
+**Never edit these directly (generated by sync)**:
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+- `.github/copilot-instructions.md`
+- `.mcp.json`, `.gemini/settings.json`, `.claude/settings.json`
+- `.vscode/mcp.json`, `.vscode/settings.json`
+- `.codex/AGENTS.md`, `.codex/config.toml`, `.codex/rules/default.rules`
+- `.codex/skills/*/SKILL.md`
+
+**Why this matters**: If you edit generated files, sync will overwrite them. Always edit sources, then run sync.
+
+**Per-client MCP servers**: In `config/mcp-servers.json`, set `clients` to an allowlist of client IDs (`claude`, `gemini`, `vscode`, `codex`). If omitted, the server is included for all clients.
+
+### Agent enablement and default args
+
+`config/agents.json` lists every supported agent (even if disabled). Set `enabled: true` to generate its outputs and allow `./al <agent>` to launch it; set `enabled: false` to skip outputs and block launches. After changes, run `./al --sync`. If you disable an agent and already have outputs, sync warns; remove them with `./al --clean` or delete them manually.
+
+You can also set `defaultArgs` per agent; `./al` appends them unless you already pass the same flag. `defaultArgs` must be `--flag` tokens with optional values (either as the next array entry or as `--flag=value`). Positional args and short flags are not supported; if a value starts with `-`, use `--flag=value` to avoid ambiguity.
+
+Example snippet:
+```json
+{
+  "codex": {
+    "enabled": true,
+    "defaultArgs": ["--model", "gpt-5.2-codex", "--reasoning", "high"]
+  }
+}
+```
+
+### If You Accidentally Edited a Generated File
+
+Delete it and re-sync (example from parent root):
+
+```bash
+rm .mcp.json
+./al --sync
+```
+
+### Regenerate After Changes
+
+`./al` runs sync automatically; use this only if you want to regenerate without launching a CLI.
+
+- `./al --sync`
+
+### Instruction File Ordering (Why the Numbers)
+
+`src/sync/sync.mjs` concatenates `config/instructions/*.md` in **lexicographic order**.
+
+Numeric prefixes (e.g. `00_`, `10_`, `20_`) ensure a **stable, predictable ordering** without requiring a separate manifest/config file. If you add new instruction fragments, follow the same pattern.
+
+---
+
+## Approvals and Permissions
+
+Agent Layer treats `.agent-layer/config/mcp-servers.json` as the source of truth for MCP tool approvals.
+Set `trust: true` per server (or `defaults.trust` for the default) to auto-approve that server's
+tools where supported.
+The default config sets `defaults.trust: true`; change it to `false` if you want prompts by default.
+
+Behavior by client:
+- Gemini CLI: `mcpServers.<name>.trust` is generated from `trust` (with defaults fallback).
+- Claude Code: `permissions.allow` includes `mcp__<server>__*` for trusted servers, alongside the
+  Bash allowlist from `config/policy/commands.json`. Non-managed allow entries (for example, `Edit`) are
+  preserved by default (use `--overwrite` to drop them).
+- Codex CLI / VS Code extension: there is no per-server MCP allowlist in generated config; use
+  Codex CLI approval flags if you want to bypass prompts globally.
+
+### Inspect Divergent Configs
+
+If you approve commands or edit MCP settings directly in a client, Agent Layer may detect divergence and print:
+
+```
+agent-layer sync: WARNING: client configs diverge from .agent-layer sources (approvals: 2, mcp: 1).
+
+Details:
+- approvals: 2
+- mcp: 1
+
+Notes:
+- Sync preserves existing client entries by default; it will not overwrite them unless you pass --overwrite or choose overwrite in --interactive.
+
+Next steps:
+- Run: ./al --inspect (JSON report)
+- Add them to .agent-layer/config/policy/commands.json or .agent-layer/config/mcp-servers.json, then re-run sync (`./al --sync`)
+- To discard client-only entries, run: ./al --sync --overwrite
+- For interactive review, run: ./al --sync --interactive
+```
+
+The inspect script emits a JSON report of divergent approvals and MCP servers and **never** edits files.
+Use the report to update `.agent-layer/config/policy/commands.json` (approvals) or `.agent-layer/config/mcp-servers.json` (MCP servers),
+then run `./al --sync` to regenerate outputs.
+Inspect only reports divergences for enabled agents in `config/agents.json`; the report includes a note listing any disabled agents it filtered out.
+
+To overwrite client configs instead of preserving divergent entries, run:
+- `./al --sync --overwrite` (non-interactive)
+- `./al --sync --interactive` (TTY only; prints divergence details and prompts)
+
+Some entries may be flagged as `parseable: false` and require manual updates.
+Codex approvals are read only from `.codex/rules/default.rules`. If other `.rules` files exist under `.codex/rules`, Agent Layer ignores them and warns so you can either integrate their entries into `.agent-layer/config/policy/commands.json` and re-sync, or delete the extra rules files to clear the warning.
+Codex MCP config documents env requirements in comments only, so divergence checks ignore env var differences unless an explicit `env = { ... }` entry is present.
 
 ## Reference
 
@@ -672,8 +733,8 @@ echo "$CODEX_HOME"
 
 ### Environment Variables
 
-`./al` and `with-env.sh` load `.agent-layer/.env` when it exists. The default MCP servers in `config/mcp-servers.json` expect:
-- `GITHUB_TOKEN` (GitHub MCP server)
+`./al` loads `.agent-layer/.env` when it exists (the parent root `.env` is not loaded). The default MCP servers in `config/mcp-servers.json` expect:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP server)
 - `CONTEXT7_API_KEY` (Context7 MCP server)
 
 VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaults to `.agent-layer/.env`.
@@ -682,7 +743,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 
 #### Source-of-Truth Directories (in `.agent-layer/`)
 - `config/instructions/` - Unified instruction fragments (concatenated into shims)
-- `config/workflows/` - Workflow definitions (exposed as MCP prompts; also used to generate Codex skills)
+- `config/workflows/` - Workflow definitions (Claude/Gemini MCP prompts, VS Code prompt files, Codex skills)
 - `config/mcp-servers.json` - Canonical MCP server list (no secrets inside)
 - `config/policy/` - Auto-approve command allowlist (safe shell command prefixes)
 
@@ -691,6 +752,7 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 - `docs/FEATURES.md` - Deferred user feature requests (near-term and backlog)
 - `docs/ROADMAP.md` - Phased plan of work; guides architecture and sequencing
 - `docs/DECISIONS.md` - Rolling log of important decisions (brief)
+- `docs/COMMANDS.md` - Canonical, repeatable commands for this repository
 
 #### Generated Outputs (in parent root)
 - Instruction shims:
@@ -699,6 +761,8 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
   - `.mcp.json`, `.gemini/settings.json`, `.vscode/mcp.json`, `.codex/config.toml`
 - Command allowlist configs projected per client:
   - `.gemini/settings.json`, `.claude/settings.json`, `.vscode/settings.json`, `.codex/rules/default.rules`
+- VS Code prompt files:
+  - `.vscode/prompts/*.prompt.md`
 - Codex system instructions:
   - `.codex/AGENTS.md`
 - Codex skills:
@@ -706,25 +770,29 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 
 #### Scripts (in `.agent-layer/`)
 - `agent-layer-install.sh` - Install/upgrade helper for parent repos
-- `setup.sh` - One-shot setup (sync + MCP deps + check)
-- `src/sync/sync.mjs` - Generator ("build") for all shims/configs/skills
-- `src/sync/inspect.mjs` - JSON report of divergent approvals and MCP servers (no edits)
-- `clean.sh` - Remove generated shims/configs/skills and strip agent-layer-managed settings from client config files
-- `with-env.sh` - Load `.agent-layer/.env` (and optionally project `.env`) then exec a command
-- `run.sh` - Internal runner for `./al` (resolve parent root, sync, load env, then exec)
-- `./al` - Repo-local launcher (sync + env load + exec; wrapper script at parent root, or optionally symlink)
+- `agent-layer` - CLI entrypoint (invoked by parent-root `./al`)
+- `src/cli.mjs` - Node CLI implementation (sync/inspect/clean/setup/mcp)
+- `dev/bootstrap.sh` - Dev bootstrap (repo only)
+- `dev/format.sh` - Formatting (repo only)
+- `tests/run.sh` - Test runner (repo only)
 
 ### Refresh / Restart Guidance (Failure Modes)
 
 General rule:
-- After changing source-of-truth files (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/commands.json`) → run `node .agent-layer/src/sync/sync.mjs` (or run your CLI via `./al ...`) → then refresh/restart the client as needed.
+- After changing source-of-truth files (`config/instructions/`, `config/workflows/`, `config/mcp-servers.json`, `config/policy/commands.json`) → run `./al --sync` → then refresh/restart the client as needed.
 
 #### MCP Prompt Server (Workflows as "Slash Commands")
 
-Workflows are exposed as MCP prompts by:
+Workflows are exposed as MCP prompts for Claude and Gemini by:
 - `src/mcp/agent-layer-prompts/server.mjs`
 
-**Note**: `setup.sh` automatically runs `npm install`. Only run this manually if you skipped setup or cleaned `node_modules`:
+VS Code prompt files are generated from the same workflows into:
+- `.vscode/prompts/*.prompt.md`
+
+Codex skills are generated from the same workflows into:
+- `.codex/skills/*/SKILL.md`
+
+**Note**: `./al --setup` automatically runs `npm install`. Only run this manually if you skipped setup or cleaned `node_modules`:
 ```bash
 cd .agent-layer/src/mcp/agent-layer-prompts
 npm install
@@ -734,8 +802,9 @@ Dependency upgrades (maintainers):
 - update `src/mcp/agent-layer-prompts/package.json`, then run `npm install` to refresh `package-lock.json`.
 
 If you changed `config/workflows/*.md`:
-- run `node .agent-layer/src/sync/sync.mjs` (or `./al <cmd>`)
+- run `./al --sync`
 - then refresh MCP discovery in your client (or restart the client/session)
+- VS Code prompt files update on sync; reload VS Code if prompt files do not appear
 
 ---
 
@@ -745,9 +814,9 @@ If you changed `config/workflows/*.md`:
 
 1. **Run `./al` instead of direct CLI** to ensure sync runs
 2. **Restart your AI client** after config changes
-3. **Check `.agent-layer/.env`** has required tokens (`GITHUB_TOKEN`, `CONTEXT7_API_KEY`)
+3. **Check `.agent-layer/.env`** has required tokens (`GITHUB_PERSONAL_ACCESS_TOKEN`, `CONTEXT7_API_KEY`)
 4. **Verify MCP server deps**: `cd .agent-layer/src/mcp/agent-layer-prompts && npm install`
-5. **Re-run sync manually**: `node .agent-layer/src/sync/sync.mjs`
+5. **Re-run sync manually**: `./al --sync`
 
 ### Common Issues
 
@@ -757,15 +826,15 @@ Generated JSON files (`.mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json`) 
 Fix:
 1) revert the generated file(s)
 2) edit the source-of-truth (`config/mcp-servers.json`)
-3) run `node .agent-layer/src/sync/sync.mjs`
+3) run `./al --sync`
 
 #### "I edited instructions but the agent didn't follow them."
-- Did you run `node .agent-layer/src/sync/sync.mjs` (or run via `./al ...`)?
+- Did you run `./al --sync`?
 - Did you restart the session/client (many tools read system instructions at session start)?
 - For Gemini CLI, refresh memory (often `/memory refresh`) or start a new session.
 
 #### "I edited workflows but the prompt/command list didn't update."
-- Run `node .agent-layer/src/sync/sync.mjs`
+- Run `./al --sync`
 - Restart/refresh MCP discovery:
   - Gemini: restart Gemini and/or run MCP refresh if available in your build
   - VS Code: restart servers / reset cached tools
@@ -789,8 +858,9 @@ Yes. Keep numeric prefixes if you want stable ordering without changing `src/syn
 
 Remove generated files and agent-layer-managed settings:
 ```bash
-./.agent-layer/clean.sh
+./al --clean
 ```
+Note: `./al --clean` removes generated shims/configs/skills and agent-layer-managed settings only; it does not delete `docs/` memory files or the `.agent-layer/` directory.
 
 To remove Agent Layer from a repo entirely:
 - delete `.agent-layer/` and `./al`
@@ -819,12 +889,12 @@ Dev-only prerequisites (not required to use the tool):
    ```bash
    ./dev/bootstrap.sh --temp-parent-root
    ```
-   Or:
+   Use an explicit test repo instead of a temp parent root:
    ```bash
    ./dev/bootstrap.sh --parent-root /path/to/test-repo
    ```
    The test repo must contain `.agent-layer` (dir or symlink) that resolves to this repo.
-   Use `./dev/bootstrap.sh --yes` for non-interactive runs. In a consumer repo, pass `--parent-root "$PWD"` (or `--temp-parent-root`) when running `./.agent-layer/dev/bootstrap.sh`.
+   Use `./dev/bootstrap.sh --yes` for non-interactive runs. In a consumer repo, pass `--parent-root "$PWD"` when running `./.agent-layer/dev/bootstrap.sh` (use `--temp-parent-root` for an isolated temp repo).
 
 3) Before committing:
    ```bash
@@ -836,12 +906,48 @@ Dev-only prerequisites (not required to use the tool):
    ./dev/format.sh
    ```
 
+### Using agent-layer in this Repo (Self-Hosted Parent Root)
+
+If you want to run `./al ...` directly in this repo and have configs/docs generated here, you can make the repo act as its own parent root. This is a dev-only setup.
+
+1) Create the local `.agent-layer` symlink and `./al` launcher:
+   ```bash
+   ln -sfn . .agent-layer
+   ln -sfn .agent-layer/agent-layer ./al
+   ```
+
+2) Run setup with an explicit parent root (or set `PARENT_ROOT` in `.agent-layer/.env` and omit the flag):
+   ```bash
+   ./al --setup --parent-root "$PWD"
+   ```
+
+3) Seed docs into the repo root (optional but recommended for memory files):
+   ```bash
+   mkdir -p docs
+   cp config/templates/docs/ISSUES.md docs/ISSUES.md
+   cp config/templates/docs/FEATURES.md docs/FEATURES.md
+   cp config/templates/docs/ROADMAP.md docs/ROADMAP.md
+   cp config/templates/docs/DECISIONS.md docs/DECISIONS.md
+   cp config/templates/docs/COMMANDS.md docs/COMMANDS.md
+   ```
+
+Note: Ensure this repo's `.gitignore` includes the managed agent-layer block so the symlink and generated outputs stay ignored.
+
 ### Running Tests
 
 Run tests (includes sync check + formatting/lint):
 - From the agent-layer repo: `./tests/run.sh --temp-parent-root` (uses system temp; falls back to `tmp/agent-layer-temp-parent-root`)
 - From a consumer repo: `./.agent-layer/tests/run.sh`
 - CI and git hooks use `./tests/run.sh --temp-parent-root` when testing the agent-layer repo.
+
+Tests require MCP prompt server deps:
+```bash
+# From the agent-layer repo:
+cd src/mcp/agent-layer-prompts && npm install
+
+# From a consumer repo:
+cd .agent-layer/src/mcp/agent-layer-prompts && npm install
+```
 
 If you want to pass your own parent root, it must contain a `.agent-layer` entry that resolves to this repo:
 ```bash
@@ -859,10 +965,10 @@ ln -s "$repo_root" "$parent_root/.agent-layer"
 - Terminology (PARENT_ROOT, AGENT_LAYER_ROOT)
 
 **Development workflow**:
-- Use repo-root scripts when developing agent-layer: `./dev/bootstrap.sh --temp-parent-root` (or `--parent-root <path>`), `./tests/run.sh --temp-parent-root`
+- Use repo-root scripts when developing agent-layer: `./dev/bootstrap.sh --temp-parent-root` (use `--parent-root <path>` for a specific test repo), `./tests/run.sh --temp-parent-root`
 - When working in a consumer repo, use the `.agent-layer/` equivalents
-- In the agent-layer repo, setup/bootstrap require explicit parent-root config; `--temp-parent-root` writes outputs into a temporary parent root (prefix `agent-layer-temp-parent-root`)
-- Use `./setup.sh --parent-root <path>` if you want to keep generated files in a specific repo
+- In the agent-layer repo, `./dev/bootstrap.sh` requires explicit parent-root flags; `./al` can use `PARENT_ROOT` in `.agent-layer/.env` when no root flags are provided. `--temp-parent-root` writes outputs into a temporary parent root (prefix `agent-layer-temp-parent-root`)
+- Use `./al --setup --parent-root <path>` if you want to keep generated files in a specific repo
 - Docs templates under `docs/` are created by `agent-layer-install.sh` in consumer repos
 
 ---
@@ -933,14 +1039,14 @@ Most users find it better to keep agent-layer consistent and put project-specifi
 
 ### What about .env and PARENT_ROOT? (For Contributors/Advanced Users)
 
-**User-facing**: `.agent-layer/.env` is for API tokens (like `GITHUB_TOKEN`, `CONTEXT7_API_KEY`) used by MCP servers. This is the typical use case.
+**User-facing**: `.agent-layer/.env` is for API tokens (like `GITHUB_PERSONAL_ACCESS_TOKEN`, `CONTEXT7_API_KEY`) used by MCP servers. This is the typical use case.
 
-**Advanced/contributor-facing**: `$AGENT_LAYER_ROOT/.env` can also optionally contain `PARENT_ROOT` to explicitly set the parent root path. In the agent-layer repo, this is `./.env`; in a consumer repo, it's `.agent-layer/.env`.
+**Advanced/contributor-facing**: Parent root can be set explicitly via flags, or via `PARENT_ROOT` in `.agent-layer/.env` when no root flags are provided. This is treated as explicit configuration, not a fallback.
 
 **Key constraint**: Discovery (automatic parent root detection) only works when the agent layer directory is named `.agent-layer`. If you're in the `agent-layer` dev repo (not named `.agent-layer`), discovery is blocked and you must either:
 1. Use `--parent-root <path>` flag
 2. Use `--temp-parent-root` flag (creates temporary parent root for testing)
-3. Set `PARENT_ROOT` in `./.env` (agent-layer repo) or `.agent-layer/.env` (consumer repo)
+3. Set `PARENT_ROOT` in `.agent-layer/.env`
 
 **Why this matters**: When you're developing agent-layer itself (in a repo named `agent-layer`, not `.agent-layer`), the system can't auto-discover the parent root. You must explicitly tell it where to generate configs.
 

@@ -226,9 +226,11 @@ export function readJsonRelaxed(filePath, defaultObj) {
     const cleaned = removeTrailingCommas(stripped);
     try {
       return JSON.parse(cleaned);
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(
-        `agent-layer sync: cannot parse ${filePath}. Please make it valid JSON/JSONC.`,
+        `agent-layer sync: cannot parse ${filePath}. ${errorMessage}`,
       );
     }
   }

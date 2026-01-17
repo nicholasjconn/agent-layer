@@ -18,7 +18,7 @@ Installs/updates agent-layer in the current working repo and sets up a local lau
 Defaults to the latest tagged release for new installs (detached HEAD).
 
 Options:
-  --force, -f       Overwrite ./al if it already exists
+  --force, -f       Overwrite ./al and allow user config to be replaced during upgrades
   --upgrade, -u     Upgrade .agent-layer to the latest tagged release (detached)
   --version <tag>   Install a specific tagged release (detached)
   --latest-branch   Update .agent-layer to the latest commit of a branch (detached; dev)
@@ -141,6 +141,7 @@ else
 fi
 
 AGENT_LAYER_DIR="$PARENT_ROOT/.agent-layer"
+NEW_INSTALL="0"
 
 # Resolve the fetch target for upgrades (explicit URL or origin remote).
 resolve_fetch_target() {
@@ -170,11 +171,124 @@ ensure_version_exists_remote() {
   fi
 }
 
+# User-managed config paths that should be preserved during upgrades.
+USER_CONFIG_PATHS=(
+  "config/agents.json"
+  "config/mcp-servers.json"
+  "config/policy/commands.json"
+)
+USER_CONFIG_DIRS=(
+  "config/instructions"
+  "config/workflows"
+)
+USER_CONFIG_BACKUP_DIR=""
+
+is_user_config_path() {
+  local path="$1"
+  case "$path" in
+    config/instructions/*) return 0 ;;
+    config/workflows/*) return 0 ;;
+  esac
+  for entry in "${USER_CONFIG_PATHS[@]}"; do
+    if [[ "$path" == "$entry" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+assert_only_user_config_changes() {
+  local dirty line path non_config
+  dirty="$(git -C "$AGENT_LAYER_DIR" status --porcelain)"
+  [[ -z "$dirty" ]] && return 0
+
+  non_config=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    path="${line:3}"
+    if [[ "$path" == *" -> "* ]]; then
+      path="${path##* -> }"
+    fi
+    if ! is_user_config_path "$path"; then
+      non_config+=("$path")
+    fi
+  done <<< "$dirty"
+
+  if [[ "${#non_config[@]}" -gt 0 ]]; then
+    die ".agent-layer has uncommitted changes outside user config. Commit or stash before upgrading."
+  fi
+}
+
+should_preserve_user_config() {
+  [[ "$FORCE" != "1" && "$NEW_INSTALL" != "1" ]]
+}
+
+backup_user_config() {
+  local entry dir backup_dir
+  mkdir -p "$AGENT_LAYER_DIR/tmp"
+  backup_dir="$(mktemp -d "$AGENT_LAYER_DIR/tmp/user-config-backup.XXXXXX")"
+  USER_CONFIG_BACKUP_DIR="$backup_dir"
+
+  for entry in "${USER_CONFIG_PATHS[@]}"; do
+    if [[ -e "$AGENT_LAYER_DIR/$entry" ]]; then
+      mkdir -p "$backup_dir/$(dirname "$entry")"
+      cp -a "$AGENT_LAYER_DIR/$entry" "$backup_dir/$entry"
+    fi
+  done
+
+  for dir in "${USER_CONFIG_DIRS[@]}"; do
+    if [[ -d "$AGENT_LAYER_DIR/$dir" ]]; then
+      mkdir -p "$backup_dir/$dir"
+      cp -a "$AGENT_LAYER_DIR/$dir/." "$backup_dir/$dir/"
+    fi
+  done
+}
+
+reset_user_config_worktree() {
+  local entry dir
+  for entry in "${USER_CONFIG_PATHS[@]}"; do
+    git -C "$AGENT_LAYER_DIR" checkout -q -- "$entry" > /dev/null 2>&1 || true
+    git -C "$AGENT_LAYER_DIR" clean -fd -- "$entry" > /dev/null 2>&1 || true
+  done
+
+  for dir in "${USER_CONFIG_DIRS[@]}"; do
+    git -C "$AGENT_LAYER_DIR" checkout -q -- "$dir" > /dev/null 2>&1 || true
+    git -C "$AGENT_LAYER_DIR" clean -fd -- "$dir" > /dev/null 2>&1 || true
+  done
+}
+
+restore_user_config() {
+  local entry dir backup_dir
+  backup_dir="$USER_CONFIG_BACKUP_DIR"
+  [[ -z "$backup_dir" || ! -d "$backup_dir" ]] && return 0
+
+  for entry in "${USER_CONFIG_PATHS[@]}"; do
+    if [[ -e "$backup_dir/$entry" ]]; then
+      mkdir -p "$AGENT_LAYER_DIR/$(dirname "$entry")"
+      cp -a "$backup_dir/$entry" "$AGENT_LAYER_DIR/$entry"
+    fi
+  done
+
+  for dir in "${USER_CONFIG_DIRS[@]}"; do
+    if [[ -d "$backup_dir/$dir" ]]; then
+      mkdir -p "$AGENT_LAYER_DIR/$dir"
+      cp -a "$backup_dir/$dir/." "$AGENT_LAYER_DIR/$dir/"
+    fi
+  done
+
+  rm -rf "$backup_dir"
+  USER_CONFIG_BACKUP_DIR=""
+}
+
 # Upgrade .agent-layer to the latest local tag.
 upgrade_agent_layer() {
   local fetch_target latest_tag current_commit current_tag changes
 
-  if [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
+  if should_preserve_user_config; then
+    assert_only_user_config_changes
+    backup_user_config
+    reset_user_config_worktree
+  elif [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
     die ".agent-layer has uncommitted changes. Commit or stash before upgrading."
   fi
 
@@ -194,11 +308,17 @@ upgrade_agent_layer() {
 
   if [[ "$current_tag" == "$latest_tag" ]]; then
     say "==> .agent-layer is already up to date."
+    if should_preserve_user_config; then
+      restore_user_config
+    fi
     return 0
   fi
 
   say "==> Checking out $latest_tag"
   git -C "$AGENT_LAYER_DIR" checkout -q "$latest_tag"
+  if should_preserve_user_config; then
+    restore_user_config
+  fi
 
   say "==> Changes since ${current_tag:-$current_commit}:"
   changes="$(git -C "$AGENT_LAYER_DIR" --no-pager log --oneline "$current_commit..$latest_tag" || true)"
@@ -216,7 +336,11 @@ install_agent_layer_version() {
   local version="$1"
   local fetch_target current_commit current_tag changes
 
-  if [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
+  if should_preserve_user_config; then
+    assert_only_user_config_changes
+    backup_user_config
+    reset_user_config_worktree
+  elif [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
     die ".agent-layer has uncommitted changes. Commit or stash before updating."
   fi
 
@@ -237,11 +361,17 @@ install_agent_layer_version() {
 
   if [[ "$current_tag" == "$version" ]]; then
     say "==> .agent-layer is already at $version."
+    if should_preserve_user_config; then
+      restore_user_config
+    fi
     return 0
   fi
 
   say "==> Checking out $version"
   git -C "$AGENT_LAYER_DIR" checkout -q "$version"
+  if should_preserve_user_config; then
+    restore_user_config
+  fi
 
   say "==> Changes since ${current_tag:-$current_commit}:"
   changes="$(git -C "$AGENT_LAYER_DIR" --no-pager log --oneline "$current_commit..$version" || true)"
@@ -259,7 +389,11 @@ latest_branch_agent_layer() {
   local branch="$1"
   local fetch_target current_commit latest_commit changes
 
-  if [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
+  if should_preserve_user_config; then
+    assert_only_user_config_changes
+    backup_user_config
+    reset_user_config_worktree
+  elif [[ -n "$(git -C "$AGENT_LAYER_DIR" status --porcelain)" ]]; then
     die ".agent-layer has uncommitted changes. Commit or stash before updating."
   fi
 
@@ -279,6 +413,9 @@ latest_branch_agent_layer() {
   fi
   say "==> Checking out latest $branch commit"
   git -C "$AGENT_LAYER_DIR" checkout -q --detach FETCH_HEAD
+  if should_preserve_user_config; then
+    restore_user_config
+  fi
 
   if [[ "$current_commit" != "$latest_commit" ]]; then
     changes="$(git -C "$AGENT_LAYER_DIR" --no-pager log --oneline -n 5 FETCH_HEAD || true)"
@@ -294,6 +431,7 @@ latest_branch_agent_layer() {
 
 # Ensure .agent-layer exists, then apply the requested upgrade behavior.
 if [[ ! -e "$AGENT_LAYER_DIR" ]]; then
+  NEW_INSTALL="1"
   [[ -n "$REPO_URL" ]] || die "Missing repo URL (set AGENT_LAYER_REPO_URL or use --repo-url)."
   if [[ -n "$VERSION" ]]; then
     ensure_version_exists_remote "$VERSION" "$REPO_URL"
@@ -382,6 +520,7 @@ ensure_memory_file "$DOCS_DIR/ISSUES.md" "$TEMPLATES_DIR/ISSUES.md"
 ensure_memory_file "$DOCS_DIR/FEATURES.md" "$TEMPLATES_DIR/FEATURES.md"
 ensure_memory_file "$DOCS_DIR/ROADMAP.md" "$TEMPLATES_DIR/ROADMAP.md"
 ensure_memory_file "$DOCS_DIR/DECISIONS.md" "$TEMPLATES_DIR/DECISIONS.md"
+ensure_memory_file "$DOCS_DIR/COMMANDS.md" "$TEMPLATES_DIR/COMMANDS.md"
 
 AL_PATH="$PARENT_ROOT/al"
 
@@ -393,9 +532,9 @@ set -euo pipefail
 
 # Repo-local launcher.
 # This script delegates to the managed Agent Layer entrypoint in .agent-layer/.
-# If you prefer, replace this file with a symlink to .agent-layer/al.
+# If you prefer, replace this file with a symlink to .agent-layer/agent-layer.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/.agent-layer/al" "$@"
+exec "$SCRIPT_DIR/.agent-layer/agent-layer" "$@"
 EOF
   chmod +x "$AL_PATH"
 }
@@ -406,7 +545,8 @@ if [[ -e "$AL_PATH" ]]; then
     say "==> Overwriting ./al"
     write_launcher
   else
-    say "==> ./al exists; leaving as-is (use --force to overwrite)"
+    say "==> NOTE: ./al already exists; not overwriting."
+    say "==> Re-run the installer with --force to replace ./al."
   fi
 else
   say "==> Creating ./al"
@@ -434,6 +574,7 @@ GEMINI.md
 .gemini/
 .claude/
 .vscode/mcp.json
+.vscode/prompts/
 # <<< agent-layer
 EOF
 )"
@@ -487,12 +628,113 @@ update_gitignore() {
 say "==> Updating .gitignore (agent-layer block)"
 update_gitignore
 
+# Prompt for agent enablement before the first setup/sync.
+prompt_yes_no() {
+  local prompt="$1"
+  local default_reply="$2"
+  local reply
+  while true; do
+    read -r -p "$prompt" reply
+    if [[ -z "$reply" ]]; then
+      reply="$default_reply"
+    fi
+    case "$reply" in
+      y | Y | yes | YES)
+        printf "%s" "true"
+        return 0
+        ;;
+      n | N | no | NO)
+        printf "%s" "false"
+        return 0
+        ;;
+      *)
+        say "Please answer y or n."
+        ;;
+    esac
+  done
+}
+
+configure_agents() {
+  local config_path enable_gemini enable_claude enable_codex enable_vscode
+  config_path="$AGENT_LAYER_DIR/config/agents.json"
+  [[ -f "$config_path" ]] || die "Missing .agent-layer/config/agents.json; cannot configure enabled agents."
+
+  if [[ -t 0 ]]; then
+    say "==> Choose which agents to enable (press Enter for yes)."
+    enable_gemini="$(prompt_yes_no "Enable Gemini CLI? [Y/n] " "y")"
+    enable_claude="$(prompt_yes_no "Enable Claude Code CLI? [Y/n] " "y")"
+    enable_codex="$(prompt_yes_no "Enable Codex CLI? [Y/n] " "y")"
+    enable_vscode="$(prompt_yes_no "Enable VS Code / Copilot Chat? [Y/n] " "y")"
+  else
+    say "==> Non-interactive install: enabling all agents"
+    enable_gemini="true"
+    enable_claude="true"
+    enable_codex="true"
+    enable_vscode="true"
+  fi
+
+  command -v node > /dev/null 2>&1 || die "Node.js is required to update config/agents.json."
+  node --input-type=module -- \
+    "$config_path" \
+    "$enable_gemini" \
+    "$enable_claude" \
+    "$enable_codex" \
+    "$enable_vscode" << 'NODE'
+import fs from "node:fs";
+
+const args = process.argv.slice(2);
+const [configPath, geminiRaw, claudeRaw, codexRaw, vscodeRaw] = args;
+
+if (!configPath) {
+  throw new Error("Missing config path argument.");
+}
+
+/**
+ * Parse a boolean string.
+ * @param {string} value
+ * @param {string} name
+ * @returns {boolean}
+ */
+const toBool = (value, name) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`Expected ${name} to be true or false, got "${value}".`);
+};
+
+const updates = {
+  gemini: toBool(geminiRaw, "gemini"),
+  claude: toBool(claudeRaw, "claude"),
+  codex: toBool(codexRaw, "codex"),
+  vscode: toBool(vscodeRaw, "vscode"),
+};
+
+const raw = fs.readFileSync(configPath, "utf8");
+const parsed = JSON.parse(raw);
+
+for (const [name, enabled] of Object.entries(updates)) {
+  if (!parsed[name] || typeof parsed[name] !== "object") {
+    throw new Error(`Missing agent entry for "${name}".`);
+  }
+  parsed[name] = { ...parsed[name], enabled };
+}
+
+fs.writeFileSync(configPath, `${JSON.stringify(parsed, null, 2)}\n`);
+NODE
+  say "==> Updated .agent-layer/config/agents.json"
+}
+
 # Run setup to generate configs and install MCP prompt server dependencies.
-if [[ -f "$AGENT_LAYER_DIR/setup.sh" ]]; then
+if [[ -f "$AGENT_LAYER_DIR/agent-layer" ]]; then
+  if [[ "$NEW_INSTALL" == "1" ]]; then
+    configure_agents
+  fi
   say "==> Running setup"
-  bash "$AGENT_LAYER_DIR/setup.sh"
+  "$AGENT_LAYER_DIR/agent-layer" \
+    --setup \
+    --parent-root "$PARENT_ROOT" \
+    --agent-layer-root "$AGENT_LAYER_DIR"
 else
-  die "Missing .agent-layer/setup.sh"
+  die "Missing .agent-layer/agent-layer"
 fi
 
 # Print next steps for running the configured tools.
@@ -501,3 +743,45 @@ say "After completing the required manual steps above, run one of:"
 say "  ./al gemini"
 say "  ./al claude"
 say "  ./al codex"
+
+cleanup_installer() {
+  local script_source script_dir script_path repo_root rel_path
+
+  script_source="${BASH_SOURCE[0]}"
+  if [[ -z "$script_source" ]]; then
+    return 0
+  fi
+  if [[ "$script_source" == "-" || "$script_source" == "bash" || "$script_source" == */bash ]]; then
+    return 0
+  fi
+  if [[ ! -f "$script_source" ]]; then
+    return 0
+  fi
+
+  script_dir="$(cd "$(dirname "$script_source")" && pwd -P)"
+  script_path="$script_dir/$(basename "$script_source")"
+
+  if [[ "$script_path" == "$AGENT_LAYER_DIR/"* ]]; then
+    say "==> Installer lives in .agent-layer; keeping it in place."
+    return 0
+  fi
+
+  if repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2> /dev/null)"; then
+    if [[ "$script_path" == "$repo_root/"* ]]; then
+      rel_path="${script_path#"$repo_root/"}"
+      if git -C "$repo_root" ls-files --error-unmatch "$rel_path" > /dev/null 2>&1; then
+        say "==> Installer is tracked in git; keeping it in place."
+        return 0
+      fi
+    fi
+  fi
+
+  if [[ -w "$script_path" ]]; then
+    rm -f "$script_path"
+    say "==> Removed downloaded installer: $script_path"
+  else
+    say "==> Installer still present at $script_path (remove it if you no longer need it)."
+  fi
+}
+
+cleanup_installer

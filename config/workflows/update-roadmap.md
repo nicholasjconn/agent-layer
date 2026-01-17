@@ -18,21 +18,16 @@ It also checks `docs/ISSUES.md` because scheduling a forthcoming feature can:
 
 ---
 
-## Inputs (optional)
-If the user provides arguments after the command, interpret them as:
+## Optional guidance from the user
+If the user provides extra direction, interpret it as:
 
-- `mode=propose` (fixed; this workflow is proposal-only)
-- `max_new_phases=2` (default: `2`)
-- `focus=auto|phase:<N>|area:<text>|priority:<level>|text:<query>` (default: `auto`)
-- `proposal_size=small|medium|large` (default: `medium`)
-  - `small`: fewer suggestions; highest confidence groupings only
-  - `medium`: balanced, reviewable
-  - `large`: broader coverage; still must remain reviewable
-- `include_feature_ids=true|false` (default: `true`) — include the feature entry first-line (date/id/title)
-- `include_issue_impacts=true|false` (default: `true`)
-- `phase_renumbering=allow_incomplete` (fixed)
-  - You may renumber **incomplete** phases when inserting or rearranging planned work.
-  - You must **not** renumber **completed** phases (phases marked with ✅).
+- This workflow is proposal-only; it does not implement changes.
+- Maximum new phases to propose (default: 2).
+- Focus preference: a specific phase number, area, priority level, or text query; otherwise choose automatically.
+- Proposal size: small (fewer suggestions), medium (balanced), or large (broader but still reviewable). Default is medium.
+- Whether to include feature entry identifiers (date/id/title) in the proposal (default: yes).
+- Whether to include issue impact notes (default: yes).
+- Phase renumbering behavior: incomplete phases may be renumbered when inserting or rearranging work; completed phases must not be renumbered.
 
 ---
 
@@ -65,7 +60,7 @@ If only one agent is available, execute phases in this order with explicit headi
    - `docs/DECISIONS.md`
 
 If any are missing:
-- Create them from `templates/docs/<NAME>.md` when available, preserving headings and markers.
+- Ask the user before creating them. If approved, copy `.agent-layer/config/templates/docs/<NAME>.md` into `docs/<NAME>.md` when available, preserving headings and markers.
 - If a template is not available, create a minimal file with a clear purpose header and an entries section.
 
 2. Read in this order (when present):
@@ -111,9 +106,9 @@ Select a **reasonable** subset using these heuristics:
    - If a feature depends on other work, include the smallest required set or explicitly mark the prerequisite.
 
 ### Proposal size heuristic
-- `proposal_size=small`: produce ~2–4 suggestions
-- `proposal_size=medium`: produce ~3–6 suggestions
-- `proposal_size=large`: produce ~5–8 suggestions
+- If the user requests a small proposal, produce ~2–4 suggestions.
+- If the user requests a medium proposal, produce ~3–6 suggestions.
+- If the user requests a large proposal, produce ~5–8 suggestions.
 
 Within a single suggestion, you may include more features **if they are strongly related** and clearly belong together.
 
@@ -121,7 +116,7 @@ Within a single suggestion, you may include more features **if they are strongly
 
 # Phase 2 — Cross-check ISSUES for impacts (Issue Cross-Checker)
 
-If `include_issue_impacts=true`:
+If the user wants issue impacts included:
 
 1. Scan `docs/ISSUES.md` for issues related to selected candidate features.
 2. For each candidate feature/group, classify issue impact:
@@ -159,7 +154,7 @@ Include:
 - Dependencies/prerequisites (bullets; point to issues when applicable)
 - If any issues may become obsolete: list them under “Issue impacts”
 
-### Type 2 — Add a new phase (up to `max_new_phases`)
+### Type 2 — Add a new phase (up to the new-phase cap)
 You may propose a new phase when:
 - there is no suitable existing phase,
 - or the features represent a coherent chunk that deserves its own sequencing boundary.

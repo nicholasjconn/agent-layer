@@ -32,6 +32,7 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   const mcpConfigs = [];
   const commandAllowlistConfigs = [];
   const codexSkills = [];
+  const vscodePrompts = [];
   const other = [];
 
   for (const rp of rels) {
@@ -66,6 +67,10 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
     }
     if (rp.startsWith(".codex/skills/")) {
       codexSkills.push(rp);
+      matched = true;
+    }
+    if (rp.startsWith(".vscode/prompts/") && rp.endsWith(".prompt.md")) {
+      vscodePrompts.push(rp);
       matched = true;
     }
     if (!matched) {
@@ -117,6 +122,14 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
     console.error("");
   }
 
+  if (vscodePrompts.length) {
+    console.error(
+      "VS Code prompt files (edit: .agent-layer/config/workflows/*.md):",
+    );
+    for (const p of vscodePrompts) console.error(`  - ${p}`);
+    console.error("");
+  }
+
   if (other.length) {
     console.error("Other generated files:");
     for (const p of other) console.error(`  - ${p}`);
@@ -128,7 +141,7 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
   console.error(`  2) Re-run: ${REGEN_COMMAND} --check`);
   console.error("");
   console.error("If step 2 still fails, check for divergence:");
-  console.error("  3) Run: node .agent-layer/src/sync/inspect.mjs");
+  console.error("  3) Run: ./al --inspect");
   console.error(
     "  4) Update the .agent-layer sources listed above, then re-run sync",
   );

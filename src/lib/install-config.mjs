@@ -120,7 +120,6 @@ function createPromptInterface() {
  * @returns {Promise<boolean>}
  */
 async function promptYesNo(rl, prompt, defaultYes) {
-  const defaultReply = defaultYes ? "y" : "n";
   while (true) {
     const answer = await new Promise((resolve) => {
       rl.question(prompt, resolve);

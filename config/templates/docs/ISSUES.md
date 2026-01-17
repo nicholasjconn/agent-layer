@@ -17,4 +17,5 @@ Entry format:
     Notes: <optional dependencies or constraints>
 
 ## Open issues
+
 <!-- ENTRIES START -->

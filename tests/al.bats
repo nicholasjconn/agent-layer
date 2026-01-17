@@ -51,6 +51,46 @@ EOF
   rm -rf "$root"
 }
 
+# Test: al cleans up temp parent root after sync
+@test "al cleans temp parent root after sync" {
+  local root tmpdir
+  root="$(create_isolated_parent_root)"
+  tmpdir="$(make_tmp_dir)"
+
+  run bash -c "cd '$root/sub/dir' && TMPDIR='$tmpdir' \
+    '$root/.agent-layer/agent-layer' --sync --temp-parent-root --agent-layer-root '$root/.agent-layer'"
+  [ "$status" -eq 0 ]
+
+  run find "$tmpdir" -maxdepth 1 -type d -name "agent-layer-temp-parent-root.*"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  rm -rf "$root"
+}
+
+# Test: al does not treat vscode as a launchable agent
+@test "al treats vscode as a regular command" {
+  local root stub_bin output status
+  root="$(create_isolated_parent_root)"
+  write_agent_config "$root/.agent-layer/config/agents.json" true true true false
+
+  stub_bin="$root/stub-bin"
+  mkdir -p "$stub_bin"
+  cat > "$stub_bin/vscode" << 'EOF'
+#!/usr/bin/env bash
+printf "%s" "ok"
+EOF
+  chmod +x "$stub_bin/vscode"
+
+  output="$(cd "$root/sub/dir" && PATH="$stub_bin:$PATH" \
+    "$root/.agent-layer/agent-layer" --no-sync vscode)"
+  status=$?
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok" ]
+
+  rm -rf "$root"
+}
+
 # Test: al sets CODEX_HOME when unset
 @test "al sets CODEX_HOME when unset" {
   local root stub_bin output

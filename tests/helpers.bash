@@ -80,7 +80,7 @@ write_agent_config() {
   "claude": { "enabled": $claude_enabled },
   "codex": {
     "enabled": $codex_enabled,
-    "defaultArgs": ["--model", "gpt-5.2-codex", "--reasoning", "high"]
+    "defaultArgs": ["--model", "gpt-5.2-codex", "--config", "model_reasoning_effort=high"]
   },
   "vscode": { "enabled": $vscode_enabled }
 }
@@ -114,20 +114,16 @@ create_parent_root() {
   printf "%s" "$root"
 }
 
-# Create stub node and npm binaries that exit successfully.
+# Create a stub npm binary that exits successfully.
 create_stub_tools() {
   local root="$1"
   local bin="$root/stub-bin"
   mkdir -p "$bin"
-  cat >"$bin/node" <<'NODE'
-#!/usr/bin/env bash
-exit 0
-NODE
   cat >"$bin/npm" <<'NPM'
 #!/usr/bin/env bash
 exit 0
 NPM
-  chmod +x "$bin/node" "$bin/npm"
+  chmod +x "$bin/npm"
   printf "%s" "$bin"
 }
 
@@ -178,6 +174,8 @@ create_agent_layer_root() {
   cp "$AGENT_LAYER_ROOT/src/lib/env.mjs" "$root/src/lib/env.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/launcher.mjs" "$root/src/lib/launcher.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/cleanup.mjs" "$root/src/lib/cleanup.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/generated-outputs.mjs" "$root/src/lib/generated-outputs.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/install-config.mjs" "$root/src/lib/install-config.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/setup.mjs" "$root/src/lib/setup.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/agent-config.mjs" "$root/src/lib/agent-config.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/utils.mjs" "$root/src/sync/utils.mjs"
@@ -195,13 +193,15 @@ create_isolated_parent_root() {
   agent_layer_dir="$root/.agent-layer"
   mkdir -p "$agent_layer_dir/src/lib" "$agent_layer_dir/src/sync" "$agent_layer_dir/dev" \
     "$agent_layer_dir/.githooks" "$agent_layer_dir/tests" "$agent_layer_dir/config" \
-    "$agent_layer_dir/src/mcp/agent-layer-prompts"
+    "$agent_layer_dir/src/mcp/agent-layer-prompts" "$agent_layer_dir/config/templates/docs"
   cp "$AGENT_LAYER_ROOT/agent-layer" "$agent_layer_dir/agent-layer"
   cp "$AGENT_LAYER_ROOT/src/cli.mjs" "$agent_layer_dir/src/cli.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/roots.mjs" "$agent_layer_dir/src/lib/roots.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/env.mjs" "$agent_layer_dir/src/lib/env.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/launcher.mjs" "$agent_layer_dir/src/lib/launcher.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/cleanup.mjs" "$agent_layer_dir/src/lib/cleanup.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/generated-outputs.mjs" "$agent_layer_dir/src/lib/generated-outputs.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/install-config.mjs" "$agent_layer_dir/src/lib/install-config.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/setup.mjs" "$agent_layer_dir/src/lib/setup.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/agent-config.mjs" "$agent_layer_dir/src/lib/agent-config.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/utils.mjs" "$agent_layer_dir/src/sync/utils.mjs"
@@ -211,6 +211,8 @@ create_isolated_parent_root() {
   cp "$AGENT_LAYER_ROOT/src/sync/mcp.mjs" "$agent_layer_dir/src/sync/mcp.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/clean.mjs" "$agent_layer_dir/src/sync/clean.mjs"
   cp "$AGENT_LAYER_ROOT/src/mcp/agent-layer-prompts/package.json" "$agent_layer_dir/src/mcp/agent-layer-prompts/package.json"
+  cp "$AGENT_LAYER_ROOT/.env.example" "$agent_layer_dir/.env.example"
+  cp "$AGENT_LAYER_ROOT/config/templates/docs/"*.md "$agent_layer_dir/config/templates/docs/"
   cp "$AGENT_LAYER_ROOT/config/agents.json" "$agent_layer_dir/config/agents.json"
   write_agent_config "$agent_layer_dir/config/agents.json" true true true true
   cp "$AGENT_LAYER_ROOT/dev/bootstrap.sh" "$agent_layer_dir/dev/bootstrap.sh"
@@ -236,6 +238,8 @@ create_sync_parent_root() {
   cp "$AGENT_LAYER_ROOT/src/lib/env.mjs" "$root/.agent-layer/src/lib/env.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/launcher.mjs" "$root/.agent-layer/src/lib/launcher.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/cleanup.mjs" "$root/.agent-layer/src/lib/cleanup.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/generated-outputs.mjs" "$root/.agent-layer/src/lib/generated-outputs.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/install-config.mjs" "$root/.agent-layer/src/lib/install-config.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/setup.mjs" "$root/.agent-layer/src/lib/setup.mjs"
   cp -R "$AGENT_LAYER_ROOT/src/sync" "$root/.agent-layer/src/sync"
   cp "$AGENT_LAYER_ROOT/src/lib/agent-config.mjs" "$root/.agent-layer/src/lib/agent-config.mjs"

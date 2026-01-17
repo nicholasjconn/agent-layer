@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REGEN_COMMAND } from "./constants.mjs";
-import { banner, parseFrontMatter, slugify } from "./instructions.mjs";
+import {
+  banner,
+  parseFrontMatter,
+  resolveWorkflowName,
+  slugify,
+} from "./instructions.mjs";
 import { failOutOfDate } from "./outdated.mjs";
 import {
   fileExists,
@@ -109,20 +114,16 @@ export function generateVscodePrompts(repoRoot, workflowsDir, args) {
     const md = readUtf8(wfPath);
     const { meta, body } = parseFrontMatter(md, wfPath);
 
-    const fallbackName = path.basename(wfPath, ".md");
-    const rawName =
-      meta.name && String(meta.name).trim()
-        ? String(meta.name).trim()
-        : fallbackName;
-    const slug = slugify(rawName);
+    const name = resolveWorkflowName(meta, wfPath);
+    const slug = slugify(name);
 
     if (slugToName.has(slug)) {
       throw new Error(
-        `agent-layer sync: workflow slug collision: "${rawName}" and "${slugToName.get(slug)}" both map to "${slug}". ` +
+        `agent-layer sync: workflow slug collision: "${name}" and "${slugToName.get(slug)}" both map to "${slug}". ` +
           "Rename one workflow name to avoid collisions.",
       );
     }
-    slugToName.set(slug, rawName);
+    slugToName.set(slug, name);
 
     if (!body.trim().length) {
       throw new Error(`agent-layer sync: workflow body is empty for ${wfPath}`);
@@ -133,7 +134,7 @@ export function generateVscodePrompts(repoRoot, workflowsDir, args) {
     expectedFiles.add(promptFile);
 
     const content =
-      renderPromptFrontmatter(slug, description) +
+      renderPromptFrontmatter(name, description) +
       banner(
         `.agent-layer/config/workflows/${path.basename(wfPath)}`,
         REGEN_COMMAND,

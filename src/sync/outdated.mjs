@@ -1,6 +1,7 @@
 import path from "node:path";
 import { REGEN_COMMAND } from "./constants.mjs";
 import { fileExists, readUtf8, writeUtf8 } from "./utils.mjs";
+import { classifyGeneratedOutput } from "../lib/generated-outputs.mjs";
 
 /**
  * @typedef {{ check: boolean, verbose: boolean }} SyncArgs
@@ -37,39 +38,24 @@ export function failOutOfDate(repoRoot, changedAbsPaths, extraMessage = "") {
 
   for (const rp of rels) {
     let matched = false;
-    if (
-      rp === "AGENTS.md" ||
-      rp === ".codex/AGENTS.md" ||
-      rp === "CLAUDE.md" ||
-      rp === "GEMINI.md" ||
-      rp === ".github/copilot-instructions.md"
-    ) {
+    const categories = classifyGeneratedOutput(rp);
+    if (categories.instructionShims) {
       instructionShims.push(rp);
       matched = true;
     }
-    if (
-      rp === ".mcp.json" ||
-      rp === ".codex/config.toml" ||
-      rp === ".gemini/settings.json" ||
-      rp === ".vscode/mcp.json"
-    ) {
+    if (categories.mcpConfigs) {
       mcpConfigs.push(rp);
       matched = true;
     }
-    if (
-      rp === ".gemini/settings.json" ||
-      rp === ".claude/settings.json" ||
-      rp === ".vscode/settings.json" ||
-      rp === ".codex/rules/default.rules"
-    ) {
+    if (categories.commandAllowlistConfigs) {
       commandAllowlistConfigs.push(rp);
       matched = true;
     }
-    if (rp.startsWith(".codex/skills/")) {
+    if (categories.codexSkills) {
       codexSkills.push(rp);
       matched = true;
     }
-    if (rp.startsWith(".vscode/prompts/") && rp.endsWith(".prompt.md")) {
+    if (categories.vscodePrompts) {
       vscodePrompts.push(rp);
       matched = true;
     }

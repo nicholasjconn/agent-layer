@@ -3,8 +3,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   getEnabledAgents,
+  LAUNCHABLE_AGENTS,
   loadAgentConfig,
-  SUPPORTED_AGENTS,
 } from "./agent-config.mjs";
 import { applyEnv, loadEnvFile } from "./env.mjs";
 import { resolveParentRoot } from "./roots.mjs";
@@ -32,7 +32,7 @@ export const LAUNCHER_USAGE = [
 function resolveAgentCommand(commandArgs) {
   if (commandArgs.length === 0) return null;
   const candidate = path.basename(commandArgs[0]);
-  if (SUPPORTED_AGENTS.includes(candidate)) return candidate;
+  if (LAUNCHABLE_AGENTS.includes(candidate)) return candidate;
   return null;
 }
 

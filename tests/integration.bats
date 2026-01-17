@@ -29,6 +29,22 @@ EOF
   chmod +x "$bin/$name"
 }
 
+# Helper: write a stub git command that avoids mutating real repos.
+write_stub_git() {
+  local bin="$1"
+  cat >"$bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "--version" ]]; then
+  exit 0
+fi
+if [[ "${1:-}" == "rev-parse" ]]; then
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$bin/git"
+}
+
 # Helper: create a minimal dev repo layout for tests/run.sh.
 create_dev_repo() {
   local root="$1"
@@ -55,8 +71,10 @@ create_dev_repo() {
 
   mkdir -p "$stub_bin"
   write_stub_logger "$stub_bin" "npm" "$npm_log"
+  write_stub_git "$stub_bin"
   write_stub_cmd "$stub_bin" "shfmt"
   write_stub_cmd "$stub_bin" "shellcheck"
+  write_stub_cmd "$stub_bin" "bats"
 
   # Run bootstrap (uses stub sync.mjs for SYNC_LOG)
   run "$bash_bin" -c "cd '$root' && PATH='$stub_bin:$node_bin:$git_bin:$rg_bin:/usr/bin:/bin' SYNC_LOG='$sync_log' '$root/.agent-layer/dev/bootstrap.sh' --yes --parent-root '$root'"

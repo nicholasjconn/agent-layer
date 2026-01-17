@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileExists, readUtf8, readJsonRelaxed } from "../sync/utils.mjs";
+import {
+  CLEANUP_FILE_PATHS,
+  CODEX_SKILLS_DIR,
+  VSCODE_PROMPTS_DIR,
+} from "./generated-outputs.mjs";
 
 /**
  * @typedef {{ removed: string[], missing: string[] }} CleanupResult
@@ -79,17 +84,7 @@ function removeEmptyDir(dirPath, result) {
  */
 export function removeGeneratedArtifacts(parentRoot) {
   const result = { removed: [], missing: [] };
-  const generatedFiles = [
-    "AGENTS.md",
-    "CLAUDE.md",
-    "GEMINI.md",
-    ".github/copilot-instructions.md",
-    ".codex/AGENTS.md",
-    ".codex/config.toml",
-    ".codex/rules/default.rules",
-  ];
-
-  for (const rel of generatedFiles) {
+  for (const rel of CLEANUP_FILE_PATHS) {
     removeFile(path.join(parentRoot, rel), result);
   }
 
@@ -97,7 +92,7 @@ export function removeGeneratedArtifacts(parentRoot) {
   removeMcpConfigIfEmpty(path.join(parentRoot, ".mcp.json"), result);
   removeMcpConfigIfEmpty(path.join(parentRoot, ".vscode/mcp.json"), result);
 
-  const skillsRoot = path.join(parentRoot, ".codex", "skills");
+  const skillsRoot = path.join(parentRoot, CODEX_SKILLS_DIR);
   if (fileExists(skillsRoot)) {
     const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
     for (const entry of entries) {
@@ -110,7 +105,7 @@ export function removeGeneratedArtifacts(parentRoot) {
     removeEmptyDir(skillsRoot, result);
   }
 
-  const promptDir = path.join(parentRoot, ".vscode", "prompts");
+  const promptDir = path.join(parentRoot, VSCODE_PROMPTS_DIR);
   if (fileExists(promptDir)) {
     const entries = fs.readdirSync(promptDir, { withFileTypes: true });
     for (const entry of entries) {

@@ -8,6 +8,7 @@ import {
 } from "./utils.mjs";
 import { isManagedClaudeAllow, isManagedGeminiAllowed } from "./policy.mjs";
 import { enabledServers, loadServerCatalog } from "./mcp.mjs";
+import { CLIENT_CONFIG_PATHS } from "../lib/generated-outputs.mjs";
 
 /**
  * @typedef {Record<string, unknown>} JsonObject
@@ -338,11 +339,26 @@ export function runClean(parentRoot, agentLayerRoot) {
   }
 
   // Build client config paths relative to the parent root.
-  const geminiPath = path.join(resolvedParent, ".gemini", "settings.json");
-  const claudePath = path.join(resolvedParent, ".claude", "settings.json");
-  const vscodePath = path.join(resolvedParent, ".vscode", "settings.json");
-  const vscodeMcpPath = path.join(resolvedParent, ".vscode", "mcp.json");
-  const claudeMcpPath = path.join(resolvedParent, ".mcp.json");
+  const geminiPath = path.join(
+    resolvedParent,
+    CLIENT_CONFIG_PATHS.geminiSettings,
+  );
+  const claudePath = path.join(
+    resolvedParent,
+    CLIENT_CONFIG_PATHS.claudeSettings,
+  );
+  const vscodePath = path.join(
+    resolvedParent,
+    CLIENT_CONFIG_PATHS.vscodeSettings,
+  );
+  const vscodeMcpPath = path.join(
+    resolvedParent,
+    CLIENT_CONFIG_PATHS.vscodeMcp,
+  );
+  const claudeMcpPath = path.join(
+    resolvedParent,
+    CLIENT_CONFIG_PATHS.claudeMcp,
+  );
 
   const updates = [];
   let catalog = null;

@@ -465,269 +465,16 @@ else
   fi
 fi
 
-# Ensure .agent-layer/.env exists (copy from .env.example if needed).
-if [[ ! -f "$AGENT_LAYER_DIR/.env" ]]; then
-  if [[ -f "$AGENT_LAYER_DIR/.env.example" ]]; then
-    cp "$AGENT_LAYER_DIR/.env.example" "$AGENT_LAYER_DIR/.env"
-    say "==> Created .agent-layer/.env from .env.example"
-  else
-    die "Missing .agent-layer/.env.example; cannot create .agent-layer/.env"
-  fi
-else
-  say "==> .agent-layer/.env already exists; leaving as-is"
-fi
-
-DOCS_DIR="$PARENT_ROOT/docs"
-TEMPLATES_DIR="$AGENT_LAYER_DIR/config/templates/docs"
-
-# Create or refresh project memory files using provided templates.
-ensure_memory_file() {
-  local file_path="$1"
-  local template_path="$2"
-  local rel_path
-
-  rel_path="${file_path#"$PARENT_ROOT"/}"
-
-  if [[ ! -f "$template_path" ]]; then
-    die "Missing template: ${template_path#"$AGENT_LAYER_DIR"/}"
-  fi
-
-  if [[ -f "$file_path" ]]; then
-    if [[ -t 0 ]]; then
-      read -r -p "$rel_path exists. Keep it? [Y/n] " reply
-      case "$reply" in
-        n | N | no | NO)
-          mkdir -p "$(dirname "$file_path")"
-          cp "$template_path" "$file_path"
-          say "==> Replaced $rel_path with template"
-          ;;
-        *)
-          say "==> Keeping existing $rel_path"
-          ;;
-      esac
-    else
-      say "==> $rel_path exists; leaving as-is (no TTY to confirm)"
-    fi
-  else
-    mkdir -p "$(dirname "$file_path")"
-    cp "$template_path" "$file_path"
-    say "==> Created $rel_path from template"
-  fi
-}
-
-say "==> Ensuring project memory files exist"
-ensure_memory_file "$DOCS_DIR/ISSUES.md" "$TEMPLATES_DIR/ISSUES.md"
-ensure_memory_file "$DOCS_DIR/FEATURES.md" "$TEMPLATES_DIR/FEATURES.md"
-ensure_memory_file "$DOCS_DIR/ROADMAP.md" "$TEMPLATES_DIR/ROADMAP.md"
-ensure_memory_file "$DOCS_DIR/DECISIONS.md" "$TEMPLATES_DIR/DECISIONS.md"
-ensure_memory_file "$DOCS_DIR/COMMANDS.md" "$TEMPLATES_DIR/COMMANDS.md"
-
-AL_PATH="$PARENT_ROOT/al"
-
-# Write the repo-local launcher script (overwrites if requested).
-write_launcher() {
-  cat > "$AL_PATH" << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Repo-local launcher.
-# This script delegates to the managed Agent Layer entrypoint in .agent-layer/.
-# If you prefer, replace this file with a symlink to .agent-layer/agent-layer.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/.agent-layer/agent-layer" "$@"
-EOF
-  chmod +x "$AL_PATH"
-}
-
-# Create or preserve ./al based on --force.
-if [[ -e "$AL_PATH" ]]; then
-  if [[ "$FORCE" == "1" ]]; then
-    say "==> Overwriting ./al"
-    write_launcher
-  else
-    say "==> NOTE: ./al already exists; not overwriting."
-    say "==> Re-run the installer with --force to replace ./al."
-  fi
-else
-  say "==> Creating ./al"
-  write_launcher
-fi
-
-GITIGNORE_PATH="$PARENT_ROOT/.gitignore"
-GITIGNORE_BLOCK="$(
-  cat << 'EOF'
-# >>> agent-layer
-.agent-layer/
-
-# Agent Layer launcher
-al
-
-# Agent Layer-generated instruction shims
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-.github/copilot-instructions.md
-
-# Agent Layer-generated client configs + artifacts
-.mcp.json
-.codex/
-.gemini/
-.claude/
-.vscode/mcp.json
-.vscode/prompts/
-# <<< agent-layer
-EOF
-)"
-
-# Ensure the agent-layer gitignore block exists exactly once.
-update_gitignore() {
-  local tmp last_char last_line found inblock line
-  tmp="$(mktemp)" || die "Failed to create temp file."
-  found="0"
-  inblock="0"
-  if [[ -f "$GITIGNORE_PATH" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      if [[ "$line" == "# >>> agent-layer" ]]; then
-        if [[ "$found" == "0" ]]; then
-          printf "%s\n" "$GITIGNORE_BLOCK" >> "$tmp"
-          found="1"
-        fi
-        inblock="1"
-        continue
-      fi
-      if [[ "$inblock" == "1" ]]; then
-        if [[ "$line" == "# <<< agent-layer" ]]; then
-          inblock="0"
-        fi
-        continue
-      fi
-      printf "%s\n" "$line" >> "$tmp"
-    done < "$GITIGNORE_PATH"
-  else
-    : > "$tmp"
-  fi
-
-  # Append the block if it was not found in the existing file.
-  if [[ "$found" == "0" ]]; then
-    if [[ -s "$tmp" ]]; then
-      last_char="$(tail -c 1 "$tmp" || true)"
-      if [[ "$last_char" != $'\n' ]]; then
-        printf '\n' >> "$tmp"
-      fi
-      last_line="$(tail -n 1 "$tmp" || true)"
-      if [[ -n "$last_line" ]]; then
-        printf '\n' >> "$tmp"
-      fi
-    fi
-    printf "%s\n" "$GITIGNORE_BLOCK" >> "$tmp"
-  fi
-
-  mv "$tmp" "$GITIGNORE_PATH"
-}
-
-say "==> Updating .gitignore (agent-layer block)"
-update_gitignore
-
-# Prompt for agent enablement before the first setup/sync.
-prompt_yes_no() {
-  local prompt="$1"
-  local default_reply="$2"
-  local reply
-  while true; do
-    read -r -p "$prompt" reply
-    if [[ -z "$reply" ]]; then
-      reply="$default_reply"
-    fi
-    case "$reply" in
-      y | Y | yes | YES)
-        printf "%s" "true"
-        return 0
-        ;;
-      n | N | no | NO)
-        printf "%s" "false"
-        return 0
-        ;;
-      *)
-        say "Please answer y or n."
-        ;;
-    esac
-  done
-}
-
-configure_agents() {
-  local config_path enable_gemini enable_claude enable_codex enable_vscode
-  config_path="$AGENT_LAYER_DIR/config/agents.json"
-  [[ -f "$config_path" ]] || die "Missing .agent-layer/config/agents.json; cannot configure enabled agents."
-
-  if [[ -t 0 ]]; then
-    say "==> Choose which agents to enable (press Enter for yes)."
-    enable_gemini="$(prompt_yes_no "Enable Gemini CLI? [Y/n] " "y")"
-    enable_claude="$(prompt_yes_no "Enable Claude Code CLI? [Y/n] " "y")"
-    enable_codex="$(prompt_yes_no "Enable Codex CLI? [Y/n] " "y")"
-    enable_vscode="$(prompt_yes_no "Enable VS Code / Copilot Chat? [Y/n] " "y")"
-  else
-    say "==> Non-interactive install: enabling all agents"
-    enable_gemini="true"
-    enable_claude="true"
-    enable_codex="true"
-    enable_vscode="true"
-  fi
-
-  command -v node > /dev/null 2>&1 || die "Node.js is required to update config/agents.json."
-  node --input-type=module -- \
-    "$config_path" \
-    "$enable_gemini" \
-    "$enable_claude" \
-    "$enable_codex" \
-    "$enable_vscode" << 'NODE'
-import fs from "node:fs";
-
-const args = process.argv.slice(2);
-const [configPath, geminiRaw, claudeRaw, codexRaw, vscodeRaw] = args;
-
-if (!configPath) {
-  throw new Error("Missing config path argument.");
-}
-
-/**
- * Parse a boolean string.
- * @param {string} value
- * @param {string} name
- * @returns {boolean}
- */
-const toBool = (value, name) => {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  throw new Error(`Expected ${name} to be true or false, got "${value}".`);
-};
-
-const updates = {
-  gemini: toBool(geminiRaw, "gemini"),
-  claude: toBool(claudeRaw, "claude"),
-  codex: toBool(codexRaw, "codex"),
-  vscode: toBool(vscodeRaw, "vscode"),
-};
-
-const raw = fs.readFileSync(configPath, "utf8");
-const parsed = JSON.parse(raw);
-
-for (const [name, enabled] of Object.entries(updates)) {
-  if (!parsed[name] || typeof parsed[name] !== "object") {
-    throw new Error(`Missing agent entry for "${name}".`);
-  }
-  parsed[name] = { ...parsed[name], enabled };
-}
-
-fs.writeFileSync(configPath, `${JSON.stringify(parsed, null, 2)}\n`);
-NODE
-  say "==> Updated .agent-layer/config/agents.json"
-}
-
 # Run setup to generate configs and install MCP prompt server dependencies.
 if [[ -f "$AGENT_LAYER_DIR/agent-layer" ]]; then
-  if [[ "$NEW_INSTALL" == "1" ]]; then
-    configure_agents
+  install_config_args=(--install-config --parent-root "$PARENT_ROOT" --agent-layer-root "$AGENT_LAYER_DIR")
+  if [[ "$FORCE" == "1" ]]; then
+    install_config_args+=(--force)
   fi
+  if [[ "$NEW_INSTALL" == "1" ]]; then
+    install_config_args+=(--new-install)
+  fi
+  "$AGENT_LAYER_DIR/agent-layer" "${install_config_args[@]}"
   say "==> Running setup"
   "$AGENT_LAYER_DIR/agent-layer" \
     --setup \
@@ -737,9 +484,21 @@ else
   die "Missing .agent-layer/agent-layer"
 fi
 
-# Print next steps for running the configured tools.
+# Print next steps for configuring and running the tools.
 say ""
-say "After completing the required manual steps above, run one of:"
+say "Next steps (required):"
+say "  1) Copy .agent-layer/.env.example to .agent-layer/.env and fill in tokens."
+say "  2) Review and edit config files:"
+say "     - .agent-layer/config/agents.json"
+say "     - .agent-layer/config/mcp-servers.json"
+say "     - .agent-layer/config/policy/commands.json"
+say "     - .agent-layer/config/instructions/*.md"
+say "     - .agent-layer/config/workflows/*.md"
+say ""
+say "After config changes, re-run setup:"
+say "  ./al --setup"
+say ""
+say "Launch an agent:"
 say "  ./al gemini"
 say "  ./al claude"
 say "  ./al codex"

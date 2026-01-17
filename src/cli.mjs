@@ -34,6 +34,7 @@ const MODE_FLAGS = new Map([
   ["--setup", "setup"],
   ["--mcp-prompts", "mcp-prompts"],
   ["--open-vscode", "open-vscode"],
+  ["--install-config", "install-config"],
   ["--version", "version"],
 ]);
 
@@ -285,6 +286,30 @@ function printCleanupSummary(result, parentRoot) {
 }
 
 /**
+ * Resolve roots and run a task with temp cleanup.
+ * @param {{ parentRoot: string | null, useTempParentRoot: boolean, agentLayerRoot: string | null }} options
+ * @param {(roots: import("./lib/roots.mjs").ResolvedRoots) => Promise<void> | void} task
+ * @returns {Promise<void>}
+ */
+async function withResolvedRoots(options, task) {
+  const roots = resolveParentRoot({
+    parentRoot: options.parentRoot,
+    useTempParentRoot: options.useTempParentRoot,
+    agentLayerRoot: options.agentLayerRoot,
+  });
+  try {
+    await task(roots);
+  } finally {
+    if (
+      roots.tempParentRootCreated &&
+      process.env.PARENT_ROOT_KEEP_TEMP !== "1"
+    ) {
+      roots.cleanupTempParentRoot();
+    }
+  }
+}
+
+/**
  * Run the CLI entrypoint.
  * @returns {Promise<void>}
  */
@@ -362,6 +387,11 @@ async function main() {
       );
       return;
     }
+    if (mode === "install-config") {
+      const { INSTALL_CONFIG_USAGE } = await import("./lib/install-config.mjs");
+      console.log(INSTALL_CONFIG_USAGE);
+      return;
+    }
   }
 
   if (mode !== "setup" && skipChecks) {
@@ -397,21 +427,12 @@ async function main() {
       exitWith("agent-layer cli: sync does not accept extra arguments.", 2);
     }
     const syncArgs = parseSyncArgs(modeArgs);
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      await runSync(roots.parentRoot, roots.agentLayerRoot, syncArgs);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
-    }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        await runSync(roots.parentRoot, roots.agentLayerRoot, syncArgs);
+      },
+    );
     return;
   }
 
@@ -419,29 +440,25 @@ async function main() {
     if (modeArgs.length > 0 || commandArgs.length > 0) {
       exitWith("agent-layer cli: inspect does not accept extra arguments.", 2);
     }
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      const { buildInspectReport } = await import("./sync/inspect.mjs");
-      const report = buildInspectReport(roots.parentRoot, roots.agentLayerRoot);
-      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      process.stdout.write(
-        `${JSON.stringify({ ok: false, error: message })}\n`,
-      );
-      process.exit(1);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
-    }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        try {
+          const { buildInspectReport } = await import("./sync/inspect.mjs");
+          const report = buildInspectReport(
+            roots.parentRoot,
+            roots.agentLayerRoot,
+          );
+          process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          process.stdout.write(
+            `${JSON.stringify({ ok: false, error: message })}\n`,
+          );
+          process.exit(1);
+        }
+      },
+    );
     return;
   }
 
@@ -449,24 +466,15 @@ async function main() {
     if (modeArgs.length > 0 || commandArgs.length > 0) {
       exitWith("agent-layer cli: clean does not accept extra arguments.", 2);
     }
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      const { runClean } = await import("./sync/clean.mjs");
-      runClean(roots.parentRoot, roots.agentLayerRoot);
-      const cleanupResult = removeGeneratedArtifacts(roots.parentRoot);
-      printCleanupSummary(cleanupResult, roots.parentRoot);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
-    }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        const { runClean } = await import("./sync/clean.mjs");
+        runClean(roots.parentRoot, roots.agentLayerRoot);
+        const cleanupResult = removeGeneratedArtifacts(roots.parentRoot);
+        printCleanupSummary(cleanupResult, roots.parentRoot);
+      },
+    );
     return;
   }
 
@@ -474,21 +482,31 @@ async function main() {
     if (modeArgs.length > 0 || commandArgs.length > 0) {
       exitWith(SETUP_USAGE, 2);
     }
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      await runSetup(roots, skipChecks);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        await runSetup(roots, skipChecks);
+      },
+    );
+    return;
+  }
+
+  if (mode === "install-config") {
+    if (commandArgs.length > 0) {
+      exitWith(
+        "agent-layer cli: install-config does not accept extra arguments.",
+        2,
+      );
     }
+    const { parseInstallConfigArgs, runInstallConfig } =
+      await import("./lib/install-config.mjs");
+    const configArgs = parseInstallConfigArgs(modeArgs);
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        await runInstallConfig(roots, configArgs);
+      },
+    );
     return;
   }
 
@@ -499,23 +517,14 @@ async function main() {
         2,
       );
     }
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      const { runPromptServer } =
-        await import("./mcp/agent-layer-prompts/server.mjs");
-      await runPromptServer(roots.parentRoot, roots.agentLayerRoot);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
-    }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        const { runPromptServer } =
+          await import("./mcp/agent-layer-prompts/server.mjs");
+        await runPromptServer(roots.parentRoot, roots.agentLayerRoot);
+      },
+    );
     return;
   }
 
@@ -526,21 +535,10 @@ async function main() {
         2,
       );
     }
-    const roots = resolveParentRoot({
-      parentRoot,
-      useTempParentRoot,
-      agentLayerRoot,
-    });
-    try {
-      runOpenVscode(roots);
-    } finally {
-      if (
-        roots.tempParentRootCreated &&
-        process.env.PARENT_ROOT_KEEP_TEMP !== "1"
-      ) {
-        roots.cleanupTempParentRoot();
-      }
-    }
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      runOpenVscode,
+    );
     return;
   }
 

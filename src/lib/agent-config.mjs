@@ -18,6 +18,12 @@ import { fileExists, isPlainObject, readJsonRelaxed } from "../sync/utils.mjs";
 export const SUPPORTED_AGENTS = ["gemini", "claude", "codex", "vscode"];
 
 /**
+ * Launchable agent names (output-only agents are excluded).
+ * @type {string[]}
+ */
+export const LAUNCHABLE_AGENTS = ["gemini", "claude", "codex"];
+
+/**
  * Assert a condition and throw a config-scoped error if false.
  * @param {boolean} cond
  * @param {string} msg

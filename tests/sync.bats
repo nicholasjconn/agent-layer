@@ -158,6 +158,27 @@ EOF
   rm -rf "$root"
 }
 
+# Test: sync rejects workflow frontmatter name mismatch
+@test "sync rejects workflow frontmatter name mismatch" {
+  local root workflow_file
+  root="$(create_sync_parent_root)"
+
+  workflow_file="$root/.agent-layer/config/workflows/name-mismatch.md"
+  cat >"$workflow_file" <<'EOF'
+---
+name: Name-mismatch
+description: Name mismatch
+---
+# Name mismatch
+EOF
+
+  run bash -c "cd \"$root\" && ./.agent-layer/agent-layer --sync --parent-root . --agent-layer-root ./.agent-layer"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"workflow frontmatter name must match filename"* ]]
+
+  rm -rf "$root"
+}
+
 # Test: sync defaults VS Code MCP envFile to .agent-layer/.env
 @test "sync defaults VS Code MCP envFile to .agent-layer/.env" {
   local root

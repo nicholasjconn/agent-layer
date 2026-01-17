@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REGEN_COMMAND } from "./constants.mjs";
-import { banner, parseFrontMatter, slugify } from "./instructions.mjs";
+import {
+  banner,
+  parseFrontMatter,
+  resolveWorkflowName,
+  slugify,
+} from "./instructions.mjs";
 import { failOutOfDate } from "./outdated.mjs";
 import {
   fileExists,
@@ -94,11 +99,7 @@ export function generateCodexSkills(repoRoot, workflowsDir, args) {
     const md = readUtf8(wfPath);
     const { meta, body } = parseFrontMatter(md, wfPath);
 
-    const fallbackName = path.basename(wfPath, ".md");
-    const name =
-      meta.name && String(meta.name).trim()
-        ? String(meta.name).trim()
-        : fallbackName;
+    const name = resolveWorkflowName(meta, wfPath);
     const description = meta.description ? String(meta.description) : "";
     const folder = slugify(name);
 

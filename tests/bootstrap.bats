@@ -58,7 +58,7 @@ CMD
 
   cat >"$root/.agent-layer/agent-layer" <<STUB
 #!/usr/bin/env bash
-printf '%s\n' "\$@" > "$setup_log"
+printf '%s\n' "\$@" >> "$setup_log"
 exit 0
 STUB
   chmod +x "$root/.agent-layer/agent-layer"
@@ -81,6 +81,10 @@ EOF
   [ "$status" -eq 0 ]
 
   run rg -n -- "--skip-checks" "$setup_log"
+  [ "$status" -eq 0 ]
+  run rg -n -- "--install-config" "$setup_log"
+  [ "$status" -eq 0 ]
+  run rg -n -- "--non-interactive" "$setup_log"
   [ "$status" -eq 0 ]
   run rg -n -- "--parent-root" "$setup_log"
   [ "$status" -eq 0 ]

@@ -747,6 +747,8 @@ VS Code MCP config uses the generated `.vscode/mcp.json` `envFile`, which defaul
 - `config/mcp-servers.json` - Canonical MCP server list (no secrets inside)
 - `config/policy/` - Auto-approve command allowlist (safe shell command prefixes)
 
+Workflow names are derived from the workflow filename (case-sensitive, without `.md`). If a workflow frontmatter includes `name`, it must match the filename exactly; use `description` for summaries.
+
 #### Project Memory Files (in parent root `docs/`)
 - `docs/ISSUES.md` - Deferred defects, maintainability refactors, technical debt, risks
 - `docs/FEATURES.md` - Deferred user feature requests (near-term and backlog)

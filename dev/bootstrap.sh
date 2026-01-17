@@ -210,6 +210,15 @@ if [[ "$prettier_installed" == "0" ]]; then
 fi
 
 # Run the standard setup script without checks.
+say "==> Running install config (no prompts)"
+install_config_args=(--install-config --non-interactive)
+if [[ "$use_temp_parent_root" == "1" ]]; then
+  install_config_args+=(--temp-parent-root)
+elif [[ -n "$parent_root" ]]; then
+  install_config_args+=(--parent-root "$parent_root")
+fi
+"$AGENT_LAYER_ROOT/agent-layer" "${install_config_args[@]}"
+
 say "==> Running setup (no checks)"
 setup_args=(--setup --skip-checks)
 if [[ "$use_temp_parent_root" == "1" ]]; then

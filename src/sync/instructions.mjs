@@ -88,6 +88,25 @@ export function parseFrontMatter(markdown, sourcePath = "<workflow>") {
 }
 
 /**
+ * Resolve a workflow name from its filename, validating frontmatter when present.
+ * @param {{ name?: string }} meta
+ * @param {string} sourcePath
+ * @returns {string}
+ */
+export function resolveWorkflowName(meta, sourcePath) {
+  const baseName = path.basename(sourcePath, ".md");
+  const metaName =
+    meta && typeof meta.name === "string" ? meta.name.trim() : "";
+  if (metaName && metaName !== baseName) {
+    throw new Error(
+      `agent-layer sync: workflow frontmatter name must match filename in ${sourcePath}. ` +
+        `Expected "${baseName}", got "${metaName}".`,
+    );
+  }
+  return baseName;
+}
+
+/**
  * Slugify an arbitrary string.
  * @param {string} s
  * @returns {string}

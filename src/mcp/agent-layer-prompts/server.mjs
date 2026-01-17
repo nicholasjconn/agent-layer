@@ -9,7 +9,10 @@ import {
   ListPromptsRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { parseFrontMatter } from "../../sync/instructions.mjs";
+import {
+  parseFrontMatter,
+  resolveWorkflowName,
+} from "../../sync/instructions.mjs";
 
 /**
  * MCP prompt server that exposes workflow markdown as prompt definitions.
@@ -74,7 +77,7 @@ function loadWorkflows(workflowsDir) {
     const full = path.join(workflowsDir, f);
     const md = fs.readFileSync(full, "utf8");
     const { meta, body } = parseFrontMatter(md, full);
-    const name = meta.name || path.basename(f, ".md");
+    const name = resolveWorkflowName(meta, full);
     const description = meta.description || "";
     return { name, description, body };
   });

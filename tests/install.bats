@@ -12,13 +12,27 @@ teardown() {
 create_min_agent_layer() {
   local root="$1"
   mkdir -p "$root/.agent-layer/src/lib" "$root/.agent-layer/src/sync" \
-    "$root/.agent-layer/config/templates/docs" "$root/.agent-layer/config"
+    "$root/.agent-layer/config/templates/docs" "$root/.agent-layer/config" \
+    "$root/.agent-layer/src/mcp/agent-layer-prompts"
   printf "EXAMPLE=1\n" >"$root/.agent-layer/.env.example"
   cp "$AGENT_LAYER_ROOT/config/agents.json" "$root/.agent-layer/config/agents.json"
   cp "$AGENT_LAYER_ROOT/src/cli.mjs" "$root/.agent-layer/src/cli.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/agent-config.mjs" "$root/.agent-layer/src/lib/agent-config.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/cleanup.mjs" "$root/.agent-layer/src/lib/cleanup.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/env.mjs" "$root/.agent-layer/src/lib/env.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/generated-outputs.mjs" "$root/.agent-layer/src/lib/generated-outputs.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/install-config.mjs" "$root/.agent-layer/src/lib/install-config.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/launcher.mjs" "$root/.agent-layer/src/lib/launcher.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/roots.mjs" "$root/.agent-layer/src/lib/roots.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/setup.mjs" "$root/.agent-layer/src/lib/setup.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/utils.mjs" "$root/.agent-layer/src/sync/utils.mjs"
-  : >"$root/.agent-layer/src/sync/sync.mjs"
+  write_stub_sync_mjs "$root/.agent-layer/src/sync/sync.mjs"
+  cat >"$root/.agent-layer/src/mcp/agent-layer-prompts/package.json" <<'EOF'
+{
+  "name": "agent-layer-prompts",
+  "version": "0.0.0"
+}
+EOF
   cp "$AGENT_LAYER_ROOT/config/templates/docs/"*.md "$root/.agent-layer/config/templates/docs/"
   cp "$AGENT_LAYER_ROOT/agent-layer" "$root/.agent-layer/agent-layer"
   chmod +x "$root/.agent-layer/agent-layer"
@@ -28,13 +42,27 @@ create_min_agent_layer() {
 # Helper: create a source repo to simulate cloning during install.
 create_source_repo() {
   local repo="$1"
-  mkdir -p "$repo/src/lib" "$repo/src/sync" "$repo/config/templates/docs" "$repo/config"
+  mkdir -p "$repo/src/lib" "$repo/src/sync" "$repo/config/templates/docs" "$repo/config" \
+    "$repo/src/mcp/agent-layer-prompts"
   printf "EXAMPLE=1\n" >"$repo/.env.example"
   cp "$AGENT_LAYER_ROOT/config/agents.json" "$repo/config/agents.json"
   cp "$AGENT_LAYER_ROOT/src/cli.mjs" "$repo/src/cli.mjs"
   cp "$AGENT_LAYER_ROOT/src/lib/agent-config.mjs" "$repo/src/lib/agent-config.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/cleanup.mjs" "$repo/src/lib/cleanup.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/env.mjs" "$repo/src/lib/env.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/generated-outputs.mjs" "$repo/src/lib/generated-outputs.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/install-config.mjs" "$repo/src/lib/install-config.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/launcher.mjs" "$repo/src/lib/launcher.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/roots.mjs" "$repo/src/lib/roots.mjs"
+  cp "$AGENT_LAYER_ROOT/src/lib/setup.mjs" "$repo/src/lib/setup.mjs"
   cp "$AGENT_LAYER_ROOT/src/sync/utils.mjs" "$repo/src/sync/utils.mjs"
-  : >"$repo/src/sync/sync.mjs"
+  write_stub_sync_mjs "$repo/src/sync/sync.mjs"
+  cat >"$repo/src/mcp/agent-layer-prompts/package.json" <<'EOF'
+{
+  "name": "agent-layer-prompts",
+  "version": "0.0.0"
+}
+EOF
   cp "$AGENT_LAYER_ROOT/config/templates/docs/"*.md "$repo/config/templates/docs/"
   cp "$AGENT_LAYER_ROOT/agent-layer" "$repo/agent-layer"
   chmod +x "$repo/agent-layer"
@@ -265,6 +293,12 @@ EOF
   installer="$AGENT_LAYER_ROOT/agent-layer-install.sh"
   run bash -c "cd '$work' && PATH='$stub_bin:$PATH' '$installer' --repo-url '$src' < /dev/null"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"Next steps (required):"* ]]
+  [[ "$output" == *".env.example"* ]]
+  [[ "$output" == *".agent-layer/config/agents.json"* ]]
+  [[ "$output" == *".agent-layer/config/mcp-servers.json"* ]]
+  [[ "$output" == *"./al --setup"* ]]
+  [[ "$output" == *"./al gemini"* ]]
 
   [ -d "$work/.agent-layer/.git" ]
   [ -f "$work/.agent-layer/.env" ]

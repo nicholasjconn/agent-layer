@@ -34,6 +34,7 @@ const MODE_FLAGS = new Map([
   ["--setup", "setup"],
   ["--mcp-prompts", "mcp-prompts"],
   ["--open-vscode", "open-vscode"],
+  ["--install-config", "install-config"],
   ["--version", "version"],
 ]);
 
@@ -386,6 +387,11 @@ async function main() {
       );
       return;
     }
+    if (mode === "install-config") {
+      const { INSTALL_CONFIG_USAGE } = await import("./lib/install-config.mjs");
+      console.log(INSTALL_CONFIG_USAGE);
+      return;
+    }
   }
 
   if (mode !== "setup" && skipChecks) {
@@ -480,6 +486,25 @@ async function main() {
       { parentRoot, useTempParentRoot, agentLayerRoot },
       async (roots) => {
         await runSetup(roots, skipChecks);
+      },
+    );
+    return;
+  }
+
+  if (mode === "install-config") {
+    if (commandArgs.length > 0) {
+      exitWith(
+        "agent-layer cli: install-config does not accept extra arguments.",
+        2,
+      );
+    }
+    const { parseInstallConfigArgs, runInstallConfig } =
+      await import("./lib/install-config.mjs");
+    const configArgs = parseInstallConfigArgs(modeArgs);
+    await withResolvedRoots(
+      { parentRoot, useTempParentRoot, agentLayerRoot },
+      async (roots) => {
+        await runInstallConfig(roots, configArgs);
       },
     );
     return;

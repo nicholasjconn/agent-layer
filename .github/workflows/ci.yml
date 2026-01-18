@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install pinned tools
+        run: make tools
+      - name: CI checks
+        run: make ci
+      - name: Build release artifacts (dry run)
+        run: make release-dist AL_VERSION=ci DIST_DIR=dist

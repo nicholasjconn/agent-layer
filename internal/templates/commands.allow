@@ -1,0 +1,24 @@
+# One command prefix per line. Lines starting with # are ignored.
+
+git status
+git diff
+git log
+git show
+git rev-parse
+
+cd
+ls
+pwd
+echo
+cat
+find
+grep
+head
+tail
+
+python
+pytest
+node
+npm
+pnpm
+pre-commit

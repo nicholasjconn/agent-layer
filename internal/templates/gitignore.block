@@ -1,24 +1,10 @@
-# Don't commit secrets
-.env
-.env.*
-!.env.example
-
-# Temporary files
-tmp/
-coverage.out
-.DS_Store
-
-# GoLang tools and cache
-.tools/
-.cache/
-
-.vscode/settings.json
-
-# When using agent-layer inside agent-layer, it is a symbolic link, so also ignore the file
-.agent-layer
-
 # >>> agent-layer
+# Managed by Agent Layer. Do not edit this block directly.
+# Edit .agent-layer/gitignore.block and re-run ./al install to apply changes.
+#
+# Agent Layer config
 .agent-layer/
+.agent-layer/.env
 
 # Agent Layer launcher
 al
@@ -36,4 +22,10 @@ GEMINI.md
 .claude/
 .vscode/mcp.json
 .vscode/prompts/
+# Optional: uncomment to ignore VS Code settings.
+# .vscode/settings.json
+.agent/
+
+# Agent Layer temp runs
+tmp/agent-layer/
 # <<< agent-layer

@@ -1,0 +1,25 @@
+package antigravity
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+
+	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/run"
+)
+
+// Launch starts the Antigravity client.
+func Launch(cfg *config.ProjectConfig, runInfo *run.Info, env []string) error {
+	cmd := exec.Command("antigravity")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = env
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("antigravity exited with error: %w", err)
+	}
+
+	return nil
+}

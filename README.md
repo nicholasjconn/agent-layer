@@ -44,6 +44,7 @@ Note: you must have the target client installed and on your `PATH` (Gemini CLI, 
   - `instructions/` (numbered `*.md` fragments; lexicographic order)
   - `slash-commands/` (workflow markdown; one file per command)
   - `commands.allow` (approved shell commands; line-based)
+  - `gitignore.block` (managed `.gitignore` block template; customize here)
   - `.env` (tokens/secrets; gitignored)
 
 ### Project memory (required; teams can commit or ignore)
@@ -228,6 +229,12 @@ Other commands:
 
 ---
 
+## Development
+
+See `docs/DEVELOPMENT.md` for setup and troubleshooting, and `docs/agent-layer/COMMANDS.md` for the canonical command list.
+
+---
+
 ## Shell completion output (tab completion)
 
 “Shell completion output” is a snippet of shell script that enables tab-completion for `./al` in your shell.
@@ -250,6 +257,8 @@ Installer adds a managed `.gitignore` block that typically ignores:
 - `.agent-layer/.env`
 - generated client config directories/files (`.gemini/`, `.claude/`, `.vscode/`, `.codex/`, `.mcp.json`, etc.)
 - `tmp/agent-layer/`
+
+To customize the managed block, edit `.agent-layer/gitignore.block` and re-run `./al install`.
 
 `docs/agent-layer/` is created by default; teams may choose to commit it or ignore it.
 

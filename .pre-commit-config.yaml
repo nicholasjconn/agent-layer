@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: mixed-line-ending
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: go-format
+        name: gofmt + goimports
+        entry: make fmt
+        language: system
+        files: \\.go$
+        pass_filenames: false
+      - id: golangci-lint
+        name: golangci-lint
+        entry: make lint
+        language: system
+        pass_filenames: false
+      - id: go-test
+        name: go test ./...
+        entry: make test
+        language: system
+        pass_filenames: false

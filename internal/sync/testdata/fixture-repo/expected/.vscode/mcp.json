@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "example": {
+      "type": "http",
+      "url": "https://mcp.example.com?token=${env:EXAMPLE_TOKEN}",
+      "headers": {
+        "Authorization": "Bearer ${env:EXAMPLE_TOKEN}"
+      }
+    }
+  }
+}

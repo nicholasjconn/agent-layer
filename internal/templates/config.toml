@@ -1,0 +1,61 @@
+[approvals]
+# one of: "all", "mcp", "commands", "none"
+mode = "all"
+
+[agents.gemini]
+enabled = true
+# model is optional; when omitted, Agent Layer does not pass a model flag and the client uses its default.
+# model = "..."
+
+[agents.claude]
+enabled = true
+# model is optional; when omitted, Agent Layer does not pass a model flag and the client uses its default.
+# model = "..."
+
+[agents.codex]
+enabled = true
+model = "gpt-5.2-codex"
+reasoning_effort = "xhigh" # codex only
+
+[agents.vscode]
+enabled = true
+
+[agents.antigravity]
+enabled = true
+
+[mcp]
+# Secrets belong in .agent-layer/.env (never in config.toml).
+# MCP servers here are the external tool servers that get projected into client configs.
+# The installer seeds a small library of defaults you can edit, disable, or delete.
+
+[[mcp.servers]]
+id = "context7"
+enabled = false
+clients = ["gemini", "claude", "vscode", "codex"]
+transport = "stdio"
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+env = { CONTEXT7_API_KEY = "${CONTEXT7_API_KEY}" }
+
+[[mcp.servers]]
+id = "github"
+enabled = false
+clients = ["gemini", "claude", "vscode", "codex"]
+transport = "http"
+url = "https://api.githubcopilot.com/mcp/"
+headers = { Authorization = "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" }
+
+[[mcp.servers]]
+id = "tavily"
+enabled = false
+clients = ["gemini", "claude", "vscode", "codex"]
+transport = "http"
+url = "https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}"
+
+[[mcp.servers]]
+id = "local-mcp"
+enabled = false
+transport = "stdio"
+command = "my-mcp-server"
+args = ["--flag", "value"]
+env = { MY_TOKEN = "${MY_TOKEN}" }

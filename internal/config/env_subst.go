@@ -1,0 +1,48 @@
+package config
+
+import (
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+)
+
+var envVarPattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
+
+// EnvVarReplacer returns a replacement string for a resolved env var.
+type EnvVarReplacer func(name string, value string) string
+
+// SubstituteEnvVars replaces ${VAR} placeholders using env values.
+func SubstituteEnvVars(input string, env map[string]string) (string, error) {
+	return SubstituteEnvVarsWith(input, env, nil)
+}
+
+// SubstituteEnvVarsWith replaces ${VAR} placeholders using env values and a replacer.
+func SubstituteEnvVarsWith(input string, env map[string]string, replacer EnvVarReplacer) (string, error) {
+	if replacer == nil {
+		replacer = func(_ string, value string) string {
+			return value
+		}
+	}
+	missing := make(map[string]struct{})
+	result := envVarPattern.ReplaceAllStringFunc(input, func(match string) string {
+		varName := strings.TrimSuffix(strings.TrimPrefix(match, "${"), "}")
+		value, ok := env[varName]
+		if !ok || value == "" {
+			missing[varName] = struct{}{}
+			return match
+		}
+		return replacer(varName, value)
+	})
+
+	if len(missing) > 0 {
+		var names []string
+		for name := range missing {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		return "", fmt.Errorf("missing env vars: %s", strings.Join(names, ", "))
+	}
+
+	return result, nil
+}

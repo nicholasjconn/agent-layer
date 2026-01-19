@@ -1,0 +1,27 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+
+	"github.com/nicholasjconn/agent-layer/internal/clients"
+	"github.com/nicholasjconn/agent-layer/internal/clients/gemini"
+	"github.com/nicholasjconn/agent-layer/internal/config"
+)
+
+func newGeminiCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "gemini",
+		Short: "Sync and launch Gemini CLI",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := getwd()
+			if err != nil {
+				return err
+			}
+			return clients.Run(root, "gemini", func(cfg *config.Config) *bool {
+				return cfg.Agents.Gemini.Enabled
+			}, gemini.Launch)
+		},
+	}
+
+	return cmd
+}

@@ -1,0 +1,6 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^git status(\\b.*)?$/": true,
+    "/^ls(\\b.*)?$/": true
+  }
+}

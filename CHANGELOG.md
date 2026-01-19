@@ -1,6 +1,38 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.3.0 - 2026-01-18
+
+Complete rewrite in Go for simpler installation and fewer moving parts.
+
+### Added
+- Single repo-local Go binary (`./al`) replaces the Node.js codebase.
+- `al install` command for repository initialization with template seeding.
+- `al install --overwrite` flag to reset templates to defaults.
+- `al sync` command to regenerate client configs without launching.
+- Support for five clients: Gemini CLI, Claude Code CLI, VS Code/Copilot Chat, Codex CLI, and Antigravity.
+- Unified `[[mcp.servers]]` configuration in `config.toml` for both HTTP and stdio transports.
+- Approval modes (`all`, `mcp`, `commands`, `none`) with per-client projection.
+- `${ENV_VAR}` substitution from `.agent-layer/.env` with client-specific placeholder syntax preservation.
+- Internal MCP prompt server for slash command discovery (auto-wired into client configs).
+- Golden-file tests for deterministic output validation.
+- Managed `.gitignore` block with customizable template (`.agent-layer/gitignore.block`).
+
+### Changed
+- **Breaking:** Complete rewrite from Node.js to Go.
+- **Breaking:** Configuration moved from `config/agents.json` to `.agent-layer/config.toml` (TOML format).
+- **Breaking:** MCP servers now configured via `[[mcp.servers]]` arrays in `config.toml`.
+- CLI simplified: `./al <client>` always syncs then launches.
+- Instructions now in `.agent-layer/instructions/` (numbered markdown files, lexicographic order).
+- Slash commands now in `.agent-layer/slash-commands/` (one markdown file per command).
+- Approved commands now in `.agent-layer/commands.allow` (one prefix per line).
+- Project memory standardized in `docs/agent-layer/` (ISSUES.md, FEATURES.md, ROADMAP.md, DECISIONS.md, COMMANDS.md).
+
+### Removed
+- Node.js codebase (`src/lib/*.mjs`, test files, `package.json`).
+- `config/agents.json` and separate MCP server configuration files.
+- Built-in Tavily MCP server (now configurable as external server in `config.toml`).
+
 ## v0.2.0 - 2026-01-17
 
 Major architectural overhaul moving core logic from shell to Node.js.

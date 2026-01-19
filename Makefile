@@ -8,6 +8,8 @@ TOOL_BIN ?= $(ROOT_DIR)/.tools/bin
 GO_CACHE ?= $(ROOT_DIR)/.cache/go-build
 GO_MOD_CACHE ?= $(ROOT_DIR)/.cache/go-mod
 
+GO_FILES_FIND_CMD := find . -type f -name '*.go' -not -path './.tools/*' -not -path './.cache/*' -not -path './tmp/*'
+
 COVERAGE_THRESHOLD ?= 95.0
 
 AL_VERSION ?= dev
@@ -64,34 +66,14 @@ $(TOOL_BIN)/gotestsum: go.mod go.sum
 
 .PHONY: fmt
 fmt: check-goimports ## Format Go files (gofmt + goimports)
-	@find . \
-	  -type f -name '*.go' \
-	  -not -path './.tools/*' \
-	  -not -path './.cache/*' \
-	  -not -path './tmp/*' \
-	  -print0 | xargs -0 gofmt -w
-	@find . \
-	  -type f -name '*.go' \
-	  -not -path './.tools/*' \
-	  -not -path './.cache/*' \
-	  -not -path './tmp/*' \
-	  -print0 | xargs -0 "$(TOOL_BIN)/goimports" -w
+	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -w
+	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -w
 
 .PHONY: fmt-check
 fmt-check: check-goimports ## Check Go formatting (gofmt + goimports)
-	@out="$$(find . \
-	  -type f -name '*.go' \
-	  -not -path './.tools/*' \
-	  -not -path './.cache/*' \
-	  -not -path './tmp/*' \
-	  -print0 | xargs -0 gofmt -l)"; \
+	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -l)"; \
 	  if [[ -n "$$out" ]]; then echo "gofmt needed for:" >&2; echo "$$out" >&2; exit 1; fi
-	@out="$$(find . \
-	  -type f -name '*.go' \
-	  -not -path './.tools/*' \
-	  -not -path './.cache/*' \
-	  -not -path './tmp/*' \
-	  -print0 | xargs -0 "$(TOOL_BIN)/goimports" -l)"; \
+	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -l)"; \
 	  if [[ -n "$$out" ]]; then echo "goimports needed for:" >&2; echo "$$out" >&2; exit 1; fi
 
 .PHONY: lint

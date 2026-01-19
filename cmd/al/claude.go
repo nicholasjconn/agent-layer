@@ -1,0 +1,27 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+
+	"github.com/nicholasjconn/agent-layer/internal/clients"
+	"github.com/nicholasjconn/agent-layer/internal/clients/claude"
+	"github.com/nicholasjconn/agent-layer/internal/config"
+)
+
+func newClaudeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "claude",
+		Short: "Sync and launch Claude Code CLI",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := getwd()
+			if err != nil {
+				return err
+			}
+			return clients.Run(root, "claude", func(cfg *config.Config) *bool {
+				return cfg.Agents.Claude.Enabled
+			}, claude.Launch)
+		},
+	}
+
+	return cmd
+}

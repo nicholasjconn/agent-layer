@@ -21,8 +21,45 @@ jobs:
         run: |
           set -euo pipefail
           make release-dist AL_VERSION="${GITHUB_REF_NAME}" DIST_DIR=dist
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+
+          # Extract section between this version header and the next version header
+          # - sed range: from "## vX.Y.Z " to next "## v" line
+          # - tail -n +2: skip the version header line
+          # - grep -v: remove the next version header if present
+          # - || true: prevent grep exit code 1 when no lines match
+          NOTES=$(sed -n "/^## ${VERSION} /,/^## v[0-9]/p" CHANGELOG.md | tail -n +2 | grep -v "^## v[0-9]" || true)
+
+          # Trim leading and trailing blank lines using awk
+          NOTES=$(echo "$NOTES" | awk '
+            NF { found=1 }
+            found { lines[++n] = $0 }
+            END {
+              # Find last non-blank line
+              for (i=n; i>=1; i--) { if (lines[i] ~ /[^ \t]/) { last=i; break } }
+              # Print from first to last non-blank
+              for (i=1; i<=last; i++) print lines[i]
+            }
+          ')
+
+          # Error if no changelog found for this version
+          if [ -z "$NOTES" ]; then
+            echo "::error::No changelog entry found for ${VERSION} in CHANGELOG.md"
+            echo "::error::Ensure CHANGELOG.md has an entry like: ## ${VERSION} - YYYY-MM-DD"
+            exit 1
+          fi
+
+          # Write to output using heredoc delimiter
+          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.changelog.outputs.notes }}
           files: |
             dist/*

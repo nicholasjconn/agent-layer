@@ -65,9 +65,6 @@ Phase template (incomplete):
 - [x] Implement `${ENV_VAR}` substitution from `.agent-layer/.env` where needed for config generation.
 - [x] Implement approvals modes: `all`, `mcp`, `commands`, `none` and generate per-client projections.
 - [x] Wire `.agent-layer/.env` tokens into generated client configs (client-specific best practice).
-- [ ] Implement `al doctor` to report missing tokens, disabled servers, and common misconfigurations.
-- [ ] Implement `al wizard` for agent enablement + model selection + Codex reasoning.
-- [ ] Implement shell completions (`al completion bash|zsh|fish|powershell`).
 - [x] Warn about existing files and support `al install --overwrite` to reset templates.
 - [x] Fix `go run ./cmd/al <client>` to avoid `spawn ./al ENOENT` when launching the internal MCP prompt server.
 - [x] Update the default `.agent-layer/gitignore.block` to make `.agent-layer/` optional and explain customization.
@@ -84,6 +81,9 @@ Phase template (incomplete):
 - Improve configuration and workflow usability without expanding the core contract.
 
 ### Tasks
+- [ ] Implement `al doctor` to report missing tokens, disabled servers, and common misconfigurations.
+- [ ] Implement `al wizard` for agent enablement + model selection + Codex reasoning.
+- [ ] Implement shell completions (`al completion bash|zsh|fish|powershell`).
 - [ ] Improve `.agent-layer/config.toml` usability (comments, structure, and editing aids).
 - [ ] Add interaction monitoring to suggest instruction and rules improvements.
 - [ ] Rename `FEATURES.md` to a backlog name and update references in docs and prompts.

@@ -20,6 +20,11 @@ Entry format:
 
 <!-- ENTRIES START -->
 
+- Issue 2026-01-19 ceddb83: `.agent-layer/.env` overrides shell environment variables
+    Priority: Medium. Area: environment handling.
+    Description: When launching via `./al`, values from `.agent-layer/.env` override existing shell environment variables, and empty template keys can shadow valid tokens.
+    Next step: Decide precedence and update environment merge logic or templates to avoid overriding with empty values; document the chosen behavior.
+
 - Issue 2026-01-18 e5f6g7: Slash commands not output for antigravity
     Priority: Medium. Area: antigravity support.
     Description: Slash commands are not being output when antigravity mode is enabled.

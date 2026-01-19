@@ -73,11 +73,11 @@ Generated outputs are written to the repo root in client-specific formats (examp
 | VS Code / Copilot Chat | ✅ | ✅ | ✅ | ✅ |
 | Codex CLI | ✅ | ✅ | ✅ | ✅ |
 | Codex VS Code extension | ✅ | ✅ | ✅ | ✅ |
-| Antigravity | ✅ | ✅ | ❌ | ❌ |
+| Antigravity | ✅ | (TODO) | ❌ | ❌ |
 
 Notes:
 - VS Code/Codex “slash commands” are generated in their native formats (prompt files / skills).
-- Antigravity support is limited to instructions + slash commands.
+- Antigravity support is currently limited to instructions. (TODO: slash commands integration.)
 - Auto-approval capabilities vary by client; `approvals.mode` is applied on a best-effort basis.
 
 ---
@@ -222,9 +222,9 @@ Other commands:
 
 - `./al install` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore` (usually run by the installer)
 - `./al sync` — regenerate configs without launching a client
-- `./al doctor` — check common setup issues (tokens missing, files not writable, etc.)
-- `./al wizard` — interactive setup (enable agents, choose models, Codex reasoning)
-- `./al completion` — print shell completion scripts
+- `./al doctor` — (TODO, Phase 6) check common setup issues (tokens missing, files not writable, etc.)
+- `./al wizard` — (TODO, Phase 6) interactive setup (enable agents, choose models, Codex reasoning)
+- `./al completion` — (TODO, Phase 6) print shell completion scripts
 - `./al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)
 
 ---
@@ -235,7 +235,7 @@ See `docs/DEVELOPMENT.md` for setup and troubleshooting, and `docs/agent-layer/C
 
 ---
 
-## Shell completion output (tab completion)
+## Shell completion output (tab completion) (TODO, Phase 6)
 
 “Shell completion output” is a snippet of shell script that enables tab-completion for `./al` in your shell.
 
@@ -244,7 +244,7 @@ Typical behavior:
 - `./al completion zsh` prints a Zsh completion script to stdout
 
 This enables:
-- `./al <TAB>` to complete supported subcommands (gemini/claude/codex/vscode/antigravity/sync/doctor/wizard/…)
+- `./al <TAB>` to complete supported subcommands (gemini/claude/codex/vscode/antigravity/sync/…)
 
 ---
 

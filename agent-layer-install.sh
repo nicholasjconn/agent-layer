@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+fail() {
+  trap - ERR
+  echo "Error: $*" >&2
+  exit 1
+}
+
+on_error() {
+  local exit_code=$?
+  local line_no="$1"
+  local cmd="$2"
+  echo "Error: installer failed (exit code ${exit_code}) at line ${line_no}: ${cmd}" >&2
+  exit "$exit_code"
+}
+
+trap 'on_error ${LINENO} "$BASH_COMMAND"' ERR
 
 VERSION="latest"
 
@@ -73,8 +89,12 @@ else
   SUMS_URL="${BASE_URL}/download/${VERSION}/SHA256SUMS"
 fi
 
-curl -fsSL "$URL" -o ./al
-chmod +x ./al
+if ! curl -fsSL "$URL" -o ./al; then
+  fail "Failed to download ${ASSET} from ${URL}. Check your network or try again."
+fi
+if ! chmod +x ./al; then
+  fail "Failed to mark ./al as executable."
+fi
 
 verify_checksum_shasum() {
   local sums_file
@@ -85,13 +105,15 @@ verify_checksum_shasum() {
     return 0
   fi
   local expected
-  expected="$(grep " ${ASSET}$" "$sums_file" | awk '{print $1}')"
+  expected="$(awk -v asset="$ASSET" '{path=$2; sub(/^\.\//, "", path); if (path == asset) {print $1; exit}}' "$sums_file")"
   rm -f "$sums_file"
   if [[ -z "$expected" ]]; then
     echo "Warning: checksum for ${ASSET} not found; skipping verification." >&2
     return 0
   fi
-  echo "${expected}  ./al" | shasum -a 256 -c -
+  if ! echo "${expected}  ./al" | shasum -a 256 -c -; then
+    fail "Checksum verification failed for ${ASSET}. Delete ./al and retry."
+  fi
 }
 
 verify_checksum_sha256sum() {
@@ -103,13 +125,15 @@ verify_checksum_sha256sum() {
     return 0
   fi
   local expected
-  expected="$(grep " ${ASSET}$" "$sums_file" | awk '{print $1}')"
+  expected="$(awk -v asset="$ASSET" '{path=$2; sub(/^\.\//, "", path); if (path == asset) {print $1; exit}}' "$sums_file")"
   rm -f "$sums_file"
   if [[ -z "$expected" ]]; then
     echo "Warning: checksum for ${ASSET} not found; skipping verification." >&2
     return 0
   fi
-  echo "${expected}  ./al" | sha256sum -c -
+  if ! echo "${expected}  ./al" | sha256sum -c -; then
+    fail "Checksum verification failed for ${ASSET}. Delete ./al and retry."
+  fi
 }
 
 if command -v shasum >/dev/null 2>&1; then
@@ -120,4 +144,6 @@ else
   echo "Warning: shasum/sha256sum not available; skipping checksum verification." >&2
 fi
 
-./al install
+if ! ./al install; then
+  fail "Agent Layer install failed. Run this from the repo root where you want .agent-layer/ created."
+fi

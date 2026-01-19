@@ -17,11 +17,13 @@ Running `./al <client>` always:
 
 ## Quick start
 
-Install into the current repository (one command):
+Install into the current repository (one command). Run this from the repo root where you want `.agent-layer/` and `docs/agent-layer/` created:
 
 ```bash
 curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh | bash
 ```
+
+The installer downloads `./al` and runs `./al install` in the current directory.
 
 Then run an agent:
 

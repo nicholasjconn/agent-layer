@@ -8,7 +8,7 @@
 .agent-layer/
 
 # Agent Layer launcher
-al
+/al
 
 # Agent Layer-generated instruction shims
 AGENTS.md

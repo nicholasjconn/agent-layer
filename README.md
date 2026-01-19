@@ -224,7 +224,7 @@ Other commands:
 
 - `./al install` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore` (usually run by the installer)
 - `./al sync` — regenerate configs without launching a client
-- `./al doctor` — (TODO, Phase 6) check common setup issues (tokens missing, files not writable, etc.)
+- `./al doctor` — check common setup issues (secrets missing, files not writable, etc.)
 - `./al wizard` — (TODO, Phase 6) interactive setup (enable agents, choose models, Codex reasoning)
 - `./al completion` — (TODO, Phase 6) print shell completion scripts
 - `./al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)

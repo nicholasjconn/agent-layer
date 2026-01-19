@@ -5,6 +5,7 @@ git diff
 git log
 git show
 git rev-parse
+git describe
 
 cd
 ls
@@ -15,10 +16,12 @@ find
 grep
 head
 tail
+mkdir
 
 make
 python
 pytest
+ruff
 go
 node
 npm

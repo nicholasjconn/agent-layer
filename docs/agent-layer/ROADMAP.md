@@ -70,7 +70,7 @@ Phase template (incomplete):
 - Improve configuration and workflow usability without expanding the core contract.
 
 ### Tasks
-- [ ] Implement `al doctor` to report missing tokens, disabled servers, and common misconfigurations.
+- [x] Implement `al doctor` to report missing secrets, disabled servers, and common misconfigurations.
 - [ ] Implement `al wizard` for agent enablement + model selection + Codex reasoning.
 - [ ] Implement shell completions (`al completion bash|zsh|fish|powershell`).
 - [ ] Improve `.agent-layer/config.toml` usability (comments, structure, and editing aids).

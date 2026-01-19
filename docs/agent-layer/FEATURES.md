@@ -35,3 +35,13 @@ Entry format:
     Priority: Low. Area: installation and configuration.
     Capability: The default gitignore block should include a commented-out line for `docs/agent-layer/` with a note explaining users can uncomment it to exclude the agent-layer memory docs from version control.
     Acceptance criteria: `gitignore.block` includes `# docs/agent-layer/` with an explanatory comment.
+
+- Feature 2026-01-18 m0n1o2: Warning for high token count in system instructions
+    Priority: Medium. Area: user experience.
+    Capability: The system should estimate the token count of generated system instructions and warn the user if it exceeds a threshold that might impact model performance or costs.
+    Acceptance criteria: `al sync` displays a warning if estimated tokens > threshold (e.g. 50k).
+
+- Feature 2026-01-18 p3q4r5: Warning for excessive MCP servers
+    Priority: Medium. Area: user experience.
+    Capability: The system should warn the user if a large number of MCP servers are enabled, as this can confuse agents or degrade performance.
+    Acceptance criteria: `al sync` displays a warning if enabled MCP servers > threshold (e.g. 5).

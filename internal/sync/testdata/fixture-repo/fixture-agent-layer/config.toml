@@ -1,0 +1,26 @@
+[approvals]
+mode = "all"
+
+[agents.gemini]
+enabled = true
+
+[agents.claude]
+enabled = true
+
+[agents.codex]
+enabled = true
+
+[agents.vscode]
+enabled = true
+
+[agents.antigravity]
+enabled = false
+
+[mcp]
+[[mcp.servers]]
+id = "example"
+enabled = true
+clients = ["gemini", "claude", "vscode", "codex"]
+transport = "http"
+url = "https://mcp.example.com?token=${EXAMPLE_TOKEN}"
+headers = { Authorization = "Bearer ${EXAMPLE_TOKEN}" }

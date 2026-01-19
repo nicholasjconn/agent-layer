@@ -13,6 +13,10 @@ func TestRunGolden(t *testing.T) {
 	if err := copyFixture(fixtureRoot, root); err != nil {
 		t.Fatalf("copy fixture: %v", err)
 	}
+	envPath := filepath.Join(root, ".agent-layer", ".env")
+	if err := os.WriteFile(envPath, []byte("EXAMPLE_TOKEN=token123\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
 	writePromptServerBinary(t, root)
 
 	if err := Run(root); err != nil {
@@ -62,6 +66,11 @@ func copyFixture(src string, dest string) error {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if rel == "fixture-agent-layer" {
+			rel = ".agent-layer"
+		} else if strings.HasPrefix(rel, "fixture-agent-layer"+string(filepath.Separator)) {
+			rel = filepath.Join(".agent-layer", strings.TrimPrefix(rel, "fixture-agent-layer"+string(filepath.Separator)))
 		}
 		target := filepath.Join(dest, rel)
 		if info.IsDir() {

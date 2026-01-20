@@ -20,20 +20,25 @@ Entry format:
 
 <!-- ENTRIES START -->
 
-- Issue 2026-01-19 cb3ff7e: Wizard configuration edits remove inline comments
-    Priority: Medium. Area: configuration editing.
-    Description: The line-based patcher replaces keys without preserving inline comments or original formatting in `.agent-layer/config.toml`.
-    Next step: Use a comment-preserving configuration editor or extend the patcher to retain inline comments when updating keys.
+- Issue 2026-01-20 d6ea375: Wizard rewrites inline comments during configuration edits
+    Priority: Medium. Area: wizard configuration editing.
+    Description: When editing TOML values, inline comments are re-emitted as leading comments, changing the original layout users may want to preserve.
+    Next step: Decide whether to document this behavior or adopt a formatter that preserves inline comment placement.
 
-- Issue 2026-01-19 68d1672: Wizard Model Context Protocol server parsing is duplicated
-    Priority: Low. Area: wizard configuration parsing.
-    Description: Server block scanning is implemented separately for toggling enabled flags and for restoring template blocks, which can drift if the format changes.
-    Next step: Extract a shared parser for Model Context Protocol server blocks and reuse it in both paths.
+- Issue 2026-01-20 d6ea375: Wizard comment parsing does not handle all TOML string forms
+    Priority: Low. Area: wizard configuration editing.
+    Description: Inline comment extraction treats hashes inside multiline or literal strings as comments, which can mis-handle valid TOML.
+    Next step: Remove inline comment extraction or switch to parser-aware comment handling.
 
-- Issue 2026-01-19 68d1672: Wizard table key scanning logic is duplicated
-    Priority: Low. Area: wizard configuration patching.
-    Description: The code for locating table boundaries and matching keys is repeated across update and delete paths.
-    Next step: Factor table scanning into a shared helper to keep key detection consistent.
+- Issue 2026-01-20 d6ea375: Restored Model Context Protocol servers inherit template positions
+    Priority: Low. Area: wizard configuration editing.
+    Description: Restored server blocks reuse template position metadata, but comment preservation reads the original configuration lines, which can mis-associate or drop comments.
+    Next step: Clone restored server nodes with cleared positions or skip comment preservation for newly appended servers.
+
+- Issue 2026-01-20 d6ea375: Wizard patch tests do not assert comment placement
+    Priority: Low. Area: wizard tests.
+    Description: The tests only check that a comment exists, not whether inline comment placement is preserved or intentionally moved.
+    Next step: Add assertions for the exact expected comment placement behavior.
 
 - Issue 2026-01-19 ceddb83: `.agent-layer/.env` overrides shell environment variables
     Priority: Medium. Area: environment handling.
@@ -104,3 +109,8 @@ Entry format:
     Priority: Low. Area: documentation.
     Description: The instructions do not clearly state that COMMANDS.md is only for development workflow commands (build, test, lint), not for documenting all application commands or CLI usage.
     Next step: Update 01_memory.md to explicitly clarify that COMMANDS.md covers development commands only.
+
+- Issue 2026-01-19 c9d2e1: Wizard UI depends on pre-release Charmbracelet packages
+    Priority: Low. Area: dependencies.
+    Description: `github.com/charmbracelet/huh` v0.8.0 requires pseudo versions of bubbles and colorprofile, leaving go.mod on pre-release commits.
+    Next step: Re-evaluate when upstream tags stable releases or update the wizard UI dependency once stable versions are available.

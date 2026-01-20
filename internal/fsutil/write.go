@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // WriteFileAtomic writes data to path using a temp file and atomic rename.
@@ -60,6 +61,9 @@ func syncDir(dir string) error {
 	}
 	defer func() { _ = d.Close() }()
 	if err := d.Sync(); err != nil {
+		if runtime.GOOS == "windows" {
+			return nil
+		}
 		return fmt.Errorf("sync dir %s: %w", dir, err)
 	}
 	return nil

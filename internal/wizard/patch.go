@@ -3,52 +3,53 @@ package wizard
 import (
 	"fmt"
 	"strings"
+
+	toml "github.com/pelletier/go-toml"
 )
 
 // PatchConfig applies wizard choices to TOML config content.
 // content is the current config; choices holds selections; returns updated content or error.
 func PatchConfig(content string, choices *Choices) (string, error) {
-	var err error
+	configTree, err := toml.LoadBytes([]byte(content))
+	if err != nil {
+		return "", fmt.Errorf("parse config: %w", err)
+	}
+	lines := strings.Split(content, "\n")
 
 	// 1. Approvals
 	if choices.ApprovalModeTouched {
-		content, err = patchTableKey(content, "approvals", "mode", fmt.Sprintf("%q", choices.ApprovalMode))
-		if err != nil {
-			return "", err
-		}
+		setPathPreservingComment(configTree, lines, []string{"approvals", "mode"}, choices.ApprovalMode)
 	}
 
 	// 2. Agents
-	for _, agent := range SupportedAgents {
-		if !choices.EnabledAgentsTouched {
-			continue
-		}
-		enabled := choices.EnabledAgents[agent]
-		content, err = patchTableKey(content, fmt.Sprintf("agents.%s", agent), "enabled", fmt.Sprintf("%t", enabled))
-		if err != nil {
-			return "", err
+	if choices.EnabledAgentsTouched {
+		for _, agent := range SupportedAgents {
+			enabled := choices.EnabledAgents[agent]
+			setPathPreservingComment(configTree, lines, []string{"agents", agent, "enabled"}, enabled)
 		}
 	}
 
 	optionalKeys := []struct {
-		table   string
-		key     string
+		path    []string
 		value   string
 		touched bool
 	}{
-		{table: "agents.gemini", key: "model", value: choices.GeminiModel, touched: choices.GeminiModelTouched},
-		{table: "agents.claude", key: "model", value: choices.ClaudeModel, touched: choices.ClaudeModelTouched},
-		{table: "agents.codex", key: "model", value: choices.CodexModel, touched: choices.CodexModelTouched},
-		{table: "agents.codex", key: "reasoning_effort", value: choices.CodexReasoning, touched: choices.CodexReasoningTouched},
+		{path: []string{"agents", "gemini", "model"}, value: choices.GeminiModel, touched: choices.GeminiModelTouched},
+		{path: []string{"agents", "claude", "model"}, value: choices.ClaudeModel, touched: choices.ClaudeModelTouched},
+		{path: []string{"agents", "codex", "model"}, value: choices.CodexModel, touched: choices.CodexModelTouched},
+		{path: []string{"agents", "codex", "reasoning_effort"}, value: choices.CodexReasoning, touched: choices.CodexReasoningTouched},
 	}
 	for _, item := range optionalKeys {
 		if !item.touched {
 			continue
 		}
-		content, err = patchOptionalTableKey(content, item.table, item.key, item.value)
-		if err != nil {
-			return "", err
+		if item.value == "" {
+			if err := deletePath(configTree, item.path); err != nil {
+				return "", err
+			}
+			continue
 		}
+		setPathPreservingComment(configTree, lines, item.path, item.value)
 	}
 
 	if (choices.EnabledMCPServersTouched || choices.RestoreMissingMCPServers) && len(choices.DefaultMCPServers) == 0 {
@@ -56,216 +57,137 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 	}
 
 	if choices.RestoreMissingMCPServers && len(choices.MissingDefaultMCPServers) > 0 {
-		content, err = appendMissingDefaultMCPServers(content, choices.MissingDefaultMCPServers)
-		if err != nil {
+		if err := appendMissingDefaultMCPServers(configTree, choices.MissingDefaultMCPServers); err != nil {
 			return "", err
 		}
 	}
 
 	// 3. MCP Servers (only default ones)
 	if choices.EnabledMCPServersTouched {
+		servers, err := mcpServerTrees(configTree)
+		if err != nil {
+			return "", err
+		}
 		for _, server := range choices.DefaultMCPServers {
 			enabled := choices.EnabledMCPServers[server.ID]
-			content = patchMCPServer(content, server.ID, enabled)
+			setMCPServerEnabled(servers, lines, server.ID, enabled)
 		}
 	}
 
-	return content, nil
+	updated, err := configTree.ToTomlString()
+	if err != nil {
+		return "", fmt.Errorf("render config: %w", err)
+	}
+	return updated, nil
 }
 
-// patchTableKey finds [table] and updates/inserts key = value.
-// content/tableName/key/value identify the target; returns updated content or error.
-func patchTableKey(content, tableName, key, value string) (string, error) {
-	lines := strings.Split(content, "\n")
-	tableHeader := fmt.Sprintf("[%s]", tableName)
-
-	tableIndex := -1
-	keyIndex := -1
-	insertionIndex := -1
-
-	// Find table
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == tableHeader {
-			tableIndex = i
-			break
-		}
+// setPathPreservingComment sets a value while retaining existing inline/leading comments when possible.
+// tree is the parsed config; lines is the original content split by line; keys is the TOML path; value is the new value.
+func setPathPreservingComment(tree *toml.Tree, lines []string, keys []string, value interface{}) {
+	comment := commentForPath(tree, lines, keys)
+	if comment != "" {
+		tree.SetPathWithComment(keys, comment, false, value)
+		return
 	}
-
-	if tableIndex == -1 {
-		// Table not found, append it
-		newLines := append(lines, "", tableHeader, fmt.Sprintf("%s = %s", key, value))
-		return strings.Join(newLines, "\n"), nil
-	}
-
-	// Find key within table (until next section)
-	for i := tableIndex + 1; i < len(lines); i++ {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmed, "[") {
-			// Start of new section
-			insertionIndex = i
-			break
-		}
-
-		// Check for key
-		// key = value or key=value
-		if strings.HasPrefix(trimmed, key) {
-			// Check if it's the exact key, not a prefix of another key
-			rest := strings.TrimPrefix(trimmed, key)
-			rest = strings.TrimSpace(rest)
-			if strings.HasPrefix(rest, "=") {
-				keyIndex = i
-				break
-			}
-		}
-	}
-
-	if keyIndex != -1 {
-		// Update existing key
-		// Preserve indentation if possible
-		originalLine := lines[keyIndex]
-		indent := ""
-		if strings.HasPrefix(originalLine, "\t") || strings.HasPrefix(originalLine, " ") {
-			trimmed := strings.TrimLeft(originalLine, " \t")
-			indent = originalLine[:len(originalLine)-len(trimmed)]
-		}
-		lines[keyIndex] = fmt.Sprintf("%s%s = %s", indent, key, value)
-	} else {
-		// Insert key
-		line := fmt.Sprintf("%s = %s", key, value)
-		if insertionIndex != -1 {
-			// Insert before next section
-			lines = insertStringAt(lines, insertionIndex, line)
-		} else {
-			// Append to end
-			lines = append(lines, line)
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
+	tree.SetPath(keys, value)
 }
 
-// patchOptionalTableKey sets a key or removes it when value is blank.
-// content/tableName/key/value identify the target; returns updated content or error.
-func patchOptionalTableKey(content, tableName, key, value string) (string, error) {
-	if value == "" {
-		return deleteTableKey(content, tableName, key)
+// deletePath removes a TOML path if it exists.
+// tree is the parsed config; keys is the TOML path to delete; returns an error when deletion fails.
+func deletePath(tree *toml.Tree, keys []string) error {
+	if !tree.HasPath(keys) {
+		return nil
 	}
-	return patchTableKey(content, tableName, key, fmt.Sprintf("%q", value))
+	return tree.DeletePath(keys)
 }
 
-// deleteTableKey removes a key from a table if present.
-// content/tableName/key identify the target; returns updated content or error.
-func deleteTableKey(content, tableName, key string) (string, error) {
-	lines := strings.Split(content, "\n")
-	tableHeader := fmt.Sprintf("[%s]", tableName)
-
-	tableIndex := -1
-	for i, line := range lines {
-		if strings.TrimSpace(line) == tableHeader {
-			tableIndex = i
-			break
+// setMCPServerEnabled updates an MCP server's enabled flag when the server is present.
+// servers is the parsed MCP server list; lines is the original config; serverID identifies the target server.
+func setMCPServerEnabled(servers []*toml.Tree, lines []string, serverID string, enabled bool) {
+	for _, server := range servers {
+		id, ok := server.Get("id").(string)
+		if !ok || id == "" {
+			continue
+		}
+		if id == serverID {
+			setPathPreservingComment(server, lines, []string{"enabled"}, enabled)
+			return
 		}
 	}
-	if tableIndex == -1 {
-		return content, nil
-	}
+}
 
-	for i := tableIndex + 1; i < len(lines); i++ {
+// commentForPath returns the combined comment text for a TOML path, or empty if none found.
+// tree is the parsed config; lines is the original content; keys identifies the TOML path.
+func commentForPath(tree *toml.Tree, lines []string, keys []string) string {
+	if !tree.HasPath(keys) {
+		return ""
+	}
+	pos := tree.GetPositionPath(keys)
+	if pos.Invalid() {
+		return ""
+	}
+	return commentForLine(lines, pos.Line-1)
+}
+
+// commentForLine collects contiguous leading comment lines and any inline comment on a line.
+// lines is the original content split by line; lineIndex is the 0-based line position.
+func commentForLine(lines []string, lineIndex int) string {
+	if lineIndex < 0 || lineIndex >= len(lines) {
+		return ""
+	}
+	var commentLines []string
+	for i := lineIndex - 1; i >= 0; i-- {
 		trimmed := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(trimmed, "[") {
+		if trimmed == "" {
 			break
 		}
-		if strings.HasPrefix(trimmed, key) {
-			rest := strings.TrimSpace(strings.TrimPrefix(trimmed, key))
-			if strings.HasPrefix(rest, "=") {
-				lines = append(lines[:i], lines[i+1:]...)
-				break
-			}
+		if !strings.HasPrefix(trimmed, "#") {
+			break
 		}
+		commentLines = append(commentLines, strings.TrimSpace(strings.TrimPrefix(trimmed, "#")))
 	}
-
-	return strings.Join(lines, "\n"), nil
+	for i, j := 0, len(commentLines)-1; i < j; i, j = i+1, j-1 {
+		commentLines[i], commentLines[j] = commentLines[j], commentLines[i]
+	}
+	if inline := inlineComment(lines[lineIndex]); inline != "" {
+		commentLines = append(commentLines, inline)
+	}
+	if len(commentLines) == 0 {
+		return ""
+	}
+	return strings.Join(commentLines, "\n")
 }
 
-// patchMCPServer finds [[mcp.servers]] with specific id and toggles enabled.
-// content is the TOML config; returns updated content with the enabled flag set.
-func patchMCPServer(content, serverID string, enabled bool) string {
-	lines := strings.Split(content, "\n")
-
-	inTargetServer := false
-
-	for i := 0; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-
-		if trimmed == "[[mcp.servers]]" {
-			// Check if this is the target server by looking ahead for id
-			// This is a simplification: assumes id is near the top of the block
-			// A full parser would be better, but we scan until next [[ or [
-
-			// We need to know if THIS [[mcp.servers]] block has id = "serverID"
-			// We can scan ahead.
-			foundID := false
-			for j := i + 1; j < len(lines); j++ {
-				subTrimmed := strings.TrimSpace(lines[j])
-				if strings.HasPrefix(subTrimmed, "[") {
-					break // End of block
-				}
-				if strings.HasPrefix(subTrimmed, "id") {
-					rest := strings.TrimPrefix(subTrimmed, "id")
-					rest = strings.TrimSpace(rest)
-					if strings.HasPrefix(rest, "=") {
-						val := strings.TrimPrefix(rest, "=")
-						val = strings.TrimSpace(val)
-						val = strings.Trim(val, "\"")
-						if val == serverID {
-							foundID = true
-						}
-						break // Found an ID
-					}
-				}
-			}
-
-			if foundID {
-				inTargetServer = true
-			} else {
-				inTargetServer = false
-			}
-		} else if strings.HasPrefix(trimmed, "[") {
-			inTargetServer = false
+// inlineComment extracts a TOML inline comment, ignoring hashes inside quoted strings.
+// line is the raw line content; returns the comment text without the leading #.
+func inlineComment(line string) string {
+	inSingle := false
+	inDouble := false
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if escaped {
+			escaped = false
+			continue
 		}
-
-		if inTargetServer {
-			// Look for enabled key
-			if strings.HasPrefix(trimmed, "enabled") {
-				rest := strings.TrimPrefix(trimmed, "enabled")
-				rest = strings.TrimSpace(rest)
-				if strings.HasPrefix(rest, "=") {
-					// Found it, replace
-					indent := ""
-					if strings.HasPrefix(lines[i], "\t") || strings.HasPrefix(lines[i], " ") {
-						trimmedL := strings.TrimLeft(lines[i], " \t")
-						indent = lines[i][:len(lines[i])-len(trimmedL)]
-					}
-					lines[i] = fmt.Sprintf("%senabled = %t", indent, enabled)
-					// We are done with this server
-					inTargetServer = false
-				}
+		switch ch {
+		case '\\':
+			if inDouble {
+				escaped = true
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '#':
+			if !inSingle && !inDouble {
+				return strings.TrimSpace(line[i+1:])
 			}
 		}
 	}
-
-	return strings.Join(lines, "\n")
-}
-
-// insertStringAt inserts value at index in slice and returns the updated slice.
-func insertStringAt(slice []string, index int, value string) []string {
-	if index >= len(slice) {
-		return append(slice, value)
-	}
-	slice = append(slice[:index+1], slice[index:]...)
-	slice[index] = value
-	return slice
+	return ""
 }

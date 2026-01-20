@@ -21,6 +21,11 @@ repos:
         language: system
         files: \\.go$
         pass_filenames: false
+      - id: go-mod-tidy-check
+        name: go mod tidy check
+        entry: make tidy-check
+        language: system
+        pass_filenames: false
       - id: golangci-lint
         name: golangci-lint
         entry: make lint

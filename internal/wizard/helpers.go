@@ -28,7 +28,9 @@ func buildSummary(c *Choices) string {
 		}
 	}
 	sb.WriteString("\nEnabled MCP Servers:\n")
-	if len(mcp) > 0 {
+	if len(c.DefaultMCPServers) == 0 {
+		sb.WriteString("(none loaded)\n")
+	} else if len(mcp) > 0 {
 		for _, m := range mcp {
 			sb.WriteString(fmt.Sprintf("- %s\n", m))
 		}
@@ -46,7 +48,9 @@ func buildSummary(c *Choices) string {
 
 	disabledMCP := disabledMCPServers(c)
 	sb.WriteString("\nDisabled MCP Servers (missing secrets):\n")
-	if len(disabledMCP) > 0 {
+	if len(c.DefaultMCPServers) == 0 {
+		sb.WriteString("(none loaded)\n")
+	} else if len(disabledMCP) > 0 {
 		for _, m := range disabledMCP {
 			sb.WriteString(fmt.Sprintf("- %s\n", m))
 		}

@@ -2,7 +2,8 @@ package wizard
 
 import (
 	"fmt"
-	"strings"
+
+	toml "github.com/pelletier/go-toml"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
 	"github.com/nicholasjconn/agent-layer/internal/templates"
@@ -54,98 +55,78 @@ func missingDefaultMCPServers(defaults []DefaultMCPServer, servers []config.MCPS
 	return missing
 }
 
-// appendMissingDefaultMCPServers appends template MCP server blocks for the provided IDs.
-// content is the current config; missing lists server IDs to append; returns updated content or error.
-func appendMissingDefaultMCPServers(content string, missing []string) (string, error) {
+// appendMissingDefaultMCPServers appends template MCP servers for the provided IDs.
+// tree is the current config; missing lists server IDs to append; returns an error on failure.
+func appendMissingDefaultMCPServers(tree *toml.Tree, missing []string) error {
 	if len(missing) == 0 {
-		return content, nil
+		return nil
 	}
 
-	blocks, err := defaultMCPServerBlocks()
+	blocks, err := defaultMCPServerTrees()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	toAppend := make([]string, 0, len(missing))
+	servers, err := mcpServerTrees(tree)
+	if err != nil {
+		return err
+	}
+
 	for _, id := range missing {
 		block, ok := blocks[id]
 		if !ok {
-			return "", fmt.Errorf("missing default MCP server template for %q", id)
+			return fmt.Errorf("missing default MCP server template for %q", id)
 		}
-		toAppend = append(toAppend, block)
+		servers = append(servers, block)
 	}
 
-	trimmed := strings.TrimRight(content, "\n")
-	if trimmed != "" {
-		trimmed += "\n\n"
-	}
-	trimmed += strings.Join(toAppend, "\n\n")
-	trimmed += "\n"
-	return trimmed, nil
+	tree.SetPath([]string{"mcp", "servers"}, servers)
+	return nil
 }
 
-// defaultMCPServerBlocks loads MCP server blocks from the embedded config template.
-// It returns a map of server ID to the block text as written in the template.
-func defaultMCPServerBlocks() (map[string]string, error) {
+// mcpServerTrees returns the parsed MCP server trees from the config.
+// tree is the parsed config; returns a slice of server trees or an error for unexpected data.
+func mcpServerTrees(tree *toml.Tree) ([]*toml.Tree, error) {
+	raw := tree.GetPath([]string{"mcp", "servers"})
+	if raw == nil {
+		return nil, nil
+	}
+	servers, ok := raw.([]*toml.Tree)
+	if !ok {
+		return nil, fmt.Errorf("mcp.servers has unexpected type %T", raw)
+	}
+	return servers, nil
+}
+
+// defaultMCPServerTrees loads MCP server trees from the embedded config template.
+// It returns a map of server ID to the parsed server tree.
+func defaultMCPServerTrees() (map[string]*toml.Tree, error) {
 	data, err := templates.Read("config.toml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config template: %w", err)
 	}
-	return parseMCPServerBlocks(string(data))
-}
+	templateTree, err := toml.LoadBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config template: %w", err)
+	}
+	servers, err := mcpServerTrees(templateTree)
+	if err != nil {
+		return nil, err
+	}
+	if len(servers) == 0 {
+		return nil, fmt.Errorf("no MCP server blocks found in template")
+	}
 
-// parseMCPServerBlocks extracts [[mcp.servers]] blocks keyed by ID.
-// content should be TOML text that includes MCP server blocks.
-func parseMCPServerBlocks(content string) (map[string]string, error) {
-	lines := strings.Split(content, "\n")
-	blocks := make(map[string]string)
-
-	for i := 0; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) != "[[mcp.servers]]" {
-			continue
-		}
-
-		start := i
-		end := i + 1
-		for end < len(lines) && strings.TrimSpace(lines[end]) != "[[mcp.servers]]" {
-			end++
-		}
-
-		blockLines := lines[start:end]
-		id, err := findMCPServerID(blockLines)
-		if err != nil {
-			return nil, err
+	blocks := make(map[string]*toml.Tree, len(servers))
+	for _, server := range servers {
+		id, ok := server.Get("id").(string)
+		if !ok || id == "" {
+			return nil, fmt.Errorf("missing MCP server id in template block")
 		}
 		if _, exists := blocks[id]; exists {
 			return nil, fmt.Errorf("duplicate MCP server id %q in template", id)
 		}
-		blocks[id] = strings.TrimRight(strings.Join(blockLines, "\n"), "\n")
-		i = end - 1
+		blocks[id] = server
 	}
-
-	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no MCP server blocks found in template")
-	}
-
 	return blocks, nil
-}
-
-// findMCPServerID finds the id field value within a server block.
-// blockLines must include the [[mcp.servers]] header; returns an error if id is missing.
-func findMCPServerID(blockLines []string) (string, error) {
-	for _, line := range blockLines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "id") {
-			rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "id"))
-			if strings.HasPrefix(rest, "=") {
-				val := strings.TrimSpace(strings.TrimPrefix(rest, "="))
-				val = strings.Trim(val, "\"")
-				if val == "" {
-					return "", fmt.Errorf("empty MCP server id in template")
-				}
-				return val, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("missing MCP server id in template block")
 }

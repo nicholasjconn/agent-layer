@@ -40,7 +40,7 @@ enabled = false
 			contains: []string{`enabled = true`},
 		},
 		{
-			name: "set model preserves formatting",
+			name: "set model preserves comment",
 			input: `
 [agents.codex]
   model = "old" # comment
@@ -49,7 +49,7 @@ enabled = false
 				CodexModelTouched: true,
 				CodexModel:        "new",
 			},
-			contains: []string{`  model = "new"`},
+			contains: []string{`model = "new"`, "comment"},
 		},
 		{
 			name: "mcp server toggle",

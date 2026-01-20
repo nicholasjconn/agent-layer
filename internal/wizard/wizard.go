@@ -18,7 +18,7 @@ import (
 func Run(ctx context.Context, root string) error {
 	// 1. Interactive check
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
-		return fmt.Errorf("al wizard is interactive-only. Run it from a terminal")
+		return fmt.Errorf("Agent Layer wizard requires an interactive terminal")
 	}
 
 	ui := NewHuhUI()
@@ -215,18 +215,28 @@ func Run(ctx context.Context, root string) error {
 					}
 				}
 
-				var val string
-				if err := ui.SecretInput(fmt.Sprintf("Enter %s (leave blank to skip)", key), &val); err != nil {
-					return err
+				for {
+					var val string
+					if err := ui.SecretInput(fmt.Sprintf("Enter %s (leave blank to skip)", key), &val); err != nil {
+						return err
+					}
+					if val != "" {
+						choices.Secrets[key] = val
+						break
+					}
+					disable := true
+					if err := ui.Confirm(fmt.Sprintf("No value provided for %s. Disable MCP server %s?", key, srv.ID), &disable); err != nil {
+						return err
+					}
+					if disable {
+						choices.EnabledMCPServers[srv.ID] = false
+						choices.DisabledMCPServers[srv.ID] = true
+						break
+					}
 				}
-				if val != "" {
-					choices.Secrets[key] = val
-					continue
+				if !choices.EnabledMCPServers[srv.ID] {
+					break
 				}
-
-				choices.EnabledMCPServers[srv.ID] = false
-				choices.DisabledMCPServers[srv.ID] = true
-				break
 			}
 		}
 	}

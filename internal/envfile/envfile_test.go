@@ -107,6 +107,12 @@ func TestPatch(t *testing.T) {
 			updates:  map[string]string{"COMPLEX": "hash # check"},
 			contains: []string{`COMPLEX="hash # check"`},
 		},
+		{
+			name:     "escape quotes and backslashes",
+			input:    ``,
+			updates:  map[string]string{"COMPLEX": `C:\path\"file"`},
+			contains: []string{`COMPLEX="C:\\path\\\"file\""`},
+		},
 	}
 
 	for _, tt := range tests {

@@ -1,9 +1,9 @@
 package wizard
 
 import (
-	"strings"
 	"testing"
 
+	toml "github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,9 +30,15 @@ func TestAppendMissingDefaultMCPServers(t *testing.T) {
 	content := "[mcp]\n"
 	missing := []string{"github"}
 
-	updated, err := appendMissingDefaultMCPServers(content, missing)
+	tree, err := toml.LoadBytes([]byte(content))
+	require.NoError(t, err)
+
+	err = appendMissingDefaultMCPServers(tree, missing)
+	require.NoError(t, err)
+
+	updated, err := tree.ToTomlString()
 	require.NoError(t, err)
 
 	assert.Contains(t, updated, "[[mcp.servers]]")
-	assert.True(t, strings.Contains(updated, `id = "github"`))
+	assert.Contains(t, updated, `id = "github"`)
 }

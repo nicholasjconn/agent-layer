@@ -20,6 +20,26 @@ Entry format:
 
 <!-- ENTRIES START -->
 
+- Issue 2026-01-20 d6ea375: Wizard rewrites inline comments during configuration edits
+    Priority: Medium. Area: wizard configuration editing.
+    Description: When editing TOML values, inline comments are re-emitted as leading comments, changing the original layout users may want to preserve.
+    Next step: Decide whether to document this behavior or adopt a formatter that preserves inline comment placement.
+
+- Issue 2026-01-20 e7fb486: Wizard comment parsing does not handle all TOML string forms
+    Priority: Low. Area: wizard configuration editing.
+    Description: Inline comment extraction treats hashes inside multiline or literal strings as comments, which can mis-handle valid TOML.
+    Next step: Remove inline comment extraction or switch to parser-aware comment handling.
+
+- Issue 2026-01-20 f8ac597: Restored Model Context Protocol servers inherit template positions
+    Priority: Low. Area: wizard configuration editing.
+    Description: Restored server blocks reuse template position metadata, but comment preservation reads the original configuration lines, which can mis-associate or drop comments.
+    Next step: Clone restored server nodes with cleared positions or skip comment preservation for newly appended servers.
+
+- Issue 2026-01-20 g9bd6a8: Wizard patch tests do not assert comment placement
+    Priority: Low. Area: wizard tests.
+    Description: The tests only check that a comment exists, not whether inline comment placement is preserved or intentionally moved.
+    Next step: Add assertions for the exact expected comment placement behavior.
+
 - Issue 2026-01-19 ceddb83: `.agent-layer/.env` overrides shell environment variables
     Priority: Medium. Area: environment handling.
     Description: When launching via `./al`, values from `.agent-layer/.env` override existing shell environment variables, and empty template keys can shadow valid tokens.
@@ -69,3 +89,28 @@ Entry format:
     Priority: Medium. Area: mcp configuration.
     Description: The GitHub MCP server exposes many tools. We should explicitly list only the necessary commands in the configuration to reduce noise and potential security risks.
     Next step: Research useful GitHub MCP commands and configure `args` or `commands` whitelist in the default config template.
+
+- Issue 2026-01-19 f2g3h4: Wizard sets Codex reasoning effort to xhigh by default
+    Priority: Medium. Area: wizard defaults.
+    Description: The wizard implementation hardcodes the default reasoning effort for Codex to "xhigh", which may be too aggressive/expensive for a default. It should align with the template default (which is also currently xhigh but planned to change to high).
+    Next step: Change `internal/wizard/catalog.go` default to "high" once the template decision is finalized.
+
+- Issue 2026-01-19 i5j6k7: Wizard model catalogs require manual updates
+    Priority: Low. Area: maintenance.
+    Description: The list of supported models in `internal/wizard/catalog.go` is hardcoded. New model releases will require code changes to appear in the wizard.
+    Next step: Consider fetching the model list dynamically or adding a "Custom..." option in the wizard.
+
+- Issue 2026-01-19 j6k7l8: Generated .mcp.json does not adhere to Claude MCP server schema
+    Priority: High. Area: MCP configuration generation.
+    Description: Claude fails to parse the generated `.mcp.json` file, reporting that `mcpServers.github` and `mcpServers.tavily` do not adhere to the MCP server configuration schema.
+    Next step: Compare the generated schema against Claude's expected MCP server configuration format and fix the output structure.
+
+- Issue 2026-01-19 k7l8n0: COMMANDS.md purpose unclear in instructions
+    Priority: Low. Area: documentation.
+    Description: The instructions do not clearly state that COMMANDS.md is only for development workflow commands (build, test, lint), not for documenting all application commands or CLI usage.
+    Next step: Update 01_memory.md to explicitly clarify that COMMANDS.md covers development commands only.
+
+- Issue 2026-01-19 c9d2e1: Wizard UI depends on pre-release Charmbracelet packages
+    Priority: Low. Area: dependencies.
+    Description: `github.com/charmbracelet/huh` v0.8.0 requires pseudo versions of bubbles and colorprofile, leaving go.mod on pre-release commits.
+    Next step: Re-evaluate when upstream tags stable releases or update the wizard UI dependency once stable versions are available.

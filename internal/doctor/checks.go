@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
 )
-
-var secretRegex = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
 
 // CheckStructure verifies that the required project directories exist.
 func CheckStructure(root string) []Result {
@@ -71,20 +68,10 @@ func CheckConfig(root string) ([]Result, *config.ProjectConfig) {
 // CheckSecrets scans the configuration for missing environment variables.
 func CheckSecrets(cfg *config.ProjectConfig) []Result {
 	var results []Result
-	foundSecrets := make(map[string]bool)
-
-	// Scan MCP headers
-	for _, srv := range cfg.Config.MCP.Servers {
-		for _, val := range srv.Headers {
-			findSecrets(val, foundSecrets)
-		}
-		for _, val := range srv.Env {
-			findSecrets(val, foundSecrets)
-		}
-	}
+	required := config.RequiredEnvVarsForMCPServers(cfg.Config.MCP.Servers)
 
 	// Scan .env for missing values
-	for secret := range foundSecrets {
+	for _, secret := range required {
 		val, ok := cfg.Env[secret]
 		if !ok || val == "" {
 			// Check if it's in the actual environment
@@ -111,7 +98,7 @@ func CheckSecrets(cfg *config.ProjectConfig) []Result {
 		}
 	}
 
-	if len(foundSecrets) == 0 {
+	if len(required) == 0 {
 		results = append(results, Result{
 			Status:    StatusOK,
 			CheckName: "Secrets",
@@ -120,15 +107,6 @@ func CheckSecrets(cfg *config.ProjectConfig) []Result {
 	}
 
 	return results
-}
-
-func findSecrets(input string, secrets map[string]bool) {
-	matches := secretRegex.FindAllStringSubmatch(input, -1)
-	for _, m := range matches {
-		if len(m) > 1 {
-			secrets[m[1]] = true
-		}
-	}
 }
 
 // CheckAgents reports which agents are enabled or disabled.

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 	"github.com/nicholasjconn/agent-layer/internal/projection"
 )
 
@@ -26,7 +27,7 @@ func WriteCodexConfig(root string, project *config.ProjectConfig) error {
 	}
 
 	path := filepath.Join(codexDir, "config.toml")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 
@@ -41,7 +42,7 @@ func WriteCodexRules(root string, project *config.ProjectConfig) error {
 		return fmt.Errorf("failed to create %s: %w", rulesDir, err)
 	}
 	path := filepath.Join(rulesDir, "default.rules")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil

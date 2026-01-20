@@ -35,6 +35,25 @@ Note: you must have the target client installed and on your `PATH` (Gemini CLI, 
 
 ---
 
+## Interactive Setup (`al wizard`)
+
+Run `./al wizard` to interactively configure the most important settings:
+
+- **Approvals Mode** (all, mcp, commands, none)
+- **Agent Enablement** (Gemini, Claude, Codex, VS Code, Antigravity)
+- **Model Selection** (optional; leave blank to use client defaults, including Codex reasoning effort)
+- **MCP Servers & Secrets** (toggle default servers; safely write secrets to `.agent-layer/.env`)
+
+**Controls:**
+- **Arrow keys**: Navigate
+- **Space**: Toggle selection (multi-select)
+- **Enter**: Confirm/Continue
+- **Esc/Ctrl+C**: Cancel
+
+The wizard preserves your configuration’s table structure and key ordering and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Note that inline comments on modified lines may be removed; the original formatting is preserved in the backup files.
+
+---
+
 ## What gets created in your repo
 
 ### Repo-local executable (gitignored)
@@ -225,7 +244,7 @@ Other commands:
 - `./al install` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore` (usually run by the installer)
 - `./al sync` — regenerate configs without launching a client
 - `./al doctor` — check common setup issues (secrets missing, files not writable, etc.)
-- `./al wizard` — (TODO, Phase 6) interactive setup (enable agents, choose models, Codex reasoning)
+- `./al wizard` — interactive setup wizard (configure agents, models, MCP secrets)
 - `./al completion` — (TODO, Phase 6) print shell completion scripts
 - `./al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)
 

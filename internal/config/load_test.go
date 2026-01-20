@@ -293,3 +293,34 @@ Do it.`
 		t.Fatalf("expected missing commands allowlist error, got %v", err)
 	}
 }
+
+func TestLoadEnvInvalidFormat(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	// Invalid env file - line without equals sign
+	if err := os.WriteFile(path, []byte("INVALID"), 0o644); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	_, err := LoadEnv(path)
+	if err == nil {
+		t.Fatalf("expected error for invalid env file")
+	}
+	if !strings.Contains(err.Error(), "invalid env file") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadTemplateConfig(t *testing.T) {
+	cfg, err := LoadTemplateConfig()
+	if err != nil {
+		t.Fatalf("LoadTemplateConfig error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatalf("expected config, got nil")
+	}
+	// Verify the template config has MCP servers
+	if len(cfg.MCP.Servers) == 0 {
+		t.Fatalf("expected MCP servers in template config")
+	}
+}

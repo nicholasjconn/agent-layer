@@ -12,6 +12,22 @@ var envVarPattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
 // EnvVarReplacer returns a replacement string for a resolved env var.
 type EnvVarReplacer func(name string, value string) string
 
+// ExtractEnvVarNames returns env var names referenced by ${VAR} placeholders.
+// input is a string that may contain placeholders; returns names in scan order.
+func ExtractEnvVarNames(input string) []string {
+	matches := envVarPattern.FindAllStringSubmatch(input, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) > 1 && match[1] != "" {
+			names = append(names, match[1])
+		}
+	}
+	return names
+}
+
 // SubstituteEnvVars replaces ${VAR} placeholders using env values.
 func SubstituteEnvVars(input string, env map[string]string) (string, error) {
 	return SubstituteEnvVarsWith(input, env, nil)

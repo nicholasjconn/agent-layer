@@ -122,3 +122,23 @@ Entry format:
     Decision: Never embed actual secret values in generated config files; use client-specific placeholder syntax that each client resolves at runtime (Gemini: `${VAR}`, Claude: `${VAR}`, VS Code: `${env:VAR}`, Codex: `bearer_token_env_var`).
     Reason: Prevents accidental secret exposure if generated configs are committed; aligns with each client's documented best practice.
     Tradeoffs: Users running clients directly (not via `./al <client>`) must have tokens in their shell environment.
+
+- Decision 2026-01-19: Use charmbracelet/huh for Wizard UI
+    Decision: Use `github.com/charmbracelet/huh` for the `al wizard` interactive TTY interface.
+    Reason: Provides a polished, accessible, and declarative API for forms, selects, and inputs in Go.
+    Tradeoffs: Adds a dependency; restricted to TTY environments (wizard is interactive-only).
+
+- Decision 2026-01-19 7f3c2a1: Centralize env parsing and file writes
+    Decision: Add shared `internal/envfile` and `internal/fsutil` helpers, and derive wizard defaults from the embedded config template.
+    Reason: Removes duplicated parsing/writing logic and keeps defaults and required secrets aligned with the template source of truth.
+    Tradeoffs: Adds internal packages and tighter coupling to template config structure; introduces breaking internal API changes.
+
+- Decision 2026-01-19 a4b7c2d: Use go-toml v1 tree editor for wizard patching
+    Decision: Use `github.com/pelletier/go-toml` v1 Tree APIs for wizard-driven config edits while keeping go-toml/v2 for schema parsing.
+    Reason: go-toml/v2 has no stable document model; v1 Tree allows structured edits without brittle string scanning.
+    Tradeoffs: Adds a second TOML dependency and may reformat output during edits.
+
+- Decision 2026-01-19 b7d3f2e: Keep huh-pinned Charmbracelet dependency versions
+    Decision: Retain the Charmbracelet bubbles/colorprofile versions required by `github.com/charmbracelet/huh` v0.8.0 instead of overriding to newer tags.
+    Reason: Upstream pins pseudo versions; overriding them risks incompatibility without upstream support.
+    Tradeoffs: go.mod includes pre-release pseudo versions until upstream tags stable releases.

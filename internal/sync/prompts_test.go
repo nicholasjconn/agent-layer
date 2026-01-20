@@ -133,6 +133,26 @@ func TestWriteCodexSkillsWriteError(t *testing.T) {
 	}
 }
 
+func TestWriteCodexSkillsMkdirSkillDirError(t *testing.T) {
+	root := t.TempDir()
+	skillsDir := filepath.Join(root, ".codex", "skills")
+	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// Create a file where the skill directory would be created
+	if err := os.WriteFile(filepath.Join(skillsDir, "alpha"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	cmds := []config.SlashCommand{{Name: "alpha", Description: "desc", Body: "Body"}}
+	err := WriteCodexSkills(root, cmds)
+	if err == nil {
+		t.Fatalf("expected error for skill dir creation failure")
+	}
+	if !strings.Contains(err.Error(), "failed to create") {
+		t.Fatalf("expected mkdir error, got %v", err)
+	}
+}
+
 func TestWrapDescription(t *testing.T) {
 	lines := wrapDescription("one two three four", 5)
 	if len(lines) < 2 {

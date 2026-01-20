@@ -391,6 +391,23 @@ func TestWriteGitignoreBlockRecordsDiff(t *testing.T) {
 	}
 }
 
+func TestWriteGitignoreBlockReadError(t *testing.T) {
+	root := t.TempDir()
+	// Create a directory where we expect a file, causing ReadFile to fail
+	path := filepath.Join(root, ".agent-layer", "gitignore.block")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for read failure")
+	}
+	if !strings.Contains(err.Error(), "failed to read") {
+		t.Fatalf("expected read error, got %v", err)
+	}
+}
+
 func TestGitignoreBlockMatchesHashValid(t *testing.T) {
 	// Create a block with valid hash.
 	block := "# >>> agent-layer\ntest content\n# <<< agent-layer\n"

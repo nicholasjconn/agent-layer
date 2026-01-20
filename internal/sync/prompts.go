@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 )
 
 const promptHeaderTemplate = "<!--\n  GENERATED FILE\n  Source: .agent-layer/slash-commands/%s.md\n  Regenerate: ./al --sync\n-->\n"
@@ -24,7 +25,7 @@ func WriteVSCodePrompts(root string, commands []config.SlashCommand) error {
 		wanted[cmd.Name] = struct{}{}
 		content := buildVSCodePrompt(cmd)
 		path := filepath.Join(promptDir, fmt.Sprintf("%s.prompt.md", cmd.Name))
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", path, err)
 		}
 	}
@@ -97,7 +98,7 @@ func WriteCodexSkills(root string, commands []config.SlashCommand) error {
 		}
 		path := filepath.Join(skillDir, "SKILL.md")
 		content := buildCodexSkill(cmd)
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", path, err)
 		}
 	}

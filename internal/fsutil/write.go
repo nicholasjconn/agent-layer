@@ -1,4 +1,4 @@
-package wizard
+package fsutil
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 )
 
-// writeFileAtomic writes data to path using a temp file and atomic rename.
+// WriteFileAtomic writes data to path using a temp file and atomic rename.
 // perm sets the file mode applied to the final file.
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 

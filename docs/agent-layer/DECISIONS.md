@@ -127,3 +127,8 @@ Entry format:
     Decision: Use `github.com/charmbracelet/huh` for the `al wizard` interactive TTY interface.
     Reason: Provides a polished, accessible, and declarative API for forms, selects, and inputs in Go.
     Tradeoffs: Adds a dependency; restricted to TTY environments (wizard is interactive-only).
+
+- Decision 2026-01-19 7f3c2a1: Centralize env parsing and file writes
+    Decision: Add shared `internal/envfile` and `internal/fsutil` helpers, and derive wizard defaults from the embedded config template.
+    Reason: Removes duplicated parsing/writing logic and keeps defaults and required secrets aligned with the template source of truth.
+    Tradeoffs: Adds internal packages and tighter coupling to template config structure; introduces breaking internal API changes.

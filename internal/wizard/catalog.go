@@ -81,16 +81,3 @@ var CodexReasoningEfforts = []string{
 	"high",
 	"xhigh",
 }
-
-// DefaultMCPServer defines a known default server.
-type DefaultMCPServer struct {
-	ID          string
-	RequiredEnv string
-}
-
-// KnownDefaultMCPServers lists the servers the wizard manages.
-var KnownDefaultMCPServers = []DefaultMCPServer{
-	{ID: "github", RequiredEnv: "GITHUB_PERSONAL_ACCESS_TOKEN"},
-	{ID: "context7", RequiredEnv: "CONTEXT7_API_KEY"},
-	{ID: "tavily", RequiredEnv: "TAVILY_API_KEY"},
-}

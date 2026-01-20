@@ -175,7 +175,7 @@ mode = "all"
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "invalid config file") {
+	if !strings.Contains(err.Error(), "invalid config") {
 		t.Fatalf("expected invalid config error, got: %v", err)
 	}
 }

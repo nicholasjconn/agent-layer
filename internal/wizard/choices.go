@@ -29,6 +29,7 @@ type Choices struct {
 	DisabledMCPServers       map[string]bool
 	MissingDefaultMCPServers []string
 	RestoreMissingMCPServers bool
+	DefaultMCPServers        []DefaultMCPServer
 
 	// Secrets (Env vars)
 	Secrets map[string]string

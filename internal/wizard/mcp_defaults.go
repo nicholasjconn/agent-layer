@@ -8,9 +8,35 @@ import (
 	"github.com/nicholasjconn/agent-layer/internal/templates"
 )
 
-// missingDefaultMCPServers returns default MCP server IDs that are absent from the config.
-// servers is the parsed MCP server list; it returns IDs in KnownDefaultMCPServers order.
-func missingDefaultMCPServers(servers []config.MCPServer) []string {
+// DefaultMCPServer describes a default MCP server and its required env vars.
+type DefaultMCPServer struct {
+	ID          string
+	RequiredEnv []string
+}
+
+// loadDefaultMCPServers returns default MCP servers derived from the template config.
+func loadDefaultMCPServers() ([]DefaultMCPServer, error) {
+	cfg, err := config.LoadTemplateConfig()
+	if err != nil {
+		return nil, err
+	}
+	defaults := make([]DefaultMCPServer, 0, len(cfg.MCP.Servers))
+	for _, server := range cfg.MCP.Servers {
+		required := config.RequiredEnvVarsForMCPServer(server)
+		defaults = append(defaults, DefaultMCPServer{
+			ID:          server.ID,
+			RequiredEnv: required,
+		})
+	}
+	if len(defaults) == 0 {
+		return nil, fmt.Errorf("template config contains no MCP servers")
+	}
+	return defaults, nil
+}
+
+// missingDefaultMCPServers returns default MCP server IDs absent from the current config.
+// defaults is the list of default servers; servers is the current config server list.
+func missingDefaultMCPServers(defaults []DefaultMCPServer, servers []config.MCPServer) []string {
 	existing := make(map[string]bool, len(servers))
 	for _, srv := range servers {
 		if srv.ID == "" {
@@ -20,7 +46,7 @@ func missingDefaultMCPServers(servers []config.MCPServer) []string {
 	}
 
 	var missing []string
-	for _, def := range KnownDefaultMCPServers {
+	for _, def := range defaults {
 		if !existing[def.ID] {
 			missing = append(missing, def.ID)
 		}

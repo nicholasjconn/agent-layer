@@ -1,4 +1,4 @@
-package wizard
+package fsutil
 
 import (
 	"os"
@@ -13,7 +13,7 @@ func TestWriteFileAtomicCreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")
 
-	err := writeFileAtomic(path, []byte("hello"), 0644)
+	err := WriteFileAtomic(path, []byte("hello"), 0644)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(path)
@@ -32,7 +32,7 @@ func TestWriteFileAtomicOverwritesFile(t *testing.T) {
 	err := os.WriteFile(path, []byte("old"), 0600)
 	require.NoError(t, err)
 
-	err = writeFileAtomic(path, []byte("new"), 0600)
+	err = WriteFileAtomic(path, []byte("new"), 0600)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(path)

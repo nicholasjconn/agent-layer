@@ -67,13 +67,13 @@ $(TOOL_BIN)/gotestsum: go.mod go.sum
 .PHONY: fmt
 fmt: check-goimports ## Format Go files (gofmt + goimports)
 	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -w
-	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -w
+	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -local "github.com/nicholasjconn/agent-layer" -w
 
 .PHONY: fmt-check
 fmt-check: check-goimports ## Check Go formatting (gofmt + goimports)
 	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -l)"; \
 	  if [[ -n "$$out" ]]; then echo "gofmt needed for:" >&2; echo "$$out" >&2; exit 1; fi
-	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -l)"; \
+	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -local "github.com/nicholasjconn/agent-layer" -l)"; \
 	  if [[ -n "$$out" ]]; then echo "goimports needed for:" >&2; echo "$$out" >&2; exit 1; fi
 
 .PHONY: lint

@@ -11,12 +11,17 @@ import (
 )
 
 func TestMissingDefaultMCPServers(t *testing.T) {
+	defaults := []DefaultMCPServer{
+		{ID: "github"},
+		{ID: "context7"},
+		{ID: "tavily"},
+	}
 	servers := []config.MCPServer{
 		{ID: "github"},
 		{ID: "tavily"},
 	}
 
-	missing := missingDefaultMCPServers(servers)
+	missing := missingDefaultMCPServers(defaults, servers)
 
 	assert.Equal(t, []string{"context7"}, missing)
 }

@@ -61,6 +61,7 @@ enabled = false
 			choices: &Choices{
 				EnabledMCPServers:        map[string]bool{"github": true},
 				EnabledMCPServersTouched: true,
+				DefaultMCPServers:        []DefaultMCPServer{{ID: "github"}},
 			},
 			contains: []string{`enabled = true`},
 		},
@@ -106,6 +107,7 @@ reasoning_effort = "high"
 			choices: &Choices{
 				RestoreMissingMCPServers: true,
 				MissingDefaultMCPServers: []string{"github"},
+				DefaultMCPServers:        []DefaultMCPServer{{ID: "github"}},
 			},
 			contains: []string{`id = "github"`},
 		},

@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 	"github.com/nicholasjconn/agent-layer/internal/projection"
 )
 
@@ -38,7 +39,7 @@ func WriteClaudeSettings(root string, project *config.ProjectConfig) error {
 	data = append(data, '\n')
 
 	path := filepath.Join(claudeDir, "settings.json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 

@@ -1,4 +1,4 @@
-package wizard
+package envfile
 
 import (
 	"bufio"
@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// ParseEnv reads .env content into a key-value map.
-// content is the raw file content; returns the parsed key/value pairs or an error.
-func ParseEnv(content string) (map[string]string, error) {
+// Parse reads .env content into a key-value map.
+// content is the raw file content; returns parsed key/value pairs or an error.
+func Parse(content string) (map[string]string, error) {
 	env := make(map[string]string)
 	if content == "" {
 		return env, nil
@@ -18,26 +18,12 @@ func ParseEnv(content string) (map[string]string, error) {
 	lineNo := 0
 	for scanner.Scan() {
 		lineNo++
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+		key, value, ok, err := parseLine(scanner.Text())
+		if err != nil {
+			return nil, fmt.Errorf("line %d: %w", lineNo, err)
+		}
+		if !ok {
 			continue
-		}
-		if strings.HasPrefix(line, "export ") {
-			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
-		}
-		idx := strings.Index(line, "=")
-		if idx <= 0 {
-			return nil, fmt.Errorf("invalid env content line %d: expected KEY=VALUE", lineNo)
-		}
-		key := strings.TrimSpace(line[:idx])
-		if key == "" {
-			return nil, fmt.Errorf("invalid env content line %d: expected KEY=VALUE", lineNo)
-		}
-		value := strings.TrimSpace(line[idx+1:])
-		if len(value) >= 2 {
-			if (value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'') {
-				value = value[1 : len(value)-1]
-			}
 		}
 		env[key] = value
 	}
@@ -49,10 +35,9 @@ func ParseEnv(content string) (map[string]string, error) {
 	return env, nil
 }
 
-// PatchEnv updates .env content with the provided secrets.
-// content is the existing file content; secrets supplies key/value pairs to merge.
-func PatchEnv(content string, secrets map[string]string) string {
-	// If content is empty, just append
+// Patch updates .env content with the provided key/value pairs.
+// content is the existing file content; updates supplies key/value pairs to merge.
+func Patch(content string, updates map[string]string) string {
 	var lines []string
 	if content != "" {
 		lines = strings.Split(content, "\n")
@@ -60,8 +45,8 @@ func PatchEnv(content string, secrets map[string]string) string {
 
 	firstIndex := make(map[string]int)
 	for i, line := range lines {
-		key, ok := parseEnvKey(line)
-		if !ok {
+		key, _, ok, err := parseLine(line)
+		if err != nil || !ok {
 			continue
 		}
 		if _, exists := firstIndex[key]; !exists {
@@ -70,16 +55,15 @@ func PatchEnv(content string, secrets map[string]string) string {
 	}
 
 	updatedKeys := make(map[string]bool)
-	for key, value := range secrets {
+	for key, value := range updates {
 		if value == "" {
 			continue
 		}
 
-		encodedValue := encodeEnvValue(value)
+		encodedValue := encodeValue(value)
 		if idx, ok := firstIndex[key]; ok {
 			lines[idx] = fmt.Sprintf("%s=%s", key, encodedValue)
 		} else {
-			// Append
 			if len(lines) > 0 && lines[len(lines)-1] != "" {
 				lines = append(lines, "")
 			}
@@ -95,8 +79,8 @@ func PatchEnv(content string, secrets map[string]string) string {
 
 	filtered := make([]string, 0, len(lines))
 	for i, line := range lines {
-		key, ok := parseEnvKey(line)
-		if ok && updatedKeys[key] && firstIndex[key] != i {
+		key, _, ok, err := parseLine(line)
+		if err == nil && ok && updatedKeys[key] && firstIndex[key] != i {
 			continue
 		}
 		filtered = append(filtered, line)
@@ -105,33 +89,37 @@ func PatchEnv(content string, secrets map[string]string) string {
 	return strings.Join(filtered, "\n")
 }
 
-// parseEnvKey extracts a key name from a .env line.
-// line is a single line; returns the key and true when it looks like KEY=VALUE.
-func parseEnvKey(line string) (string, bool) {
+// parseLine parses a single .env line and returns key/value when present.
+// line is the raw line; returns key/value, a boolean for presence, and an error for invalid syntax.
+func parseLine(line string) (string, string, bool, error) {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-		return "", false
+		return "", "", false, nil
 	}
 	if strings.HasPrefix(trimmed, "export ") {
 		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "export "))
 	}
 	idx := strings.Index(trimmed, "=")
 	if idx <= 0 {
-		return "", false
+		return "", "", false, fmt.Errorf("expected KEY=VALUE")
 	}
 	key := strings.TrimSpace(trimmed[:idx])
 	if key == "" {
-		return "", false
+		return "", "", false, fmt.Errorf("expected KEY=VALUE")
 	}
-	return key, true
+	value := strings.TrimSpace(trimmed[idx+1:])
+	if len(value) >= 2 {
+		if (value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'') {
+			value = value[1 : len(value)-1]
+		}
+	}
+	return key, value, true, nil
 }
 
-// encodeEnvValue returns a .env-safe value with quotes/escapes if needed.
+// encodeValue escapes and quotes a value when required for .env formatting.
 // val is the raw value; returns the encoded representation.
-func encodeEnvValue(val string) string {
-	// If it contains whitespace, hash, or needs quoting
+func encodeValue(val string) string {
 	if strings.ContainsAny(val, " \t#") || strings.Contains(val, "\"") {
-		// Simple quoting: escape " and \
 		val = strings.ReplaceAll(val, "\\", "\\\\")
 		val = strings.ReplaceAll(val, "\"", "\\\"")
 		return fmt.Sprintf(`"%s"`, val)

@@ -51,6 +51,10 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 		}
 	}
 
+	if (choices.EnabledMCPServersTouched || choices.RestoreMissingMCPServers) && len(choices.DefaultMCPServers) == 0 {
+		return "", fmt.Errorf("default MCP servers are required to patch config")
+	}
+
 	if choices.RestoreMissingMCPServers && len(choices.MissingDefaultMCPServers) > 0 {
 		content, err = appendMissingDefaultMCPServers(content, choices.MissingDefaultMCPServers)
 		if err != nil {
@@ -60,7 +64,7 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 
 	// 3. MCP Servers (only default ones)
 	if choices.EnabledMCPServersTouched {
-		for _, server := range KnownDefaultMCPServers {
+		for _, server := range choices.DefaultMCPServers {
 			enabled := choices.EnabledMCPServers[server.ID]
 			content = patchMCPServer(content, server.ID, enabled)
 		}

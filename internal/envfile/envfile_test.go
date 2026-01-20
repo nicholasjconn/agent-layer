@@ -1,4 +1,4 @@
-package wizard
+package envfile
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseEnv(t *testing.T) {
+func TestParse(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -36,7 +36,7 @@ OTHER = "spaced value"
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseEnv(tt.input)
+			got, err := Parse(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -47,30 +47,30 @@ OTHER = "spaced value"
 	}
 }
 
-func TestPatchEnv(t *testing.T) {
+func TestPatch(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		secrets  map[string]string
+		updates  map[string]string
 		contains []string
 		absent   []string
 	}{
 		{
 			name:     "add new secret",
 			input:    `EXISTING=1`,
-			secrets:  map[string]string{"NEW": "secret"},
+			updates:  map[string]string{"NEW": "secret"},
 			contains: []string{`NEW=secret`},
 		},
 		{
 			name:     "replace existing secret",
 			input:    `KEY=old`,
-			secrets:  map[string]string{"KEY": "new"},
+			updates:  map[string]string{"KEY": "new"},
 			contains: []string{`KEY=new`},
 		},
 		{
 			name:    "replace export line",
 			input:   `export KEY=old`,
-			secrets: map[string]string{"KEY": "new"},
+			updates: map[string]string{"KEY": "new"},
 			contains: []string{
 				`KEY=new`,
 			},
@@ -81,7 +81,7 @@ func TestPatchEnv(t *testing.T) {
 		{
 			name:    "replace spaced assignment",
 			input:   `KEY = old`,
-			secrets: map[string]string{"KEY": "new"},
+			updates: map[string]string{"KEY": "new"},
 			contains: []string{
 				`KEY=new`,
 			},
@@ -92,7 +92,7 @@ func TestPatchEnv(t *testing.T) {
 		{
 			name:    "dedupe existing key lines",
 			input:   "KEY=old\nexport KEY=older\nOTHER=1",
-			secrets: map[string]string{"KEY": "new"},
+			updates: map[string]string{"KEY": "new"},
 			contains: []string{
 				`KEY=new`,
 				`OTHER=1`,
@@ -104,14 +104,14 @@ func TestPatchEnv(t *testing.T) {
 		{
 			name:     "quote complex secret",
 			input:    ``,
-			secrets:  map[string]string{"COMPLEX": "hash # check"},
+			updates:  map[string]string{"COMPLEX": "hash # check"},
 			contains: []string{`COMPLEX="hash # check"`},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := PatchEnv(tt.input, tt.secrets)
+			got := Patch(tt.input, tt.updates)
 			for _, c := range tt.contains {
 				assert.Contains(t, got, c)
 			}

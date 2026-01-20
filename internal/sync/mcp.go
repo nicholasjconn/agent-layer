@@ -3,10 +3,10 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 	"github.com/nicholasjconn/agent-layer/internal/projection"
 )
 
@@ -36,7 +36,7 @@ func WriteMCPConfig(root string, project *config.ProjectConfig) error {
 	data = append(data, '\n')
 
 	path := filepath.Join(root, ".mcp.json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 

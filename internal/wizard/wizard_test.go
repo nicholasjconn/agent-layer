@@ -10,6 +10,7 @@ func TestBuildSummaryIncludesDisabledMCPServers(t *testing.T) {
 	choices := NewChoices()
 	choices.ApprovalMode = ApprovalAll
 	choices.DisabledMCPServers["github"] = true
+	choices.DefaultMCPServers = []DefaultMCPServer{{ID: "github"}}
 
 	summary := buildSummary(choices)
 
@@ -22,6 +23,7 @@ func TestBuildSummaryIncludesRestoredMCPServers(t *testing.T) {
 	choices.ApprovalMode = ApprovalAll
 	choices.MissingDefaultMCPServers = []string{"context7"}
 	choices.RestoreMissingMCPServers = true
+	choices.DefaultMCPServers = []DefaultMCPServer{{ID: "context7"}}
 
 	summary := buildSummary(choices)
 

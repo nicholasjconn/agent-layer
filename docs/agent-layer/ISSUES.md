@@ -35,26 +35,6 @@ Entry format:
     Description: The code for locating table boundaries and matching keys is repeated across update and delete paths.
     Next step: Factor table scanning into a shared helper to keep key detection consistent.
 
-- Issue 2026-01-19 68d1672: Wizard environment line parsing logic is duplicated
-    Priority: Low. Area: wizard environment handling.
-    Description: Line parsing is split between ParseEnv and parseEnvKey with overlapping logic, risking inconsistent behavior over time.
-    Next step: Centralize environment line parsing into a single helper that returns key and value for both uses.
-
-- Issue 2026-01-19 68d1672: Environment parsing is duplicated between config and wizard
-    Priority: Low. Area: environment handling.
-    Description: `internal/config/env.go` and `internal/wizard/env.go` implement nearly identical .env parsing logic, which can drift.
-    Next step: Extract a shared environment parser in config and reuse it in the wizard.
-
-- Issue 2026-01-19 68d1672: Secrets requirement detection differs between wizard and doctor
-    Priority: Low. Area: secrets detection.
-    Description: The wizard uses a fixed list of default server secrets while doctor scans configuration placeholders, so required secret sets can diverge.
-    Next step: Create a shared helper to derive required secrets from configuration and reuse it in wizard and doctor.
-
-- Issue 2026-01-19 68d1672: Atomic file writes are only used in the wizard
-    Priority: Low. Area: file persistence.
-    Description: The wizard uses atomic writes while install and sync write files directly, which keeps durability behavior inconsistent.
-    Next step: Introduce a shared atomic write helper and migrate install and sync writes where appropriate.
-
 - Issue 2026-01-19 ceddb83: `.agent-layer/.env` overrides shell environment variables
     Priority: Medium. Area: environment handling.
     Description: When launching via `./al`, values from `.agent-layer/.env` override existing shell environment variables, and empty template keys can shadow valid tokens.

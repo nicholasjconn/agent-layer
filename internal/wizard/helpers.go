@@ -10,6 +10,7 @@ const leaveBlankOption = "Leave blank (use client default)"
 
 // buildSummary returns a formatted summary of wizard choices.
 // c is the current choices; returns the summary text.
+// Assumes c.DefaultMCPServers has been populated (see wizard.Run).
 func buildSummary(c *Choices) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Approvals Mode: %s\n", c.ApprovalMode))

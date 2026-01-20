@@ -6,12 +6,13 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/envfile"
 	"github.com/nicholasjconn/agent-layer/internal/fsutil"
-	"github.com/nicholasjconn/agent-layer/internal/sync"
 )
 
+type syncer func(root string) error
+
 // applyChanges writes config/env updates and runs sync.
-// root/configPath/envPath identify files; c holds wizard selections; returns an error on failure.
-func applyChanges(root, configPath, envPath string, c *Choices) error {
+// root/configPath/envPath identify files; c holds wizard selections; runSync is the sync function to call; returns an error on failure.
+func applyChanges(root, configPath, envPath string, c *Choices, runSync syncer) error {
 	// Config
 	rawConfig, err := os.ReadFile(configPath)
 	if err != nil {
@@ -68,7 +69,7 @@ func applyChanges(root, configPath, envPath string, c *Choices) error {
 
 	// Sync
 	fmt.Println("Running sync...")
-	return sync.Run(root)
+	return runSync(root)
 }
 
 // filePermOr returns the file permission bits or a fallback when the file is missing.

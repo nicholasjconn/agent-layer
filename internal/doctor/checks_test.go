@@ -29,6 +29,25 @@ func TestCheckStructure(t *testing.T) {
 		t.Errorf("Expected 2 failures for empty directory, got %d", failCount)
 	}
 
+	// Test exists but not directory
+	if err := os.WriteFile(filepath.Join(tmpDir, ".agent-layer"), []byte("file"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	results = CheckStructure(tmpDir)
+	fileFail := false
+	for _, r := range results {
+		if r.Message == ".agent-layer exists but is not a directory" {
+			fileFail = true
+			if r.Status != StatusFail {
+				t.Errorf("Expected fail status for file, got %s", r.Status)
+			}
+		}
+	}
+	if !fileFail {
+		t.Error("Expected failure for file blocking directory")
+	}
+	_ = os.Remove(filepath.Join(tmpDir, ".agent-layer"))
+
 	// Test existing directories
 	if err := os.Mkdir(filepath.Join(tmpDir, ".agent-layer"), 0755); err != nil {
 		t.Fatal(err)
@@ -91,5 +110,111 @@ func TestCheckSecretsUsesRequiredEnvVars(t *testing.T) {
 		if !found {
 			t.Fatalf("expected result message %q", msg)
 		}
+	}
+}
+
+func TestCheckConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Missing config
+	results, cfg := CheckConfig(tmpDir)
+	if cfg != nil {
+		t.Error("Expected nil config for missing file")
+	}
+	if len(results) != 1 || results[0].Status != StatusFail {
+		t.Error("Expected failure for missing config")
+	}
+
+	// Invalid config
+	configDir := filepath.Join(tmpDir, ".agent-layer")
+	if err := os.Mkdir(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte("invalid"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	results, cfg = CheckConfig(tmpDir)
+	if cfg != nil {
+		t.Error("Expected nil config for invalid file")
+	}
+	if len(results) != 1 || results[0].Status != StatusFail {
+		t.Error("Expected failure for invalid config")
+	}
+
+	// Valid config
+	validConfig := `
+[approvals]
+mode = "all"
+
+[agents.gemini]
+enabled = true
+[agents.claude]
+enabled = true
+[agents.codex]
+enabled = false
+[agents.vscode]
+enabled = true
+[agents.antigravity]
+enabled = false
+`
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(validConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create minimal valid setup
+	if err := os.WriteFile(filepath.Join(configDir, ".env"), []byte(""), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(configDir, "instructions"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "instructions", "00_base.md"), []byte("# Base"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(configDir, "slash-commands"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "commands.allow"), []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	results, cfg = CheckConfig(tmpDir)
+	if cfg == nil {
+		t.Error("Expected valid config")
+	}
+	if len(results) != 1 || results[0].Status != StatusOK {
+		t.Errorf("Expected success for valid config, got %v", results)
+	}
+}
+
+func TestCheckAgents(t *testing.T) {
+	tBool := true
+	fBool := false
+	cfg := &config.ProjectConfig{
+		Config: config.Config{
+			Agents: config.AgentsConfig{
+				Gemini:      config.AgentConfig{Enabled: &tBool},
+				Claude:      config.AgentConfig{Enabled: &fBool},
+				Codex:       config.CodexConfig{Enabled: nil},
+				VSCode:      config.AgentConfig{Enabled: &tBool},
+				Antigravity: config.AgentConfig{Enabled: &fBool},
+			},
+		},
+	}
+
+	results := CheckAgents(cfg)
+
+	statusMap := make(map[string]Status)
+	for _, r := range results {
+		statusMap[r.Message] = r.Status
+	}
+
+	if statusMap["Agent enabled: Gemini"] != StatusOK {
+		t.Error("Gemini should be enabled")
+	}
+	if statusMap["Agent disabled: Claude"] != StatusWarn {
+		t.Error("Claude should be disabled")
+	}
+	if statusMap["Agent disabled: Codex"] != StatusWarn {
+		t.Error("Codex should be disabled (nil)")
 	}
 }

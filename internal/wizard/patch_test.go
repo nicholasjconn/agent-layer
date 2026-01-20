@@ -7,6 +7,108 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPatchConfig_Errors(t *testing.T) {
+	t.Run("invalid TOML", func(t *testing.T) {
+		_, err := PatchConfig("[broken", &Choices{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parse config")
+	})
+
+	t.Run("no default servers for mcp toggle", func(t *testing.T) {
+		choices := &Choices{
+			EnabledMCPServersTouched: true,
+			DefaultMCPServers:        []DefaultMCPServer{}, // Empty!
+		}
+		_, err := PatchConfig("[mcp]", choices)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "default MCP servers are required")
+	})
+
+	t.Run("no default servers for restore", func(t *testing.T) {
+		choices := &Choices{
+			RestoreMissingMCPServers: true,
+			DefaultMCPServers:        []DefaultMCPServer{}, // Empty!
+		}
+		_, err := PatchConfig("[mcp]", choices)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "default MCP servers are required")
+	})
+
+	t.Run("mcp servers unexpected type", func(t *testing.T) {
+		choices := &Choices{
+			EnabledMCPServersTouched: true,
+			DefaultMCPServers:        []DefaultMCPServer{{ID: "github"}},
+		}
+		_, err := PatchConfig(`[mcp]
+servers = "not-an-array"
+`, choices)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unexpected type")
+	})
+}
+
+func TestSetMCPServerEnabled_EmptyID(t *testing.T) {
+	// Test that servers without ID are skipped
+	content := `[[mcp.servers]]
+enabled = false
+
+[[mcp.servers]]
+id = "github"
+enabled = false
+`
+	choices := &Choices{
+		EnabledMCPServersTouched: true,
+		EnabledMCPServers:        map[string]bool{"github": true},
+		DefaultMCPServers:        []DefaultMCPServer{{ID: "github"}},
+	}
+	result, err := PatchConfig(content, choices)
+	assert.NoError(t, err)
+	assert.Contains(t, result, `enabled = true`)
+}
+
+func TestCommentForLine_OutOfRange(t *testing.T) {
+	lines := []string{"line1", "line2"}
+
+	// Negative index
+	comment := commentForLine(lines, -1)
+	assert.Empty(t, comment)
+
+	// Index >= len
+	comment = commentForLine(lines, 5)
+	assert.Empty(t, comment)
+}
+
+func TestCommentForLine_LeadingComments(t *testing.T) {
+	lines := []string{
+		"# First comment",
+		"# Second comment",
+		"key = value",
+	}
+	comment := commentForLine(lines, 2)
+	assert.Contains(t, comment, "First comment")
+	assert.Contains(t, comment, "Second comment")
+}
+
+func TestCommentForLine_NoComments(t *testing.T) {
+	lines := []string{
+		"other = value",
+		"key = value",
+	}
+	comment := commentForLine(lines, 1)
+	assert.Empty(t, comment)
+}
+
+func TestCommentForLine_BlankLineBreaksComments(t *testing.T) {
+	lines := []string{
+		"# Detached comment",
+		"",
+		"key = value",
+	}
+	comment := commentForLine(lines, 2)
+	// Blank line breaks the comment chain
+	assert.Empty(t, comment)
+}
+
 func TestPatchConfig(t *testing.T) {
 	tests := []struct {
 		name     string

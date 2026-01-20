@@ -61,6 +61,8 @@ func syncDir(dir string) error {
 	}
 	defer func() { _ = d.Close() }()
 	if err := d.Sync(); err != nil {
+		// Directory sync is not supported on Windows or returns an error.
+		// It is safe to ignore for durability purposes on Windows.
 		if runtime.GOOS == "windows" {
 			return nil
 		}

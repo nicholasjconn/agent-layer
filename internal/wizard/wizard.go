@@ -1,13 +1,10 @@
 package wizard
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/term"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
 	"github.com/nicholasjconn/agent-layer/internal/envfile"
@@ -15,13 +12,7 @@ import (
 )
 
 // Run starts the interactive wizard.
-func Run(ctx context.Context, root string) error {
-	// 1. Interactive check
-	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
-		return fmt.Errorf("Agent Layer wizard requires an interactive terminal")
-	}
-
-	ui := NewHuhUI()
+func Run(root string, ui UI, runSync syncer) error {
 	configPath := filepath.Join(root, ".agent-layer", "config.toml")
 
 	// 2. Install gating
@@ -200,6 +191,7 @@ func Run(ctx context.Context, root string) error {
 						return err
 					}
 					if !override {
+						choices.Secrets[key] = val
 						continue
 					}
 				} else {
@@ -256,7 +248,7 @@ func Run(ctx context.Context, root string) error {
 	}
 
 	// 7. Apply
-	if err := applyChanges(root, configPath, envPath, choices); err != nil {
+	if err := applyChanges(root, configPath, envPath, choices, runSync); err != nil {
 		return err
 	}
 

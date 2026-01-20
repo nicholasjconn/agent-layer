@@ -28,3 +28,26 @@ func TestRequiredEnvVarsForMCPServers(t *testing.T) {
 	want := []string{"API_KEY", "TOKEN"}
 	assert.Equal(t, want, RequiredEnvVarsForMCPServers(servers))
 }
+
+func TestRequiredEnvVarsForMCPServerEmpty(t *testing.T) {
+	server := MCPServer{
+		URL:     "https://example.com",
+		Command: "run",
+		Args:    []string{"--key", "value"},
+	}
+
+	// No env vars referenced
+	result := RequiredEnvVarsForMCPServer(server)
+	assert.Nil(t, result)
+}
+
+func TestRequiredEnvVarsForMCPServersEmpty(t *testing.T) {
+	servers := []MCPServer{
+		{URL: "https://example.com"},
+		{Command: "run"},
+	}
+
+	// No env vars referenced
+	result := RequiredEnvVarsForMCPServers(servers)
+	assert.Nil(t, result)
+}

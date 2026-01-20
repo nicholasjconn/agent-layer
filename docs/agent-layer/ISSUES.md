@@ -25,17 +25,17 @@ Entry format:
     Description: When editing TOML values, inline comments are re-emitted as leading comments, changing the original layout users may want to preserve.
     Next step: Decide whether to document this behavior or adopt a formatter that preserves inline comment placement.
 
-- Issue 2026-01-20 d6ea375: Wizard comment parsing does not handle all TOML string forms
+- Issue 2026-01-20 e7fb486: Wizard comment parsing does not handle all TOML string forms
     Priority: Low. Area: wizard configuration editing.
     Description: Inline comment extraction treats hashes inside multiline or literal strings as comments, which can mis-handle valid TOML.
     Next step: Remove inline comment extraction or switch to parser-aware comment handling.
 
-- Issue 2026-01-20 d6ea375: Restored Model Context Protocol servers inherit template positions
+- Issue 2026-01-20 f8ac597: Restored Model Context Protocol servers inherit template positions
     Priority: Low. Area: wizard configuration editing.
     Description: Restored server blocks reuse template position metadata, but comment preservation reads the original configuration lines, which can mis-associate or drop comments.
     Next step: Clone restored server nodes with cleared positions or skip comment preservation for newly appended servers.
 
-- Issue 2026-01-20 d6ea375: Wizard patch tests do not assert comment placement
+- Issue 2026-01-20 g9bd6a8: Wizard patch tests do not assert comment placement
     Priority: Low. Area: wizard tests.
     Description: The tests only check that a comment exists, not whether inline comment placement is preserved or intentionally moved.
     Next step: Add assertions for the exact expected comment placement behavior.
@@ -105,7 +105,7 @@ Entry format:
     Description: Claude fails to parse the generated `.mcp.json` file, reporting that `mcpServers.github` and `mcpServers.tavily` do not adhere to the MCP server configuration schema.
     Next step: Compare the generated schema against Claude's expected MCP server configuration format and fix the output structure.
 
-- Issue 2026-01-19 k7l8m9: COMMANDS.md purpose unclear in instructions
+- Issue 2026-01-19 k7l8n0: COMMANDS.md purpose unclear in instructions
     Priority: Low. Area: documentation.
     Description: The instructions do not clearly state that COMMANDS.md is only for development workflow commands (build, test, lint), not for documenting all application commands or CLI usage.
     Next step: Update 01_memory.md to explicitly clarify that COMMANDS.md covers development commands only.

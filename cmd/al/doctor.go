@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -50,7 +49,7 @@ func newDoctorCmd() *cobra.Command {
 			fmt.Println()
 			if hasFail {
 				color.Red("❌ Some checks failed. Please address the issues above.")
-				os.Exit(1)
+				return fmt.Errorf("doctor checks failed")
 			} else {
 				color.Green("✅ All systems go! Agent Layer is ready.")
 			}

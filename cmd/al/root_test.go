@@ -151,6 +151,50 @@ func TestClientCommandsSuccess(t *testing.T) {
 	})
 }
 
+func TestDoctorCommand(t *testing.T) {
+	root := t.TempDir()
+
+	// Test failure (no repo)
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatal("expected doctor failure in empty dir")
+		}
+	})
+
+	// Test success
+	writeTestRepo(t, root)
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		// Capture output? doctor prints to stdout.
+		// We just care about return code for now.
+		if err := cmd.RunE(cmd, nil); err != nil {
+			t.Fatalf("doctor failed in valid repo: %v", err)
+		}
+	})
+}
+
+func TestWizardCommand(t *testing.T) {
+	originalIsTerminal := isTerminal
+	isTerminal = func() bool { return false }
+	t.Cleanup(func() { isTerminal = originalIsTerminal })
+
+	root := t.TempDir()
+	withWorkingDir(t, root, func() {
+		// Force the non-interactive path to keep tests deterministic.
+		cmd := newWizardCmd()
+		err := cmd.RunE(cmd, nil)
+		// Should fail because not interactive
+		if err == nil {
+			t.Fatal("expected wizard to fail in non-interactive test")
+		}
+		if !strings.Contains(err.Error(), "interactive terminal") {
+			t.Logf("got error: %v", err)
+		}
+	})
+}
+
 func TestCommandsGetwdError(t *testing.T) {
 	original := getwd
 	getwd = func() (string, error) {
@@ -183,6 +227,9 @@ func writeTestRepo(t *testing.T, root string) {
 	}
 	if err := os.MkdirAll(paths.SlashCommandsDir, 0o755); err != nil {
 		t.Fatalf("mkdir slash commands: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs", "agent-layer"), 0o755); err != nil {
+		t.Fatalf("mkdir docs: %v", err)
 	}
 
 	configToml := `

@@ -50,7 +50,7 @@ Run `./al wizard` to interactively configure the most important settings:
 - **Enter**: Confirm/Continue
 - **Esc/Ctrl+C**: Cancel
 
-The wizard preserves your existing configuration structure and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`.
+The wizard preserves your configuration’s table structure and key ordering and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Note that inline comments on modified lines may be removed; the original formatting is preserved in the backup files.
 
 ---
 

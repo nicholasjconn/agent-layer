@@ -8,6 +8,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParse_EmptyContent(t *testing.T) {
+	result, err := Parse("")
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestPatch_EmptyValues(t *testing.T) {
+	// Empty value should be skipped
+	result := Patch("EXISTING=1", map[string]string{"NEW": ""})
+	assert.NotContains(t, result, "NEW=")
+	assert.Contains(t, result, "EXISTING=1")
+}
+
+func TestPatch_NoUpdates(t *testing.T) {
+	// No updates should return original
+	result := Patch("KEY=value", map[string]string{})
+	assert.Equal(t, "KEY=value", result)
+}
+
+func TestPatch_AllEmptyValues(t *testing.T) {
+	// All empty values = no updates
+	result := Patch("KEY=value", map[string]string{"A": "", "B": ""})
+	assert.Equal(t, "KEY=value", result)
+}
+
+func TestPatch_EmptyContentWithUpdate(t *testing.T) {
+	result := Patch("", map[string]string{"NEW": "value"})
+	assert.Equal(t, "NEW=value", result)
+}
+
+func TestParseLine_CommentLine(t *testing.T) {
+	key, value, ok, err := parseLine("# this is a comment")
+	assert.NoError(t, err)
+	assert.False(t, ok)
+	assert.Empty(t, key)
+	assert.Empty(t, value)
+}
+
+func TestParseLine_EmptyLine(t *testing.T) {
+	key, value, ok, err := parseLine("")
+	assert.NoError(t, err)
+	assert.False(t, ok)
+	assert.Empty(t, key)
+	assert.Empty(t, value)
+}
+
+func TestParseLine_WhitespaceLine(t *testing.T) {
+	key, value, ok, err := parseLine("   \t   ")
+	assert.NoError(t, err)
+	assert.False(t, ok)
+	assert.Empty(t, key)
+	assert.Empty(t, value)
+}
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -31,6 +85,21 @@ OTHER = "spaced value"
 			name:    "invalid line",
 			input:   "INVALID",
 			wantErr: true,
+		},
+		{
+			name:    "empty key",
+			input:   "=value",
+			wantErr: true,
+		},
+		{
+			name:    "space key",
+			input:   " =value",
+			wantErr: true,
+		},
+		{
+			name:  "single quoted value",
+			input: "KEY='val'",
+			want:  map[string]string{"KEY": "val"},
 		},
 	}
 
@@ -127,6 +196,56 @@ func TestPatch(t *testing.T) {
 			if tt.name == "dedupe existing key lines" {
 				assert.Equal(t, 1, strings.Count(got, "KEY="))
 			}
+		})
+	}
+}
+
+func TestEncodeValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "no escaping needed",
+			input: "simple",
+			want:  "simple",
+		},
+		{
+			name:  "space needs quotes",
+			input: "with space",
+			want:  `"with space"`,
+		},
+		{
+			name:  "tab needs quotes",
+			input: "with\ttab",
+			want:  "\"with\ttab\"",
+		},
+		{
+			name:  "hash needs quotes",
+			input: "with#hash",
+			want:  `"with#hash"`,
+		},
+		{
+			name:  "quote needs escaping and quotes",
+			input: `with"quote`,
+			want:  `"with\"quote"`,
+		},
+		{
+			name:  "backslash and quote",
+			input: `C:\path\"file"`,
+			want:  `"C:\\path\\\"file\""`,
+		},
+		{
+			name:  "multiple backslashes and quotes",
+			input: `\\\"`,
+			want:  `"\\\\\\\""`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, encodeValue(tt.input))
 		})
 	}
 }

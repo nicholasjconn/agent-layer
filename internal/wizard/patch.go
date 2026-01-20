@@ -161,33 +161,72 @@ func commentForLine(lines []string, lineIndex int) string {
 // inlineComment extracts a TOML inline comment, ignoring hashes inside quoted strings.
 // line is the raw line content; returns the comment text without the leading #.
 func inlineComment(line string) string {
-	inSingle := false
-	inDouble := false
-	escaped := false
-	for i := 0; i < len(line); i++ {
+	const (
+		stateNone = iota
+		stateBasic
+		stateLiteral
+		stateMultiBasic
+		stateMultiLiteral
+	)
+
+	state := stateNone
+	i := 0
+	for i < len(line) {
 		ch := line[i]
-		if escaped {
-			escaped = false
-			continue
+
+		if state == stateBasic || state == stateMultiBasic {
+			if ch == '\\' {
+				i += 2 // Skip escape sequence
+				continue
+			}
 		}
-		switch ch {
-		case '\\':
-			if inDouble {
-				escaped = true
-			}
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-			}
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-			}
-		case '#':
-			if !inSingle && !inDouble {
+
+		switch state {
+		case stateNone:
+			if ch == '#' {
 				return strings.TrimSpace(line[i+1:])
 			}
+			if ch == '"' {
+				if strings.HasPrefix(line[i:], `"""`) {
+					state = stateMultiBasic
+					i += 3
+					continue
+				}
+				state = stateBasic
+			} else if ch == '\'' {
+				if strings.HasPrefix(line[i:], `'''`) {
+					state = stateMultiLiteral
+					i += 3
+					continue
+				}
+				state = stateLiteral
+			}
+
+		case stateBasic:
+			if ch == '"' {
+				state = stateNone
+			}
+
+		case stateLiteral:
+			if ch == '\'' {
+				state = stateNone
+			}
+
+		case stateMultiBasic:
+			if ch == '"' && strings.HasPrefix(line[i:], `"""`) {
+				state = stateNone
+				i += 3
+				continue
+			}
+
+		case stateMultiLiteral:
+			if ch == '\'' && strings.HasPrefix(line[i:], `'''`) {
+				state = stateNone
+				i += 3
+				continue
+			}
 		}
+		i++
 	}
 	return ""
 }

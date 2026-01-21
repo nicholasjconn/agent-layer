@@ -7,17 +7,19 @@ import (
 )
 
 // Run regenerates all configured outputs for the repo.
-func Run(root string) error {
+// Returns any sync-time warnings and an error if sync failed.
+func Run(root string) ([]Warning, error) {
 	project, err := config.LoadProjectConfig(root)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	return RunWithProject(root, project)
 }
 
 // RunWithProject regenerates outputs using an already loaded project config.
-func RunWithProject(root string, project *config.ProjectConfig) error {
+// Returns any sync-time warnings and an error if sync failed.
+func RunWithProject(root string, project *config.ProjectConfig) ([]Warning, error) {
 	steps := []func() error{
 		func() error {
 			return WriteInstructionShims(root, project.Instructions)
@@ -62,7 +64,30 @@ func RunWithProject(root string, project *config.ProjectConfig) error {
 		)
 	}
 
-	return runSteps(steps)
+	if err := runSteps(steps); err != nil {
+		return nil, err
+	}
+
+	// Collect warnings after successful sync
+	warnings := collectWarnings(project)
+	return warnings, nil
+}
+
+// collectWarnings gathers all sync-time warnings based on the project config.
+func collectWarnings(project *config.ProjectConfig) []Warning {
+	var warnings []Warning
+
+	// Check instruction size
+	if w := CheckInstructionSize(project.Instructions, project.Config.Warnings); w != nil {
+		warnings = append(warnings, *w)
+	}
+
+	// Check MCP server counts per enabled client
+	enabledClients := EnabledClientNames(project.Config.Agents)
+	mcpWarnings := CheckMCPServerCount(project.Config.MCP.Servers, enabledClients, project.Config.Warnings)
+	warnings = append(warnings, mcpWarnings...)
+
+	return warnings
 }
 
 func runSteps(steps []func() error) error {

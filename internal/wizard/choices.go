@@ -33,6 +33,12 @@ type Choices struct {
 
 	// Secrets (Env vars)
 	Secrets map[string]string
+
+	// Warnings
+	InstructionTokenThreshold        *int
+	InstructionTokenThresholdTouched bool
+	MCPServerThreshold               *int
+	MCPServerThresholdTouched        bool
 }
 
 // NewChoices returns a Choices struct initialized with defaults.

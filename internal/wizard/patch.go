@@ -79,6 +79,28 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 		}
 	}
 
+	// 4. Warning thresholds
+	if choices.InstructionTokenThresholdTouched {
+		path := []string{"warnings", "instruction_token_threshold"}
+		if choices.InstructionTokenThreshold == nil {
+			if err := deletePath(configTree, path); err != nil {
+				return "", err
+			}
+		} else {
+			setPathPreservingComment(configTree, lines, path, *choices.InstructionTokenThreshold)
+		}
+	}
+	if choices.MCPServerThresholdTouched {
+		path := []string{"warnings", "mcp_server_threshold"}
+		if choices.MCPServerThreshold == nil {
+			if err := deletePath(configTree, path); err != nil {
+				return "", err
+			}
+		} else {
+			setPathPreservingComment(configTree, lines, path, *choices.MCPServerThreshold)
+		}
+	}
+
 	updated, err := configTree.ToTomlString()
 	if err != nil {
 		return "", fmt.Errorf("render config: %w", err)

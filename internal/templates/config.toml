@@ -51,3 +51,14 @@ enabled = false
 clients = ["gemini", "claude", "vscode", "codex"]
 transport = "http"
 url = "https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}"
+
+[warnings]
+# Sync-time warnings for risky configurations.
+# Comment out a threshold to disable that warning.
+
+# Warn when estimated token count in generated instructions exceeds this value.
+# Tokens are estimated as character_count / 4.
+instruction_token_threshold = 50000
+
+# Warn when number of enabled MCP servers for any client exceeds this value.
+mcp_server_threshold = 5

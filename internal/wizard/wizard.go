@@ -158,6 +158,20 @@ func Run(root string, ui UI, runSync syncer) error {
 	}
 	choices.EnabledMCPServersTouched = true
 
+	// Warnings
+	choices.InstructionTokenThreshold = cfg.Config.Warnings.InstructionTokenThreshold
+	choices.MCPServerThreshold = cfg.Config.Warnings.MCPServerThreshold
+
+	if err := selectOptionalThreshold(ui, "Instruction Token Warning Threshold", InstructionTokenOptions, &choices.InstructionTokenThreshold); err != nil {
+		return err
+	}
+	choices.InstructionTokenThresholdTouched = true
+
+	if err := selectOptionalThreshold(ui, "MCP Server Count Warning Threshold", MCPServerThresholdOptions, &choices.MCPServerThreshold); err != nil {
+		return err
+	}
+	choices.MCPServerThresholdTouched = true
+
 	// Secrets
 	// Load existing env to know what's set
 	envPath := filepath.Join(root, ".agent-layer", ".env")

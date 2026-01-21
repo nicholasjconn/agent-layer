@@ -29,3 +29,13 @@ Entry format:
     Priority: Medium. Area: mcp configuration.
     Description: The GitHub MCP server exposes many tools. We should explicitly list only the necessary commands in the configuration to reduce noise and potential security risks.
     Next step: Research useful GitHub MCP commands and configure `args` or `commands` whitelist in the default config template.
+
+- Issue 2026-01-21 f6g7h8: Centralized user-facing strings file
+    Priority: Low. Area: code organization.
+    Description: All user-facing language (messages, prompts, errors, help text) is scattered across the codebase. Centralizing it would make updates easier and ensure consistent tone.
+    Next step: Audit existing user-facing strings and design a centralized strings module.
+
+- Issue 2026-01-21 r5s6t7: Audit instructions and slash commands for duplicate content
+    Priority: Low. Area: maintainability.
+    Description: Instruction templates and slash command definitions contain duplicate instructions (e.g., memory formatting rules appear multiple times). This creates maintenance burden and inconsistency risk.
+    Next step: Identify duplicate content across instruction and slash command files; consolidate into canonical locations.

@@ -5,6 +5,14 @@ type Config struct {
 	Approvals ApprovalsConfig `toml:"approvals"`
 	Agents    AgentsConfig    `toml:"agents"`
 	MCP       MCPConfig       `toml:"mcp"`
+	Warnings  WarningsConfig  `toml:"warnings"`
+}
+
+// WarningsConfig controls sync-time warning thresholds.
+// Nil values disable the corresponding warning.
+type WarningsConfig struct {
+	InstructionTokenThreshold *int `toml:"instruction_token_threshold"`
+	MCPServerThreshold        *int `toml:"mcp_server_threshold"`
 }
 
 // ApprovalsConfig controls auto-approval behavior per client.

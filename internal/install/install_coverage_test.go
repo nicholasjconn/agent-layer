@@ -3,6 +3,7 @@ package install
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -263,6 +264,175 @@ func TestUpdateGitignoreContent_Empty(t *testing.T) {
 }
 
 func TestRenderGitignoreBlock_Empty(t *testing.T) {
-	// Just to cover the path, even if logic is odd
-	renderGitignoreBlock("")
+	// When block is empty, TrimRight("", "\n") returns "", and Split("", "\n") returns [""]
+	// So len(lines) is 1, not 0. The len(lines) == 0 branch is unreachable with normal strings.
+	result := renderGitignoreBlock("")
+	if result == "" {
+		t.Fatalf("expected non-empty result")
+	}
+}
+
+func TestRenderGitignoreBlock_Normal(t *testing.T) {
+	block := "# >>> agent-layer\nentry1\nentry2\n# <<< agent-layer\n"
+	result := renderGitignoreBlock(block)
+
+	// Should contain the hash prefix
+	if !strings.Contains(result, gitignoreHashPrefix) {
+		t.Fatalf("expected hash line in result")
+	}
+
+	// Should preserve original content
+	if !strings.Contains(result, "entry1") || !strings.Contains(result, "entry2") {
+		t.Fatalf("expected original content preserved")
+	}
+}
+
+func TestUpdateGitignoreContent_EmptyExisting(t *testing.T) {
+	content := ""
+	block := "# >>> agent-layer\nblock\n# <<< agent-layer\n"
+	updated := updateGitignoreContent(content, block)
+
+	if !strings.Contains(updated, "block") {
+		t.Fatalf("expected block to be added")
+	}
+}
+
+func TestUpdateGitignoreContent_NoTrailingNewline(t *testing.T) {
+	content := "existing"
+	block := "# >>> agent-layer\nblock\n# <<< agent-layer\n"
+	updated := updateGitignoreContent(content, block)
+
+	if !strings.Contains(updated, "existing") {
+		t.Fatalf("expected existing content preserved")
+	}
+	if !strings.Contains(updated, "block") {
+		t.Fatalf("expected block to be appended")
+	}
+}
+
+func TestEnsureGitignore_WriteErrorAfterRead(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping write error test as root")
+	}
+	root := t.TempDir()
+	path := filepath.Join(root, ".gitignore")
+
+	// Write initial content so read succeeds
+	if err := os.WriteFile(path, []byte("existing\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	// Make directory read-only so WriteFileAtomic fails
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	defer func() { _ = os.Chmod(root, 0o755) }()
+
+	block := "# >>> agent-layer\nblock\n# <<< agent-layer\n"
+	err := ensureGitignore(path, block)
+	if err == nil {
+		t.Fatalf("expected error for write failure")
+	}
+}
+
+func TestEnsureGitignore_WriteErrorNewFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping write error test as root")
+	}
+	root := t.TempDir()
+	path := filepath.Join(root, ".gitignore")
+
+	// Make directory read-only so WriteFileAtomic fails for new file
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	defer func() { _ = os.Chmod(root, 0o755) }()
+
+	block := "# >>> agent-layer\nblock\n# <<< agent-layer\n"
+	err := ensureGitignore(path, block)
+	if err == nil {
+		t.Fatalf("expected error for write failure")
+	}
+}
+
+func TestWriteGitignoreBlock_MkdirError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping mkdir error test as root")
+	}
+	root := t.TempDir()
+	// Create a file where the directory should be
+	parentFile := filepath.Join(root, ".agent-layer")
+	if err := os.WriteFile(parentFile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	path := filepath.Join(parentFile, "gitignore.block")
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for mkdir failure")
+	}
+}
+
+func TestWriteGitignoreBlock_NewFileWriteError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping write error test as root")
+	}
+	root := t.TempDir()
+	agentLayerDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(agentLayerDir, 0o555); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	defer func() { _ = os.Chmod(agentLayerDir, 0o755) }()
+
+	path := filepath.Join(agentLayerDir, "gitignore.block")
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for write failure")
+	}
+}
+
+func TestWriteGitignoreBlock_OverwriteWriteError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping write error test as root")
+	}
+	root := t.TempDir()
+	agentLayerDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	path := filepath.Join(agentLayerDir, "gitignore.block")
+	// Write some content so file exists
+	if err := os.WriteFile(path, []byte("# >>> agent-layer\nold\n# <<< agent-layer\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	// Make directory read-only so WriteFileAtomic fails
+	if err := os.Chmod(agentLayerDir, 0o555); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	defer func() { _ = os.Chmod(agentLayerDir, 0o755) }()
+
+	// Use overwrite=true to trigger the overwrite path
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, true, nil)
+	if err == nil {
+		t.Fatalf("expected error for write failure during overwrite")
+	}
+}
+
+func TestWarnDifferences_RelPathError(t *testing.T) {
+	// This test verifies the fallback path when filepath.Rel fails.
+	// filepath.Rel can fail if paths are on different volumes (Windows)
+	// or if there's some other OS-specific issue.
+	// We use a path that cannot be made relative to root to trigger fallback.
+	inst := &installer{
+		root:      "/some/root",
+		overwrite: false,
+		diffs:     []string{"/completely/different/path/file.txt"},
+	}
+
+	// warnDifferences should not panic and should use absolute path as fallback
+	// when Rel fails (on some systems) or succeeds with a long relative path.
+	inst.warnDifferences()
+	// Success = no panic, the function handled the path
 }

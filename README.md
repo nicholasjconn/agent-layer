@@ -212,7 +212,36 @@ Some clients discover slash commands via MCP prompts. Agent Layer provides an **
 
 The Codex VS Code extension reads `CODEX_HOME` from the VS Code process environment at startup.
 
-Agent Layer provides a repo-specific launch path that sets `CODEX_HOME` correctly for this repo.  
+Agent Layer provides repo-specific launchers that set `CODEX_HOME` correctly for this repo:
+
+### macOS Launchers
+
+Agent Layer generates two launcher options in `.agent-layer/`:
+
+| Launcher | Terminal Window | Requirements |
+|----------|-----------------|--------------|
+| `open-vscode.app` | No | VS Code in standard location |
+| `open-vscode.command` | Yes | `code` CLI in PATH |
+
+**Using `open-vscode.app` (recommended):**
+- Double-click to open VS Code with `CODEX_HOME` set
+- No Terminal window opens
+- Requires VS Code installed in one of these locations:
+  - `/Applications/Visual Studio Code.app` (standard)
+  - `~/Applications/Visual Studio Code.app` (user install)
+- First launch may take up to 10 seconds (macOS verifies the app on first run)
+
+**Using `open-vscode.command` (fallback):**
+- Double-click to open VS Code via Terminal
+- Works with any VS Code installation location
+- Requires the `code` CLI to be installed and in your PATH
+  - To install: Open VS Code, press Cmd+Shift+P, type "Shell Command: Install code command in PATH", and run it
+
+### Windows Launcher
+
+- `open-vscode.bat` - Double-click to open VS Code with `CODEX_HOME` set
+- Requires `code` CLI in PATH
+
 See `docs/agent-layer/COMMANDS.md` for the canonical VS Code launch instructions for this repo.
 
 ---

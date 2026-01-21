@@ -65,3 +65,8 @@ Entry format:
     Priority: Medium. Area: MCP Servers.
     Capability: Support an MCP server that makes it easier to query and work with SQLite and other SQL databases.
     Acceptance criteria: An MCP server for SQL databases is identified and documented or integrated.
+
+- Feature 2026-01-20 a2b3c4: "Full access" mode for all agents
+    Priority: Medium. Area: agent permissions.
+    Capability: Users should be able to specify a "Full access" option for all agents (similar to Codex functionality), granting broader permissions with clear security warnings.
+    Acceptance criteria: An option to enable full access exists; enabling it displays a prominent security warning; agents operate with elevated permissions when active.

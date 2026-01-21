@@ -258,7 +258,7 @@ func TestWriteVSCodeLaunchers(t *testing.T) {
 		t.Fatalf("WriteVSCodeLaunchers error: %v", err)
 	}
 
-	// Verify macOS launcher
+	// Verify macOS .command launcher
 	shPath := filepath.Join(root, ".agent-layer", "open-vscode.command")
 	shInfo, err := os.Stat(shPath)
 	if err != nil {
@@ -266,6 +266,26 @@ func TestWriteVSCodeLaunchers(t *testing.T) {
 	}
 	if shInfo.Mode().Perm() != 0o755 {
 		t.Fatalf("expected 0755 permissions on .command file, got %o", shInfo.Mode().Perm())
+	}
+
+	// Verify macOS .app bundle structure
+	appDir := filepath.Join(root, ".agent-layer", "open-vscode.app")
+	if _, err := os.Stat(appDir); err != nil {
+		t.Fatalf("expected open-vscode.app directory: %v", err)
+	}
+
+	infoPlistPath := filepath.Join(appDir, "Contents", "Info.plist")
+	if _, err := os.Stat(infoPlistPath); err != nil {
+		t.Fatalf("expected Info.plist: %v", err)
+	}
+
+	execPath := filepath.Join(appDir, "Contents", "MacOS", "open-vscode")
+	execInfo, err := os.Stat(execPath)
+	if err != nil {
+		t.Fatalf("expected open-vscode executable: %v", err)
+	}
+	if execInfo.Mode().Perm() != 0o755 {
+		t.Fatalf("expected 0755 permissions on app executable, got %o", execInfo.Mode().Perm())
 	}
 
 	// Verify Windows launcher
@@ -286,7 +306,7 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 		t.Fatalf("WriteVSCodeLaunchers error: %v", err)
 	}
 
-	// Verify macOS launcher content
+	// Verify macOS .command launcher content
 	shPath := filepath.Join(root, ".agent-layer", "open-vscode.command")
 	shContent, err := os.ReadFile(shPath)
 	if err != nil {
@@ -294,7 +314,6 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 	}
 	shStr := string(shContent)
 
-	// Check required elements
 	if len(shStr) == 0 {
 		t.Fatal("macOS launcher is empty")
 	}
@@ -309,6 +328,45 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 	}
 	if !strings.Contains(shStr, "Shell Command: Install") {
 		t.Fatal("macOS launcher missing install instructions")
+	}
+
+	// Verify macOS .app bundle content
+	appDir := filepath.Join(root, ".agent-layer", "open-vscode.app")
+
+	infoPlistContent, err := os.ReadFile(filepath.Join(appDir, "Contents", "Info.plist"))
+	if err != nil {
+		t.Fatalf("read Info.plist: %v", err)
+	}
+	infoPlistStr := string(infoPlistContent)
+	if !strings.Contains(infoPlistStr, "CFBundleExecutable") {
+		t.Fatal("Info.plist missing CFBundleExecutable")
+	}
+	if !strings.Contains(infoPlistStr, "com.agent-layer.open-vscode") {
+		t.Fatal("Info.plist missing bundle identifier")
+	}
+	if !strings.Contains(infoPlistStr, "LSUIElement") {
+		t.Fatal("Info.plist missing LSUIElement (needed to hide from dock)")
+	}
+
+	execContent, err := os.ReadFile(filepath.Join(appDir, "Contents", "MacOS", "open-vscode"))
+	if err != nil {
+		t.Fatalf("read app executable: %v", err)
+	}
+	execStr := string(execContent)
+	if execStr[:2] != "#!" {
+		t.Fatal("app executable missing shebang")
+	}
+	if !strings.Contains(execStr, "CODEX_HOME") {
+		t.Fatal("app executable missing CODEX_HOME")
+	}
+	if !strings.Contains(execStr, "Contents/Resources/app/bin/code") {
+		t.Fatal("app executable missing full path to VS Code CLI")
+	}
+	if !strings.Contains(execStr, "/Applications/Visual Studio Code.app") {
+		t.Fatal("app executable missing VS Code app path")
+	}
+	if !strings.Contains(execStr, "osascript") {
+		t.Fatal("app executable missing osascript error dialog")
 	}
 
 	// Verify Windows launcher content
@@ -358,5 +416,44 @@ func TestWriteVSCodeLaunchersWriteError(t *testing.T) {
 
 	if err := WriteVSCodeLaunchers(root); err == nil {
 		t.Fatalf("expected error when directory is read-only")
+	}
+}
+
+func TestWriteVSCodeAppBundle(t *testing.T) {
+	root := t.TempDir()
+	agentLayerDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	if err := writeVSCodeAppBundle(agentLayerDir); err != nil {
+		t.Fatalf("writeVSCodeAppBundle error: %v", err)
+	}
+
+	// Verify structure
+	appDir := filepath.Join(agentLayerDir, "open-vscode.app")
+	if _, err := os.Stat(filepath.Join(appDir, "Contents", "Info.plist")); err != nil {
+		t.Fatalf("missing Info.plist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(appDir, "Contents", "MacOS", "open-vscode")); err != nil {
+		t.Fatalf("missing executable: %v", err)
+	}
+}
+
+func TestWriteVSCodeAppBundleMkdirError(t *testing.T) {
+	root := t.TempDir()
+	agentLayerDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// Create a file where the .app directory should be
+	appPath := filepath.Join(agentLayerDir, "open-vscode.app")
+	if err := os.WriteFile(appPath, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	if err := writeVSCodeAppBundle(agentLayerDir); err == nil {
+		t.Fatalf("expected error when .app path is a file")
 	}
 }

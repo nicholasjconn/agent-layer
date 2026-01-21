@@ -81,14 +81,17 @@ func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
 	return nil
 }
 
-// WriteVSCodeLaunchers generates .agent-layer/open-vscode.command (macOS) and .agent-layer/open-vscode.bat (Windows).
+// WriteVSCodeLaunchers generates VS Code launchers for macOS and Windows:
+// - .agent-layer/open-vscode.command (macOS Terminal script)
+// - .agent-layer/open-vscode.app (macOS app bundle - no Terminal window)
+// - .agent-layer/open-vscode.bat (Windows batch file)
 func WriteVSCodeLaunchers(root string) error {
 	agentLayerDir := filepath.Join(root, ".agent-layer")
 	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create %s: %w", agentLayerDir, err)
 	}
 
-	// macOS launcher
+	// macOS .command launcher (opens Terminal)
 	shContent := `#!/usr/bin/env bash
 set -e
 # Navigate to the parent root
@@ -108,6 +111,11 @@ fi
 		return fmt.Errorf("failed to write %s: %w", shPath, err)
 	}
 
+	// macOS .app bundle (no Terminal window)
+	if err := writeVSCodeAppBundle(agentLayerDir); err != nil {
+		return err
+	}
+
 	// Windows launcher
 	batContent := `@echo off
 set "PARENT_ROOT=%~dp0.."
@@ -125,6 +133,71 @@ if %ERRORLEVEL% equ 0 (
 	batPath := filepath.Join(agentLayerDir, "open-vscode.bat")
 	if err := fsutil.WriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
 		return fmt.Errorf("failed to write %s: %w", batPath, err)
+	}
+
+	return nil
+}
+
+// writeVSCodeAppBundle creates a macOS .app bundle that launches VS Code without opening Terminal.
+func writeVSCodeAppBundle(agentLayerDir string) error {
+	appDir := filepath.Join(agentLayerDir, "open-vscode.app")
+	contentsDir := filepath.Join(appDir, "Contents")
+	macOSDir := filepath.Join(contentsDir, "MacOS")
+
+	if err := os.MkdirAll(macOSDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create %s: %w", macOSDir, err)
+	}
+
+	// Info.plist - macOS app metadata
+	infoPlist := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>open-vscode</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.agent-layer.open-vscode</string>
+  <key>CFBundleName</key>
+  <string>Open VS Code</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.13</string>
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>
+`
+	infoPlistPath := filepath.Join(contentsDir, "Info.plist")
+	if err := fsutil.WriteFileAtomic(infoPlistPath, []byte(infoPlist), 0o644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", infoPlistPath, err)
+	}
+
+	// Executable script - navigates up from .app/Contents/MacOS/ to .agent-layer/ then to parent root
+	// Uses full path to VS Code CLI since Finder-launched apps have minimal PATH
+	// The CLI binary inherits environment variables (unlike 'open -a')
+	execContent := `#!/usr/bin/env bash
+# Navigate from .app/Contents/MacOS/ up to the parent root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+PARENT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd -P)"
+export CODEX_HOME="$PARENT_ROOT/.codex"
+cd "$PARENT_ROOT"
+# Use full path to VS Code CLI - it inherits env vars (unlike 'open -a')
+VSCODE_CLI="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+VSCODE_CLI_USER="$HOME/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+if [ -x "$VSCODE_CLI" ]; then
+  "$VSCODE_CLI" .
+elif [ -x "$VSCODE_CLI_USER" ]; then
+  "$VSCODE_CLI_USER" .
+else
+  osascript -e 'display alert "VS Code not found" message "Please install Visual Studio Code from https://code.visualstudio.com" as critical'
+fi
+`
+	execPath := filepath.Join(macOSDir, "open-vscode")
+	if err := fsutil.WriteFileAtomic(execPath, []byte(execContent), 0o755); err != nil {
+		return fmt.Errorf("failed to write %s: %w", execPath, err)
 	}
 
 	return nil

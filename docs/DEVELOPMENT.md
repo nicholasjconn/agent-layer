@@ -28,8 +28,21 @@
 ## Daily workflow
 - Use the commands in `docs/agent-layer/COMMANDS.md` for format, lint, test, coverage, and release builds.
 - Prefer `make` targets (see `docs/agent-layer/COMMANDS.md`) instead of running `goimports` / `golangci-lint` directly; tools are installed repo-locally under `.tools/bin` so you do not need to edit your shell PATH.
-- Use `make dev` for a quick local pass (format + fmt-check + lint + test). Run `./scripts/setup.sh` or `make tools` first.
+- Use `make dev` for a quick local pass (format + fmt-check + lint + coverage). Run `./scripts/setup.sh` or `make tools` first.
 - If you change installer templates (anything under `internal/templates/`), re-run `./al install` in a target repo to re-seed files. Use `./al install --overwrite` to reset template-managed files.
+
+## Go Tooling & Environment
+Agent Layer uses several light shell wrappers and `make` targets around standard Go commands (`go fmt`, `go test`, etc.). This is intentional to ensure consistent behavior across local development and CI (GitHub Actions).
+
+### Common Issues
+- **`go mod tidy` or `go run` fails with network errors**: If your environment restricts access to `proxy.golang.org`, you can try setting `GOPROXY=direct` or ensure you have a working internet connection.
+- **Permission errors on Go cache**: If you see errors related to `GOCACHE` or `GOMODCACHE`, you can override them to a local directory:
+  ```bash
+  export GOCACHE=$PWD/tmp/gocache
+  export GOMODCACHE=$PWD/tmp/gomodcache
+  go mod tidy
+  ```
+- **Tools not found**: If `make lint` fails because `golangci-lint` is missing, run `make tools` to install all pinned dependencies into `.tools/bin`.
 
 ## Run the CLI locally (always uses latest changes)
 There are two paths: run from source (`go run`) or build a local `./al` binary.
@@ -64,13 +77,14 @@ go build -o ./al ../../cmd/al
 
 Notes:
 - `install` is required once per repo to seed `.agent-layer/` and `docs/agent-layer/`.
+- `install` prompts to run the setup wizard by default; pass `--no-wizard` to skip (non-interactive shells skip automatically).
 - `sync` is optional because `./al <client>` always syncs before launch.
 - Build a local `./al` in scratch repos so the internal MCP prompt server can launch.
 - `./scripts/setup.sh` is only for tool + hook setup, not required just to run the CLI.
 
 ## Run checks locally
 ```bash
-# Quick pass (format + fmt-check + lint + test)
+# Quick pass (format + fmt-check + lint + coverage)
 make dev
 
 # Targeted checks (optional)
@@ -79,7 +93,7 @@ make lint
 make coverage
 ```
 Notes:
-- `make dev` does not run coverage; use `make coverage` when you need the gate locally.
+- `make dev` includes coverage; use `make test` when you want a faster loop without the coverage gate.
 - `make test` uses `gotestsum` for more readable output (installed via `make tools`).
 - `make lint` and `make test` fail fast if tools are missing; run `make tools` once per clone.
 

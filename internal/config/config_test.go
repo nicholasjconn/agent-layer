@@ -24,7 +24,7 @@ enabled = true
 [agents.codex]
 enabled = true
 model = "gpt-5.2-codex"
-reasoning_effort = "xhigh"
+reasoning_effort = "high"
 
 [agents.vscode]
 enabled = true
@@ -175,7 +175,7 @@ mode = "all"
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "invalid config file") {
+	if !strings.Contains(err.Error(), "invalid config") {
 		t.Fatalf("expected invalid config error, got: %v", err)
 	}
 }

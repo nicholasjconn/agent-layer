@@ -5,6 +5,9 @@ import (
 	"os"
 
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/nicholasjconn/agent-layer/internal/envfile"
+	"github.com/nicholasjconn/agent-layer/internal/templates"
 )
 
 // LoadProjectConfig reads and validates the full Agent Layer config from disk.
@@ -52,15 +55,41 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("missing config file %s: %w", path, err)
 	}
+	return ParseConfig(data, path)
+}
 
+// LoadTemplateConfig returns the embedded default config template as a validated Config.
+func LoadTemplateConfig() (*Config, error) {
+	data, err := templates.Read("config.toml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read template config.toml: %w", err)
+	}
+	return ParseConfig(data, "template config.toml")
+}
+
+// LoadEnv reads .agent-layer/.env into a key-value map.
+func LoadEnv(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("missing env file %s: %w", path, err)
+	}
+
+	env, err := envfile.Parse(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("invalid env file %s: %w", path, err)
+	}
+	return env, nil
+}
+
+// ParseConfig parses and validates config TOML data from a source identifier.
+// data is the TOML content; source is used in error messages.
+func ParseConfig(data []byte, source string) (*Config, error) {
 	var cfg Config
 	if err := toml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("invalid config file %s: %w", path, err)
+		return nil, fmt.Errorf("invalid config %s: %w", source, err)
 	}
-
-	if err := cfg.Validate(path); err != nil {
+	if err := cfg.Validate(source); err != nil {
 		return nil, err
 	}
-
 	return &cfg, nil
 }

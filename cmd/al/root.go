@@ -35,10 +35,9 @@ func newRootCmd() *cobra.Command {
 		newCodexCmd(),
 		newVSCodeCmd(),
 		newAntigravityCmd(),
-		newStubCmd("doctor"),
-		newStubCmd("wizard"),
+		newDoctorCmd(),
+		newWizardCmd(),
 		newStubCmd("completion"),
 	)
-
 	return root
 }

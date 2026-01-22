@@ -20,32 +20,32 @@ Entry format:
 
 <!-- ENTRIES START -->
 
-- Issue 2026-01-19 ceddb83: `.agent-layer/.env` overrides shell environment variables
-    Priority: Medium. Area: environment handling.
-    Description: When launching via `./al`, values from `.agent-layer/.env` override existing shell environment variables, and empty template keys can shadow valid tokens.
-    Next step: Decide precedence and update environment merge logic or templates to avoid overriding with empty values; document the chosen behavior.
+- Issue 2026-01-21 b1c2d3: Wizard Approval Mode should show descriptions
+    Priority: Medium. Area: wizard.
+    Description: Approval Mode selection in the wizard does not display the description of the mode, making it hard for users to remember details.
+    Next step: Update the wizard's Approval Mode selection step to display the description for each option.
 
-- Issue 2026-01-18 e5f6g7: Slash commands not output for antigravity
-    Priority: Medium. Area: antigravity support.
-    Description: Slash commands are not being output when antigravity mode is enabled.
-    Next step: Investigate where slash commands are generated and ensure antigravity support is included.
-
-- Issue 2026-01-18 h8i9j0: DECISIONS.md grows too large and consumes excessive tokens
-    Priority: Medium. Area: project memory.
-    Description: The decisions log grows unbounded as entries accumulate, eventually consuming too many tokens when agents read it for context.
-    Next step: Consider archiving old decisions, summarizing completed phases, or splitting into a compact summary plus detailed archive.
-
-- Issue 2026-01-18 b1c2d3: Memory file path convention investigation
-    Priority: Low. Area: project memory.
-    Description: Should memory files use full relative paths or just filenames in 01_memory.md and slash commands?
-    Next step: Audit current usage and establish a single convention for referring to memory files.
+- Issue 2026-01-21 5af6278: Wizard run tests are oversized
+    Priority: Low. Area: wizard tests.
+    Description: `internal/wizard/run_test.go` is over 1200 lines, which makes review and maintenance harder.
+    Next step: Split the test file by scenario into smaller files with shared helpers.
 
 - Issue 2026-01-18 e4f5g6: Memory file template structure investigation
     Priority: Medium. Area: templates.
     Description: Should templates in .agent-layer only contain headers, and how should generated content be handled when overwriting?
     Next step: Review existing template synchronization logic and define the intended behavior for content preservation.
 
-- Issue 2026-01-18 a7b8c9: Boost coverage slash command too conservative
-    Priority: High. Area: slash commands.
-    Description: The boost-coverage command only picks one file at a time and stops too early. It should iterate until coverage targets are met, even if it requires many tests.
-    Next step: Refactor the boost-coverage logic to support continuous iteration and multiple file targets in a single run.
+- Issue 2026-01-18 l8m9n0: Limit exposed commands for GitHub MCP
+    Priority: Medium. Area: mcp configuration.
+    Description: The GitHub MCP server exposes many tools. We should explicitly list only the necessary commands in the configuration to reduce noise and potential security risks.
+    Next step: Research useful GitHub MCP commands and configure `args` or `commands` whitelist in the default config template.
+
+- Issue 2026-01-21 f6g7h8: Centralized user-facing strings file
+    Priority: Low. Area: code organization.
+    Description: All user-facing language (messages, prompts, errors, help text) is scattered across the codebase. Centralizing it would make updates easier and ensure consistent tone.
+    Next step: Audit existing user-facing strings and design a centralized strings module.
+
+- Issue 2026-01-21 r5s6t7: Audit instructions and slash commands for duplicate content
+    Priority: Low. Area: maintainability.
+    Description: Instruction templates and slash command definitions contain duplicate instructions (e.g., memory formatting rules appear multiple times). This creates maintenance burden and inconsistency risk.
+    Next step: Identify duplicate content across instruction and slash command files; consolidate into canonical locations.

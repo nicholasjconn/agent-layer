@@ -3,10 +3,10 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 	"github.com/nicholasjconn/agent-layer/internal/projection"
 )
 
@@ -15,6 +15,7 @@ type mcpConfig struct {
 }
 
 type mcpServer struct {
+	Type    string             `json:"type"`
 	Command string             `json:"command,omitempty"`
 	Args    []string           `json:"args,omitempty"`
 	Env     OrderedMap[string] `json:"env,omitempty"`
@@ -36,7 +37,7 @@ func WriteMCPConfig(root string, project *config.ProjectConfig) error {
 	data = append(data, '\n')
 
 	path := filepath.Join(root, ".mcp.json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 
@@ -54,6 +55,7 @@ func buildMCPConfig(project *config.ProjectConfig) (*mcpConfig, error) {
 		return nil, err
 	}
 	cfg.Servers["agent-layer"] = mcpServer{
+		Type:    "stdio",
 		Command: promptCommand,
 		Args:    promptArgs,
 	}
@@ -72,6 +74,7 @@ func buildMCPConfig(project *config.ProjectConfig) (*mcpConfig, error) {
 
 	for _, server := range resolved {
 		entry := mcpServer{
+			Type:    server.Transport,
 			Command: server.Command,
 			Args:    server.Args,
 			URL:     server.URL,

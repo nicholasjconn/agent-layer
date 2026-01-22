@@ -67,13 +67,13 @@ $(TOOL_BIN)/gotestsum: go.mod go.sum
 .PHONY: fmt
 fmt: check-goimports ## Format Go files (gofmt + goimports)
 	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -w
-	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -w
+	@$(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -local "github.com/nicholasjconn/agent-layer" -w
 
 .PHONY: fmt-check
 fmt-check: check-goimports ## Check Go formatting (gofmt + goimports)
 	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 gofmt -l)"; \
 	  if [[ -n "$$out" ]]; then echo "gofmt needed for:" >&2; echo "$$out" >&2; exit 1; fi
-	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -l)"; \
+	@out="$$($(GO_FILES_FIND_CMD) -print0 | xargs -0 "$(TOOL_BIN)/goimports" -local "github.com/nicholasjconn/agent-layer" -l)"; \
 	  if [[ -n "$$out" ]]; then echo "goimports needed for:" >&2; echo "$$out" >&2; exit 1; fi
 
 .PHONY: lint
@@ -97,18 +97,20 @@ tidy-check: ## Verify go.mod/go.sum are tidy
 	@git diff --exit-code
 
 .PHONY: coverage
-coverage: ## Enforce coverage threshold (>= $(COVERAGE_THRESHOLD)) and write coverage.out
+coverage: check-gotestsum ## Enforce coverage threshold (>= $(COVERAGE_THRESHOLD)) and write coverage.out
 	@mkdir -p "$(GO_CACHE)" "$(GO_MOD_CACHE)"
-	@GOCACHE="$(GO_CACHE)" GOMODCACHE="$(GO_MOD_CACHE)" go test ./... -coverprofile=coverage.out
+	@GOCACHE="$(GO_CACHE)" GOMODCACHE="$(GO_MOD_CACHE)" "$(TOOL_BIN)/gotestsum" --format testname -- ./... -coverprofile=coverage.out
 	@total="$$(go tool cover -func=coverage.out | awk '/^total:/ {print $$3}' | tr -d '%')"; \
 	  if [[ -z "$$total" ]]; then echo "Failed to read total coverage from coverage.out" >&2; exit 1; fi; \
+	  status=0; \
 	  awk -v total="$$total" -v threshold="$(COVERAGE_THRESHOLD)" 'BEGIN { \
 	    if (total + 0 < threshold + 0) { \
 	      printf("Coverage %.2f%% is below threshold %.2f%%\n", total, threshold) > "/dev/stderr"; \
 	      exit 1; \
 	    } \
-	    printf("Coverage %.2f%% meets threshold %.2f%%\n", total, threshold); \
-	  }'
+	  }' || status=1; \
+	  GOCACHE="$(GO_CACHE)" GOMODCACHE="$(GO_MOD_CACHE)" go run -tags tools ./internal/tools/coverreport -profile coverage.out -threshold "$(COVERAGE_THRESHOLD)"; \
+	  exit $$status
 
 .PHONY: release-dist
 release-dist: ## Build release artifacts (cross-compile)
@@ -122,8 +124,8 @@ setup: ## Run one-time setup for this clone
 ci: tidy-check fmt-check lint coverage ## Run CI checks locally
 
 .PHONY: dev
-dev: ## Fast local checks during development (format + lint + test)
+dev: ## Fast local checks during development (format + lint + coverage)
 	@$(MAKE) fmt
 	@$(MAKE) fmt-check
 	@$(MAKE) lint
-	@$(MAKE) test
+	@$(MAKE) coverage

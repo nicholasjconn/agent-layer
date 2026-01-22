@@ -1,10 +1,13 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/nicholasjconn/agent-layer/internal/templates"
 )
 
 func TestLoadProjectConfig(t *testing.T) {
@@ -291,5 +294,52 @@ Do it.`
 	_, err := LoadProjectConfig(root)
 	if err == nil || !strings.Contains(err.Error(), "missing commands allowlist") {
 		t.Fatalf("expected missing commands allowlist error, got %v", err)
+	}
+}
+
+func TestLoadEnvInvalidFormat(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	// Invalid env file - line without equals sign
+	if err := os.WriteFile(path, []byte("INVALID"), 0o644); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	_, err := LoadEnv(path)
+	if err == nil {
+		t.Fatalf("expected error for invalid env file")
+	}
+	if !strings.Contains(err.Error(), "invalid env file") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadTemplateConfig(t *testing.T) {
+	cfg, err := LoadTemplateConfig()
+	if err != nil {
+		t.Fatalf("LoadTemplateConfig error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatalf("expected config, got nil")
+	}
+	// Verify the template config has MCP servers
+	if len(cfg.MCP.Servers) == 0 {
+		t.Fatalf("expected MCP servers in template config")
+	}
+}
+
+func TestLoadTemplateConfigReadError(t *testing.T) {
+	original := templates.ReadFunc
+	templates.ReadFunc = func(path string) ([]byte, error) {
+		return nil, errors.New("mock read error")
+	}
+	t.Cleanup(func() { templates.ReadFunc = original })
+
+	_, err := LoadTemplateConfig()
+	if err == nil {
+		t.Fatalf("expected error when template read fails")
+	}
+	if !strings.Contains(err.Error(), "failed to read template") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

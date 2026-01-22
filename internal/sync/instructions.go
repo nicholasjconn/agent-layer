@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 )
 
-const instructionHeader = "<!--\n  GENERATED FILE\n  Source: .agent-layer/instructions/*.md\n  Regenerate: ./al --sync\n-->\n\n"
+const instructionHeader = "<!--\n  GENERATED FILE\n  Source: .agent-layer/instructions/*.md\n  Regenerate: ./al sync\n-->\n\n"
 
 // WriteInstructionShims generates instruction shims for supported clients.
 func WriteInstructionShims(root string, instructions []config.InstructionFile) error {
@@ -45,7 +46,7 @@ func WriteCodexInstructions(root string, instructions []config.InstructionFile) 
 
 func writeInstructionFile(path string, instructions []config.InstructionFile) error {
 	content := buildInstructionShim(instructions)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil

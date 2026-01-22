@@ -1,5 +1,5 @@
 ---
-description: Audit all Markdown documentation for accuracy and cross-document consistency against the repository (static validation only). Produce a reviewable report and ask the user which findings to fix, log to docs/agent-layer/ISSUES.md, or ignore.
+description: Audit all Markdown documentation for accuracy and cross-document consistency against the repository (static validation only). Produce a reviewable report and ask the user which findings to fix, log to ISSUES.md, or ignore.
 ---
 
 # Documentation audit (all Markdown, report-first)
@@ -16,7 +16,7 @@ Default behavior is **report-first**:
 
 After presenting findings, ask the user which items should be:
 - fixed in documentation,
-- logged to `docs/agent-layer/ISSUES.md`,
+- logged to `ISSUES.md`,
 - both,
 - or ignored/deprioritized.
 
@@ -31,6 +31,7 @@ If the user provides extra direction, interpret it as:
 - Snippet length: default to short excerpts; omit if the user requests none.
 - Issue logging preference: default to asking which findings to log; the user may request no logging or automatic logging during apply.
 - Documentation update preference: default to asking which doc fixes to apply; the user may request no doc fixes or automatic fixes during apply.
+- Decision hygiene preference: default to performing decision cleanup during apply; the user may request skipping it.
 
 **Approval gate**
 - If the user asks to apply changes, you must have explicit approval and a selection list (see “User response protocol”).
@@ -54,6 +55,7 @@ If the user provides extra direction, interpret it as:
 - Prefer targeted repo search over manual line-by-line reading.
 - Keep diffs minimal and localized when applying doc fixes.
 - Never claim verification was run unless it was run and observed.
+- Decision hygiene edits are allowed only in apply mode after explicit approval.
 
 ---
 
@@ -210,7 +212,7 @@ If issue logging is requested or allowed, generate an issue candidate for each r
     `Next step: <smallest concrete action>`
     `Notes: <optional>`
 
-Do not write to `docs/agent-layer/ISSUES.md` unless the user selects it, or the user asked for automatic issue logging during apply.
+Do not write to `ISSUES.md` unless the user selects it, or the user asked for automatic issue logging during apply.
 
 ---
 
@@ -228,7 +230,7 @@ Do not write to `docs/agent-layer/ISSUES.md` unless the user selects it, or the 
 The user replies with one line per finding ID:
 
 - `A: fix` — apply doc fix (only when apply mode has been explicitly approved)
-- `A: log` — add an issue entry to `docs/agent-layer/ISSUES.md` (only when apply mode has been explicitly approved)
+- `A: log` — add an issue entry to `ISSUES.md` (only when apply mode has been explicitly approved)
 - `A: fix+log` — do both (only when apply mode has been explicitly approved)
 - `A: ignore` — do not act on it
 - `A: other <instruction>` — user provides a specific edit (e.g., “fix but do not log” or “log as Low priority”)
@@ -251,6 +253,19 @@ Apply rules:
 - If a finding suggests code changes, do not implement code changes in this workflow. Instead:
   - log an issue (if selected), and/or
   - recommend a follow-up implementation workflow.
+
+## 7B) Decision hygiene (apply-only)
+After apply approval, review `DECISIONS.md` and remove or consolidate decisions that are:
+- unmade or no longer relevant,
+- too obvious to help future developers,
+- or have no future ramifications.
+
+Use judgment to keep the log concise. If multiple related decisions exist, you may replace them with a single new decision that preserves meaningful context and delete the originals.
+
+## 7C) Post-apply report (Reporter)
+After all changes are applied:
+- Tell the user to review the diff.
+- Summarize which decisions were removed or combined.
 
 ---
 

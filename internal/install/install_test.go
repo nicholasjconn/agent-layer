@@ -1,7 +1,9 @@
 package install
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -391,6 +393,23 @@ func TestWriteGitignoreBlockRecordsDiff(t *testing.T) {
 	}
 }
 
+func TestWriteGitignoreBlockReadError(t *testing.T) {
+	root := t.TempDir()
+	// Create a directory where we expect a file, causing ReadFile to fail
+	path := filepath.Join(root, ".agent-layer", "gitignore.block")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for read failure")
+	}
+	if !strings.Contains(err.Error(), "failed to read") {
+		t.Fatalf("expected read error, got %v", err)
+	}
+}
+
 func TestGitignoreBlockMatchesHashValid(t *testing.T) {
 	// Create a block with valid hash.
 	block := "# >>> agent-layer\ntest content\n# <<< agent-layer\n"
@@ -504,5 +523,63 @@ func TestRunWithOverwrite(t *testing.T) {
 	}
 	if string(data) == "# custom config" {
 		t.Fatalf("expected config to be overwritten")
+	}
+}
+
+func TestWriteGitignoreBlockTemplateReadError(t *testing.T) {
+	original := templates.ReadFunc
+	templates.ReadFunc = func(path string) ([]byte, error) {
+		return nil, errors.New("mock read error")
+	}
+	t.Cleanup(func() { templates.ReadFunc = original })
+
+	root := t.TempDir()
+	path := filepath.Join(root, "gitignore.block")
+
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for template read failure")
+	}
+	if !strings.Contains(err.Error(), "failed to read template") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestWriteTemplateDirWalkError(t *testing.T) {
+	original := templates.WalkFunc
+	templates.WalkFunc = func(root string, fn fs.WalkDirFunc) error {
+		return errors.New("mock walk error")
+	}
+	t.Cleanup(func() { templates.WalkFunc = original })
+
+	root := t.TempDir()
+	err := writeTemplateDir("instructions", root, false, nil)
+	if err == nil {
+		t.Fatalf("expected error for walk failure")
+	}
+	if !strings.Contains(err.Error(), "mock walk error") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestFileMatchesTemplateReadError(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "config.toml")
+	if err := os.WriteFile(path, []byte("test"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	original := templates.ReadFunc
+	templates.ReadFunc = func(p string) ([]byte, error) {
+		return nil, errors.New("mock read error")
+	}
+	t.Cleanup(func() { templates.ReadFunc = original })
+
+	_, err := fileMatchesTemplate(path, "config.toml")
+	if err == nil {
+		t.Fatalf("expected error for template read failure")
+	}
+	if !strings.Contains(err.Error(), "failed to read template") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

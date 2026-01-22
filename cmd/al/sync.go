@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -8,6 +9,9 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/sync"
 )
+
+// ErrSyncCompletedWithWarnings is returned when sync completes but warnings were generated.
+var ErrSyncCompletedWithWarnings = errors.New("sync completed with warnings")
 
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -26,7 +30,7 @@ func newSyncCmd() *cobra.Command {
 				for _, w := range warnings {
 					fmt.Fprintln(os.Stderr, w.String())
 				}
-				return fmt.Errorf("sync completed with warnings")
+				return ErrSyncCompletedWithWarnings
 			}
 			return nil
 		},

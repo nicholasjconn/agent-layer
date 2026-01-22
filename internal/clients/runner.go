@@ -39,7 +39,7 @@ func RunWithStderr(root string, name string, enabled EnabledSelector, launch Lau
 
 	// Print warnings to stderr before launching
 	for _, w := range warnings {
-		_, _ = fmt.Fprintf(stderr, "Warning: %s\n", w.Message)
+		_, _ = fmt.Fprintln(stderr, w.String())
 	}
 
 	runInfo, err := run.Create(root)

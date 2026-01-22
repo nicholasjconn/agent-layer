@@ -57,6 +57,10 @@ var NewMCPClientFunc = func(impl *mcp.Implementation, opts *mcp.ClientOptions) m
 	return &realMCPClient{client: mcp.NewClient(impl, opts)}
 }
 
+// maxToolsToDiscover is the maximum number of tools to discover before aborting.
+// This guards against infinite pagination loops.
+const maxToolsToDiscover = 1000
+
 // CheckMCPServers performs discovery on enabled MCP servers and checks against warning thresholds.
 // cfg supplies the configured thresholds; nil thresholds disable the corresponding warnings.
 func CheckMCPServers(ctx context.Context, cfg *config.ProjectConfig, connector Connector) ([]Warning, error) {
@@ -283,7 +287,7 @@ func (r *RealConnector) ConnectAndDiscover(ctx context.Context, server ResolvedM
 		cursor = listRes.NextCursor
 
 		// Guard against infinite loops
-		if len(allTools) > 10000 { // heuristic guard
+		if len(allTools) > maxToolsToDiscover {
 			res.Error = fmt.Errorf("too many tools or infinite loop")
 			return res
 		}

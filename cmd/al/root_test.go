@@ -94,7 +94,7 @@ func TestInstallAndSyncCommands(t *testing.T) {
 
 		err := newSyncCmd().RunE(nil, nil)
 		// Sync might fail with warnings if templates are large, which is expected behavior now.
-		if err != nil && err.Error() != "sync completed with warnings" {
+		if err != nil && !errors.Is(err, ErrSyncCompletedWithWarnings) {
 			t.Fatalf("sync error: %v", err)
 		}
 
@@ -347,7 +347,7 @@ func TestSyncCommand_WithWarnings(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected sync to fail when warnings exist")
 		}
-		if !strings.Contains(err.Error(), "sync completed with warnings") {
+		if !errors.Is(err, ErrSyncCompletedWithWarnings) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})

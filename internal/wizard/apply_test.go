@@ -227,6 +227,57 @@ mode = "none"
 		// Config backup should be cleaned up
 		assert.NoFileExists(t, configPath+".bak")
 	})
+
+	t.Run("config write error", func(t *testing.T) {
+		tmpDir, configPath, envPath := setup(t)
+
+		origWrite := writeFileAtomic
+		t.Cleanup(func() { writeFileAtomic = origWrite })
+		writeFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+			if path == configPath {
+				return errors.New("write config failed")
+			}
+			return origWrite(path, data, perm)
+		}
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write config")
+	})
+
+	t.Run("env write error", func(t *testing.T) {
+		tmpDir, configPath, envPath := setup(t)
+
+		origWrite := writeFileAtomic
+		t.Cleanup(func() { writeFileAtomic = origWrite })
+		writeFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+			if path == envPath {
+				return errors.New("write env failed")
+			}
+			return origWrite(path, data, perm)
+		}
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write .env")
+	})
+
+	t.Run("env perm error cleans config backup", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.toml")
+		require.NoError(t, os.WriteFile(configPath, []byte(initialConfig), 0644))
+
+		envRoot := filepath.Join(tmpDir, "env-root")
+		require.NoError(t, os.WriteFile(envRoot, []byte("not a dir"), 0644))
+		envPath := filepath.Join(envRoot, ".env")
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
+		assert.NoFileExists(t, configPath+".bak")
+	})
 }
 
 func TestFilePermOr(t *testing.T) {

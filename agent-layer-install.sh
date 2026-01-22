@@ -19,9 +19,10 @@ trap 'on_error ${LINENO} "$BASH_COMMAND"' ERR
 
 VERSION="latest"
 NO_WIZARD=false
+FORCE=false
 
 usage() {
-  echo "Usage: $0 [--version <tag>] [--no-wizard]" >&2
+  echo "Usage: $0 [--version <tag>] [--no-wizard] [--force]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -36,6 +37,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-wizard)
       NO_WIZARD=true
+      shift
+      ;;
+    --force)
+      FORCE=true
       shift
       ;;
     -h|--help)
@@ -152,6 +157,9 @@ fi
 install_args=()
 if [[ "$NO_WIZARD" == "true" ]]; then
   install_args+=(--no-wizard)
+fi
+if [[ "$FORCE" == "true" ]]; then
+  install_args+=(--force)
 fi
 
 if ! ./al install "${install_args[@]}"; then

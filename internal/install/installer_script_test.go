@@ -54,3 +54,19 @@ func TestInstallerScriptSupportsNoWizardFlag(t *testing.T) {
 		t.Fatalf("installer script should pass install args through")
 	}
 }
+
+func TestInstallerScriptSupportsForceFlag(t *testing.T) {
+	path := filepath.Join("..", "..", "agent-layer-install.sh")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read installer script: %v", err)
+	}
+
+	script := string(data)
+	if !strings.Contains(script, "--force") {
+		t.Fatalf("installer script should accept --force")
+	}
+	if !strings.Contains(script, "install_args+=(--force)") {
+		t.Fatalf("installer script should pass --force through to ./al install")
+	}
+}

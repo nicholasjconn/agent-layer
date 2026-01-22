@@ -26,13 +26,23 @@ const (
 	ApprovalNone     = "none"
 )
 
-// ApprovalModes lists available approval modes.
-var ApprovalModes = []string{
-	ApprovalAll,
-	ApprovalMCP,
-	ApprovalCommands,
-	ApprovalNone,
+// ApprovalModeOption describes a selectable approval mode.
+// Value is the canonical config value; Description explains behavior.
+type ApprovalModeOption struct {
+	Value       string
+	Description string
 }
+
+// ApprovalModeOptions lists available approval modes and their descriptions.
+var ApprovalModeOptions = []ApprovalModeOption{
+	{Value: ApprovalAll, Description: "Auto-approve shell commands and MCP tool calls (where supported)."},
+	{Value: ApprovalMCP, Description: "Auto-approve MCP tool calls only; commands still prompt."},
+	{Value: ApprovalCommands, Description: "Auto-approve shell commands only; MCP tools still prompt."},
+	{Value: ApprovalNone, Description: "Prompt for everything."},
+}
+
+// ApprovalModes lists the canonical approval mode values.
+var ApprovalModes = approvalModeValues()
 
 // Model catalogs
 

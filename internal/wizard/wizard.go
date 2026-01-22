@@ -117,12 +117,18 @@ func Run(root string, ui UI, runSync syncer) error {
 	// 5. UI Flow
 
 	// Approvals
-	if err := ui.Note("Approval Modes", approvalModeHelpText()); err != nil {
+	approvalModeLabel, ok := approvalModeLabelForValue(choices.ApprovalMode)
+	if !ok {
+		return fmt.Errorf("unknown approval mode: %q", choices.ApprovalMode)
+	}
+	if err := ui.Select("Approval Mode", approvalModeLabels(), &approvalModeLabel); err != nil {
 		return err
 	}
-	if err := ui.Select("Approval Mode", ApprovalModes, &choices.ApprovalMode); err != nil {
-		return err
+	approvalModeValue, ok := approvalModeValueForLabel(approvalModeLabel)
+	if !ok {
+		return fmt.Errorf("unknown approval mode selection: %q", approvalModeLabel)
 	}
+	choices.ApprovalMode = approvalModeValue
 	choices.ApprovalModeTouched = true
 
 	// Agents

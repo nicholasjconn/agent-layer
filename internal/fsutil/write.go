@@ -7,13 +7,23 @@ import (
 	"runtime"
 )
 
+var (
+	createTemp    = os.CreateTemp
+	chmodTempFile = func(file *os.File, perm os.FileMode) error { return file.Chmod(perm) }
+	writeTempFile = func(file *os.File, data []byte) (int, error) { return file.Write(data) }
+	syncTempFile  = func(file *os.File) error { return file.Sync() }
+	closeTempFile = func(file *os.File) error { return file.Close() }
+	renameFile    = os.Rename
+	syncDirFunc   = syncDir
+)
+
 // WriteFileAtomic writes data to path using a temp file and atomic rename.
 // perm sets the file mode applied to the final file.
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 
-	tmp, err := os.CreateTemp(dir, base+".tmp-*")
+	tmp, err := createTemp(dir, base+".tmp-*")
 	if err != nil {
 		return fmt.Errorf("create temp file for %s: %w", path, err)
 	}
@@ -25,28 +35,28 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		}
 	}()
 
-	if err := tmp.Chmod(perm); err != nil {
+	if err := chmodTempFile(tmp, perm); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("set permissions for %s: %w", tmpName, err)
 	}
-	if _, err := tmp.Write(data); err != nil {
+	if _, err := writeTempFile(tmp, data); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("write temp file for %s: %w", path, err)
 	}
-	if err := tmp.Sync(); err != nil {
+	if err := syncTempFile(tmp); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("sync temp file for %s: %w", path, err)
 	}
-	if err := tmp.Close(); err != nil {
+	if err := closeTempFile(tmp); err != nil {
 		return fmt.Errorf("close temp file for %s: %w", path, err)
 	}
 
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := renameFile(tmpName, path); err != nil {
 		return fmt.Errorf("rename temp file for %s: %w", path, err)
 	}
 	committed = true
 
-	if err := syncDir(dir); err != nil {
+	if err := syncDirFunc(dir); err != nil {
 		return err
 	}
 

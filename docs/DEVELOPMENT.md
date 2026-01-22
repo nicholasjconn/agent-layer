@@ -29,7 +29,7 @@
 - Use the commands in `docs/agent-layer/COMMANDS.md` for format, lint, test, coverage, and release builds.
 - Prefer `make` targets (see `docs/agent-layer/COMMANDS.md`) instead of running `goimports` / `golangci-lint` directly; tools are installed repo-locally under `.tools/bin` so you do not need to edit your shell PATH.
 - Use `make dev` for a quick local pass (format + fmt-check + lint + coverage). Run `./scripts/setup.sh` or `make tools` first.
-- If you change installer templates (anything under `internal/templates/`), re-run `./al install` in a target repo to re-seed files. Use `./al install --overwrite` to review each template-managed file, or `./al install --force` to overwrite them without prompts.
+- If you change installer templates (anything under `internal/templates/`), re-run `./al install` in a target repo to re-seed files. See the README Quick start for overwrite/force flag guidance.
 
 ## Go Tooling & Environment
 Agent Layer uses several light shell wrappers and `make` targets around standard Go commands (`go fmt`, `go test`, etc.). This is intentional to ensure consistent behavior across local development and CI (GitHub Actions).

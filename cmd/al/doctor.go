@@ -11,6 +11,11 @@ import (
 	"github.com/nicholasjconn/agent-layer/internal/warnings"
 )
 
+var (
+	checkInstructions = warnings.CheckInstructions
+	checkMCPServers   = warnings.CheckMCPServers
+)
+
 func newDoctorCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
@@ -55,7 +60,7 @@ func newDoctorCmd() *cobra.Command {
 				fmt.Println("\n🔍 Running warning system checks...")
 
 				// Instructions check
-				instWarnings, err := warnings.CheckInstructions(root, cfg.Config.Warnings.InstructionTokenThreshold)
+				instWarnings, err := checkInstructions(root, cfg.Config.Warnings.InstructionTokenThreshold)
 				if err != nil {
 					color.Red("Failed to check instructions: %v", err)
 					hasFail = true
@@ -64,7 +69,7 @@ func newDoctorCmd() *cobra.Command {
 				}
 
 				// MCP check (Doctor runs discovery)
-				mcpWarnings, err := warnings.CheckMCPServers(context.Background(), cfg, nil)
+				mcpWarnings, err := checkMCPServers(context.Background(), cfg, nil)
 				if err != nil {
 					color.Red("Failed to check MCP servers: %v", err)
 					hasFail = true

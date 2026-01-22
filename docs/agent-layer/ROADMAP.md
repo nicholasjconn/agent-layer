@@ -71,18 +71,21 @@ Phase template (incomplete):
 - Added Windows VS Code launcher (`.bat` script with `CODEX_HOME` support).
 - Added configurable sync warnings for oversized instructions (token count threshold) and excessive MCP servers (per-client server count threshold).
 
-## Phase 7 — v0.5.0 CLI completion and install improvements
+## Phase 7 — v0.5.0 Global CLI and install improvements
 
 ### Goal
-- Complete CLI experience with shell completion and improved install flow.
+- Transition from repo-local binary to a single globally installed `al` CLI with Homebrew support.
 
 ### Tasks
+- [ ] Move to a single globally installed `al` CLI (remove repo-local `./al` binary pattern).
+- [ ] Publish Homebrew tap for `al` installation (`brew install nicholasjconn/tap/al`).
 - [ ] Implement `al completion bash|zsh|fish|powershell`.
 - [x] Add Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
 - [x] Add commented-out gitignore entry for `docs/agent-layer/` with explanatory note.
 - [x] Add per-file overwrite prompts during `al install --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
 
 ### Exit criteria
+- `al` is installable globally via Homebrew and works from any directory.
 - Shell completion works for all major shells.
 - Linux launcher ships with `CODEX_HOME` support.
 - Install flow offers an optional `docs/agent-layer/` gitignore entry.

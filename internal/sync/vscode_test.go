@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -425,6 +426,18 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 	if !strings.Contains(desktopStr, "Shell Command: Install") {
 		t.Fatal("Linux launcher missing install instructions")
 	}
+	if !strings.Contains(desktopStr, "zenity") {
+		t.Fatal("Linux launcher missing zenity fallback")
+	}
+	if !strings.Contains(desktopStr, "kdialog") {
+		t.Fatal("Linux launcher missing kdialog fallback")
+	}
+	if !strings.Contains(desktopStr, "Terminal=false") {
+		t.Fatal("Linux launcher should not request a terminal by default")
+	}
+	if strings.Contains(desktopStr, "Terminal=true") {
+		t.Fatal("Linux launcher should not request a terminal")
+	}
 	if !strings.Contains(desktopStr, "%k") {
 		t.Fatal("Linux launcher missing desktop entry path (%k)")
 	}
@@ -491,5 +504,140 @@ func TestWriteVSCodeAppBundleMkdirError(t *testing.T) {
 
 	if err := writeVSCodeAppBundle(agentLayerDir); err == nil {
 		t.Fatalf("expected error when .app path is a file")
+	}
+}
+
+func TestWriteVSCodeSettingsBuildError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	buildVSCodeSettingsFunc = func(*config.ProjectConfig) (*vscodeSettings, error) {
+		return nil, errors.New("build fail")
+	}
+
+	if err := WriteVSCodeSettings(t.TempDir(), &config.ProjectConfig{}); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeSettingsMarshalError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	vscodeMarshalIndent = func(_ any, _, _ string) ([]byte, error) {
+		return nil, errors.New("marshal fail")
+	}
+
+	if err := WriteVSCodeSettings(t.TempDir(), &config.ProjectConfig{}); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeMCPConfigMarshalError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	vscodeMarshalIndent = func(_ any, _, _ string) ([]byte, error) {
+		return nil, errors.New("marshal fail")
+	}
+
+	if err := WriteVSCodeMCPConfig(t.TempDir(), &config.ProjectConfig{}); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeMCPConfigWriteError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	origWrite := vscodeWriteFileAtomic
+	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+		if filepath.Base(path) == "mcp.json" {
+			return errors.New("write fail")
+		}
+		return origWrite(path, data, perm)
+	}
+
+	if err := WriteVSCodeMCPConfig(t.TempDir(), &config.ProjectConfig{}); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeLaunchersAppBundleError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	writeVSCodeAppBundleFunc = func(string) error {
+		return errors.New("bundle fail")
+	}
+
+	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeLaunchersBatWriteError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	origWrite := vscodeWriteFileAtomic
+	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+		if filepath.Base(path) == "open-vscode.bat" {
+			return errors.New("write fail")
+		}
+		return origWrite(path, data, perm)
+	}
+
+	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeLaunchersDesktopWriteError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	origWrite := vscodeWriteFileAtomic
+	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+		if filepath.Base(path) == "open-vscode.desktop" {
+			return errors.New("write fail")
+		}
+		return origWrite(path, data, perm)
+	}
+
+	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeAppBundleInfoPlistWriteError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	origWrite := vscodeWriteFileAtomic
+	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+		if filepath.Base(path) == "Info.plist" {
+			return errors.New("write fail")
+		}
+		return origWrite(path, data, perm)
+	}
+
+	if err := writeVSCodeAppBundle(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteVSCodeAppBundleExecWriteError(t *testing.T) {
+	t.Cleanup(captureVSCodeDeps())
+	origWrite := vscodeWriteFileAtomic
+	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+		if filepath.Base(path) == "open-vscode" {
+			return errors.New("write fail")
+		}
+		return origWrite(path, data, perm)
+	}
+
+	if err := writeVSCodeAppBundle(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func captureVSCodeDeps() func() {
+	origBuildSettings := buildVSCodeSettingsFunc
+	origBuildMCP := buildVSCodeMCPConfigFunc
+	origMarshal := vscodeMarshalIndent
+	origWrite := vscodeWriteFileAtomic
+	origWriteBundle := writeVSCodeAppBundleFunc
+
+	return func() {
+		buildVSCodeSettingsFunc = origBuildSettings
+		buildVSCodeMCPConfigFunc = origBuildMCP
+		vscodeMarshalIndent = origMarshal
+		vscodeWriteFileAtomic = origWrite
+		writeVSCodeAppBundleFunc = origWriteBundle
 	}
 }

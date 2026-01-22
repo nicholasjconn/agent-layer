@@ -25,6 +25,7 @@ curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download
 
 The installer downloads `./al` and runs `./al install` in the current directory.
 By default, `./al install` prompts to run `./al wizard` after seeding files. Use `./al install --no-wizard` (or `agent-layer-install.sh --no-wizard`) to skip; non-interactive shells skip automatically.
+If you need to refresh template-managed files, use `./al install --overwrite` to review each file or `./al install --force` to overwrite without prompts (for non-interactive shells). The installer script supports `--force` as well.
 
 Then run an agent:
 
@@ -262,7 +263,7 @@ Agent Layer generates two launcher options in `.agent-layer/`:
 - `open-vscode.desktop` - Double-click to open VS Code with `CODEX_HOME` set
 - Requires `code` CLI in PATH
   - To install: Open VS Code, press Ctrl+Shift+P, type "Shell Command: Install code command in PATH", and run it
-- Opens a terminal to surface errors if the `code` command is missing
+- Shows a dialog when `code` is missing (falls back to notification or terminal)
 
 See `docs/agent-layer/COMMANDS.md` for the canonical VS Code launch instructions for this repo.
 

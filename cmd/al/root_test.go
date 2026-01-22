@@ -13,6 +13,7 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
 	"github.com/nicholasjconn/agent-layer/internal/doctor"
+	"github.com/nicholasjconn/agent-layer/internal/warnings"
 )
 
 func TestRootVersionFlag(t *testing.T) {
@@ -366,6 +367,60 @@ func TestDoctorCommand_WithWarnings(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "doctor checks failed") {
 			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestDoctorCommand_InstructionsError(t *testing.T) {
+	root := t.TempDir()
+	writeTestRepo(t, root)
+
+	origInstructions := checkInstructions
+	origMCP := checkMCPServers
+	t.Cleanup(func() {
+		checkInstructions = origInstructions
+		checkMCPServers = origMCP
+	})
+
+	checkInstructions = func(string, *int) ([]warnings.Warning, error) {
+		return nil, errors.New("instructions failed")
+	}
+	checkMCPServers = func(context.Context, *config.ProjectConfig, warnings.Connector) ([]warnings.Warning, error) {
+		return nil, nil
+	}
+
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatal("expected doctor error")
+		}
+	})
+}
+
+func TestDoctorCommand_MCPError(t *testing.T) {
+	root := t.TempDir()
+	writeTestRepo(t, root)
+
+	origInstructions := checkInstructions
+	origMCP := checkMCPServers
+	t.Cleanup(func() {
+		checkInstructions = origInstructions
+		checkMCPServers = origMCP
+	})
+
+	checkInstructions = func(string, *int) ([]warnings.Warning, error) {
+		return nil, nil
+	}
+	checkMCPServers = func(context.Context, *config.ProjectConfig, warnings.Connector) ([]warnings.Warning, error) {
+		return nil, errors.New("mcp failed")
+	}
+
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatal("expected doctor error")
 		}
 	})
 }

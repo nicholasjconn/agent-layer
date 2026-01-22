@@ -68,7 +68,8 @@ func TestBuildCodexConfigHTTP(t *testing.T) {
 	if !strings.Contains(output, "bearer_token_env_var = \"TOKEN\"") {
 		t.Fatalf("missing bearer_token_env_var in output:\n%s", output)
 	}
-	if !strings.Contains(output, "url = \"https://example.com?token=${TOKEN}\"") {
+	// URL should have resolved value (not placeholder) since Codex doesn't support ${VAR} in URLs.
+	if !strings.Contains(output, "url = \"https://example.com?token=abc\"") {
 		t.Fatalf("missing url in output:\n%s", output)
 	}
 }
@@ -108,7 +109,8 @@ func TestBuildCodexConfigStdio(t *testing.T) {
 	if !strings.Contains(output, "args = [\"--flag\", \"value\"]") {
 		t.Fatalf("missing args in output:\n%s", output)
 	}
-	if !strings.Contains(output, "env = { TOKEN = \"${TOKEN}\" }") {
+	// Env should have resolved value (not placeholder) since Codex doesn't support ${VAR} in env vars.
+	if !strings.Contains(output, "env = { TOKEN = \"abc\" }") {
 		t.Fatalf("missing env in output:\n%s", output)
 	}
 }
@@ -263,5 +265,168 @@ func TestWriteCodexRulesWriteError(t *testing.T) {
 	}
 	if err := WriteCodexRules(root, project); err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestBuildCodexConfigMultipleServers(t *testing.T) {
+	enabled := true
+	project := &config.ProjectConfig{
+		Config: config.Config{
+			Approvals: config.ApprovalsConfig{Mode: "all"},
+			Agents:    config.AgentsConfig{Codex: config.CodexConfig{Enabled: &enabled}},
+			MCP: config.MCPConfig{
+				Servers: []config.MCPServer{
+					{
+						ID:        "server1",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "stdio",
+						Command:   "tool1",
+					},
+					{
+						ID:        "server2",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "stdio",
+						Command:   "tool2",
+					},
+				},
+			},
+		},
+		Env: map[string]string{},
+	}
+
+	output, err := buildCodexConfig(project)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should have both servers with newline separator
+	if !strings.Contains(output, "[mcp_servers.server1]") {
+		t.Fatalf("missing server1 in output:\n%s", output)
+	}
+	if !strings.Contains(output, "[mcp_servers.server2]") {
+		t.Fatalf("missing server2 in output:\n%s", output)
+	}
+}
+
+func TestBuildCodexConfigUnsupportedTransport(t *testing.T) {
+	enabled := true
+	project := &config.ProjectConfig{
+		Config: config.Config{
+			Approvals: config.ApprovalsConfig{Mode: "all"},
+			Agents:    config.AgentsConfig{Codex: config.CodexConfig{Enabled: &enabled}},
+			MCP: config.MCPConfig{
+				Servers: []config.MCPServer{
+					{
+						ID:        "bad",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "websocket", // unsupported
+						Command:   "tool",
+					},
+				},
+			},
+		},
+		Env: map[string]string{},
+	}
+
+	_, err := buildCodexConfig(project)
+	if err == nil {
+		t.Fatalf("expected error for unsupported transport")
+	}
+	if !strings.Contains(err.Error(), "unsupported transport") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildCodexConfigStdioMissingCommandEnv(t *testing.T) {
+	enabled := true
+	project := &config.ProjectConfig{
+		Config: config.Config{
+			Approvals: config.ApprovalsConfig{Mode: "all"},
+			Agents:    config.AgentsConfig{Codex: config.CodexConfig{Enabled: &enabled}},
+			MCP: config.MCPConfig{
+				Servers: []config.MCPServer{
+					{
+						ID:        "local",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "stdio",
+						Command:   "${MISSING_CMD}",
+					},
+				},
+			},
+		},
+		Env: map[string]string{},
+	}
+
+	_, err := buildCodexConfig(project)
+	if err == nil {
+		t.Fatalf("expected error for missing command env var")
+	}
+	if !strings.Contains(err.Error(), "command") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildCodexConfigStdioMissingArgEnv(t *testing.T) {
+	enabled := true
+	project := &config.ProjectConfig{
+		Config: config.Config{
+			Approvals: config.ApprovalsConfig{Mode: "all"},
+			Agents:    config.AgentsConfig{Codex: config.CodexConfig{Enabled: &enabled}},
+			MCP: config.MCPConfig{
+				Servers: []config.MCPServer{
+					{
+						ID:        "local",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "stdio",
+						Command:   "tool",
+						Args:      []string{"--token", "${MISSING_ARG}"},
+					},
+				},
+			},
+		},
+		Env: map[string]string{},
+	}
+
+	_, err := buildCodexConfig(project)
+	if err == nil {
+		t.Fatalf("expected error for missing arg env var")
+	}
+	if !strings.Contains(err.Error(), "arg") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildCodexConfigStdioMissingEnvVarEnv(t *testing.T) {
+	enabled := true
+	project := &config.ProjectConfig{
+		Config: config.Config{
+			Approvals: config.ApprovalsConfig{Mode: "all"},
+			Agents:    config.AgentsConfig{Codex: config.CodexConfig{Enabled: &enabled}},
+			MCP: config.MCPConfig{
+				Servers: []config.MCPServer{
+					{
+						ID:        "local",
+						Enabled:   &enabled,
+						Clients:   []string{"codex"},
+						Transport: "stdio",
+						Command:   "tool",
+						Env:       map[string]string{"TOKEN": "${MISSING_ENV}"},
+					},
+				},
+			},
+		},
+		Env: map[string]string{},
+	}
+
+	_, err := buildCodexConfig(project)
+	if err == nil {
+		t.Fatalf("expected error for missing env var env")
+	}
+	if !strings.Contains(err.Error(), "env") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -24,6 +24,7 @@ curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download
 ```
 
 The installer downloads `./al` and runs `./al install` in the current directory.
+By default, `./al install` prompts to run `./al wizard` after seeding files. Use `./al install --no-wizard` (or `agent-layer-install.sh --no-wizard`) to skip; non-interactive shells skip automatically.
 
 Then run an agent:
 
@@ -43,6 +44,7 @@ Run `./al wizard` to interactively configure the most important settings:
 - **Agent Enablement** (Gemini, Claude, Codex, VS Code, Antigravity)
 - **Model Selection** (optional; leave blank to use client defaults, including Codex reasoning effort)
 - **MCP Servers & Secrets** (toggle default servers; safely write secrets to `.agent-layer/.env`)
+- **Warning Thresholds** (optional; configure warnings for common performance/usage issues)
 
 **Controls:**
 - **Arrow keys**: Navigate
@@ -50,7 +52,7 @@ Run `./al wizard` to interactively configure the most important settings:
 - **Enter**: Confirm/Continue
 - **Esc/Ctrl+C**: Cancel
 
-The wizard preserves your configuration’s table structure and key ordering and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Note that inline comments on modified lines may be removed; the original formatting is preserved in the backup files.
+The wizard preserves your configuration’s table structure and key ordering and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Note that inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
 
 ---
 
@@ -80,7 +82,7 @@ Default instructions and slash commands rely on these files existing.
 
 ### Generated client files (gitignored by default)
 Generated outputs are written to the repo root in client-specific formats (examples):
-- `.gemini/`, `.claude/`, `.vscode/`, `.codex/`
+- `.agent/`, `.gemini/`, `.claude/`, `.vscode/`, `.codex/`
 - `.mcp.json`, `AGENTS.md`, etc.
 
 ---
@@ -94,11 +96,11 @@ Generated outputs are written to the repo root in client-specific formats (examp
 | VS Code / Copilot Chat | ✅ | ✅ | ✅ | ✅ |
 | Codex CLI | ✅ | ✅ | ✅ | ✅ |
 | Codex VS Code extension | ✅ | ✅ | ✅ | ✅ |
-| Antigravity | ✅ | (TODO) | ❌ | ❌ |
+| Antigravity | ✅ | ✅ | ❌ | ❌ |
 
 Notes:
 - VS Code/Codex “slash commands” are generated in their native formats (prompt files / skills).
-- Antigravity support is currently limited to instructions. (TODO: slash commands integration.)
+- Antigravity slash commands are generated as skills in `.agent/skills/<command>/SKILL.md`.
 - Auto-approval capabilities vary by client; `approvals.mode` is applied on a best-effort basis.
 
 ---
@@ -129,7 +131,7 @@ enabled = true
 [agents.codex]
 enabled = true
 model = "gpt-5.2-codex"
-reasoning_effort = "xhigh" # codex only
+reasoning_effort = "high" # codex only
 
 [agents.vscode]
 enabled = true
@@ -157,7 +159,20 @@ transport = "stdio"
 command = "my-mcp-server"
 args = ["--flag", "value"]
 env = { MY_TOKEN = "${MY_TOKEN}" }
+
+[warnings]
+# Optional thresholds for warning checks. Omit or comment out to disable.
+instruction_token_threshold = 10000
+mcp_server_threshold = 15
+mcp_tools_total_threshold = 60
+mcp_server_tools_threshold = 25
+mcp_schema_tokens_total_threshold = 10000
+mcp_schema_tokens_server_threshold = 7500
 ```
+
+### Warning thresholds (`[warnings]`)
+
+Warning thresholds are optional. When a threshold is omitted, its warning is disabled. Values must be positive integers (zero/negative are rejected by config validation). `al sync` uses `instruction_token_threshold`, while `al doctor` evaluates all configured MCP warning thresholds.
 
 ### Approvals modes (`approvals.mode`)
 
@@ -178,6 +193,8 @@ API tokens and other secrets live in `.agent-layer/.env` (always gitignored). Ex
 - `CONTEXT7_API_KEY`
 - `TAVILY_API_KEY`
 
+When launching via `./al`, your existing process environment takes precedence. `.agent-layer/.env` fills missing keys only, and empty values in `.agent-layer/.env` are ignored (so template entries cannot override real tokens).
+
 ### Instructions: `.agent-layer/instructions/`
 
 - Files are concatenated in **lexicographic order**
@@ -187,6 +204,7 @@ API tokens and other secrets live in `.agent-layer/.env` (always gitignored). Ex
 
 - One Markdown file per command.
 - Filename (without `.md`) is the canonical command name.
+- Antigravity consumes these as skills in `.agent/skills/<command>/SKILL.md`.
 
 ### Approved commands: `.agent-layer/commands.allow`
 
@@ -209,7 +227,36 @@ Some clients discover slash commands via MCP prompts. Agent Layer provides an **
 
 The Codex VS Code extension reads `CODEX_HOME` from the VS Code process environment at startup.
 
-Agent Layer provides a repo-specific launch path that sets `CODEX_HOME` correctly for this repo.  
+Agent Layer provides repo-specific launchers that set `CODEX_HOME` correctly for this repo:
+
+### macOS Launchers
+
+Agent Layer generates two launcher options in `.agent-layer/`:
+
+| Launcher | Terminal Window | Requirements |
+|----------|-----------------|--------------|
+| `open-vscode.app` | No | VS Code in standard location |
+| `open-vscode.command` | Yes | `code` CLI in PATH |
+
+**Using `open-vscode.app` (recommended):**
+- Double-click to open VS Code with `CODEX_HOME` set
+- No Terminal window opens
+- Requires VS Code installed in one of these locations:
+  - `/Applications/Visual Studio Code.app` (standard)
+  - `~/Applications/Visual Studio Code.app` (user install)
+- First launch may take up to 10 seconds (macOS verifies the app on first run)
+
+**Using `open-vscode.command` (fallback):**
+- Double-click to open VS Code via Terminal
+- Works with any VS Code installation location
+- Requires the `code` CLI to be installed and in your PATH
+  - To install: Open VS Code, press Cmd+Shift+P, type "Shell Command: Install code command in PATH", and run it
+
+### Windows Launcher
+
+- `open-vscode.bat` - Double-click to open VS Code with `CODEX_HOME` set
+- Requires `code` CLI in PATH
+
 See `docs/agent-layer/COMMANDS.md` for the canonical VS Code launch instructions for this repo.
 
 ---

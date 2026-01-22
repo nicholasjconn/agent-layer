@@ -4,20 +4,23 @@ import (
 	"fmt"
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/nicholasjconn/agent-layer/internal/warnings"
 )
 
 // Run regenerates all configured outputs for the repo.
-func Run(root string) error {
+// Returns any sync-time warnings and an error if sync failed.
+func Run(root string) ([]warnings.Warning, error) {
 	project, err := config.LoadProjectConfig(root)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	return RunWithProject(root, project)
 }
 
 // RunWithProject regenerates outputs using an already loaded project config.
-func RunWithProject(root string, project *config.ProjectConfig) error {
+// Returns any sync-time warnings and an error if sync failed.
+func RunWithProject(root string, project *config.ProjectConfig) ([]warnings.Warning, error) {
 	steps := []func() error{
 		func() error {
 			return WriteInstructionShims(root, project.Instructions)
@@ -36,7 +39,12 @@ func RunWithProject(root string, project *config.ProjectConfig) error {
 			func() error { return WriteVSCodePrompts(root, project.SlashCommands) },
 			func() error { return WriteVSCodeSettings(root, project) },
 			func() error { return WriteVSCodeMCPConfig(root, project) },
+			func() error { return WriteVSCodeLaunchers(root) },
 		)
+	}
+
+	if project.Config.Agents.Antigravity.Enabled != nil && *project.Config.Agents.Antigravity.Enabled {
+		steps = append(steps, func() error { return WriteAntigravitySkills(root, project.SlashCommands) })
 	}
 
 	if project.Config.Agents.Gemini.Enabled != nil && *project.Config.Agents.Gemini.Enabled {
@@ -57,7 +65,18 @@ func RunWithProject(root string, project *config.ProjectConfig) error {
 		)
 	}
 
-	return runSteps(steps)
+	if err := runSteps(steps); err != nil {
+		return nil, err
+	}
+
+	// Collect warnings after successful sync
+	return collectWarnings(project)
+}
+
+// collectWarnings gathers all sync-time warnings based on the project config.
+func collectWarnings(project *config.ProjectConfig) ([]warnings.Warning, error) {
+	// Only check instructions size per spec for sync
+	return warnings.CheckInstructions(project.Root, project.Config.Warnings.InstructionTokenThreshold)
 }
 
 func runSteps(steps []func() error) error {

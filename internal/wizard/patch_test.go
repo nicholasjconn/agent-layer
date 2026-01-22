@@ -1,8 +1,11 @@
 package wizard
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	toml "github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +112,61 @@ func TestCommentForLine_BlankLineBreaksComments(t *testing.T) {
 	assert.Empty(t, comment)
 }
 
+func TestPatchConfig_MovesInlineCommentToLeading(t *testing.T) {
+	input := `
+[agents.codex]
+model = "old" # comment
+`
+	choices := &Choices{
+		CodexModelTouched: true,
+		CodexModel:        "new",
+	}
+	got, err := PatchConfig(input, choices)
+	require.NoError(t, err)
+
+	assert.NotContains(t, got, `model = "new" # comment`)
+
+	commentIdx := strings.Index(got, "# comment")
+	modelIdx := strings.Index(got, `model = "new"`)
+	assert.NotEqual(t, -1, commentIdx)
+	assert.NotEqual(t, -1, modelIdx)
+	assert.Less(t, commentIdx, modelIdx)
+}
+
+func TestPatchConfig_RestoredServerSkipsCommentPreservation(t *testing.T) {
+	blocks, err := defaultMCPServerTrees()
+	require.NoError(t, err)
+	github, ok := blocks["github"]
+	require.True(t, ok)
+
+	pos := github.GetPositionPath([]string{"enabled"})
+	require.False(t, pos.Invalid())
+	require.Greater(t, pos.Line, 1)
+
+	lines := make([]string, pos.Line)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("key_%d = \"value\"", i)
+	}
+	lines[pos.Line-2] = "# should-not-attach"
+	lines[pos.Line-1] = fmt.Sprintf("key_%d = \"value\"", pos.Line-1)
+	content := strings.Join(lines, "\n") + "\n[mcp]\n"
+
+	choices := &Choices{
+		RestoreMissingMCPServers: true,
+		MissingDefaultMCPServers: []string{"github"},
+		DefaultMCPServers:        []DefaultMCPServer{{ID: "github"}},
+		EnabledMCPServersTouched: true,
+		EnabledMCPServers:        map[string]bool{"github": true},
+	}
+	got, err := PatchConfig(content, choices)
+	require.NoError(t, err)
+
+	assert.Contains(t, got, `id = "github"`)
+	assert.Contains(t, got, `enabled = true`)
+	assert.NotContains(t, got, "# should-not-attach\nenabled = true")
+	assert.NotContains(t, got, `enabled = true # should-not-attach`)
+}
+
 func TestPatchConfig(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -213,6 +271,44 @@ reasoning_effort = "high"
 			},
 			contains: []string{`id = "github"`},
 		},
+		{
+			name:  "enable warnings",
+			input: "",
+			choices: &Choices{
+				WarningsEnabledTouched:         true,
+				WarningsEnabled:                true,
+				InstructionTokenThreshold:      10000,
+				MCPServerThreshold:             15,
+				MCPToolsTotalThreshold:         60,
+				MCPServerToolsThreshold:        25,
+				MCPSchemaTokensTotalThreshold:  10000,
+				MCPSchemaTokensServerThreshold: 7500,
+			},
+			contains: []string{
+				"[warnings]",
+				"instruction_token_threshold = 10000",
+				"mcp_server_threshold = 15",
+				"mcp_tools_total_threshold = 60",
+				"mcp_server_tools_threshold = 25",
+				"mcp_schema_tokens_total_threshold = 10000",
+				"mcp_schema_tokens_server_threshold = 7500",
+			},
+		},
+		{
+			name: "disable warnings",
+			input: `
+[warnings]
+instruction_token_threshold = 10000
+`,
+			choices: &Choices{
+				WarningsEnabledTouched: true,
+				WarningsEnabled:        false,
+			},
+			absent: []string{
+				"[warnings]",
+				"instruction_token_threshold = 10000",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -227,4 +323,142 @@ reasoning_effort = "high"
 			}
 		})
 	}
+}
+
+func TestCommentForPath(t *testing.T) {
+	tomlContent := `# comment for key
+key = "value"
+[section]
+# section comment
+nested = true
+`
+	tree, err := toml.Load(tomlContent)
+	require.NoError(t, err)
+	lines := strings.Split(tomlContent, "\n")
+
+	t.Run("path not in tree", func(t *testing.T) {
+		got := commentForPath(tree, lines, []string{"nonexistent"})
+		assert.Equal(t, "", got)
+	})
+
+	t.Run("path exists", func(t *testing.T) {
+		got := commentForPath(tree, lines, []string{"key"})
+		assert.Contains(t, got, "comment for key")
+	})
+}
+
+func TestCommentForLine_EdgeCases(t *testing.T) {
+	lines := []string{"# comment", "key = value"}
+
+	t.Run("negative lineIndex", func(t *testing.T) {
+		got := commentForLine(lines, -1)
+		assert.Equal(t, "", got)
+	})
+
+	t.Run("lineIndex out of bounds", func(t *testing.T) {
+		got := commentForLine(lines, 100)
+		assert.Equal(t, "", got)
+	})
+
+	t.Run("empty lines", func(t *testing.T) {
+		got := commentForLine([]string{}, 0)
+		assert.Equal(t, "", got)
+	})
+}
+
+func TestInlineCommentForLine_EdgeCases(t *testing.T) {
+	t.Run("negative lineIndex", func(t *testing.T) {
+		got := inlineCommentForLine([]string{"test"}, -1)
+		assert.Equal(t, "", got)
+	})
+
+	t.Run("lineIndex out of bounds", func(t *testing.T) {
+		got := inlineCommentForLine([]string{"test"}, 100)
+		assert.Equal(t, "", got)
+	})
+}
+
+func TestScanLineForComment_MultilineStrings(t *testing.T) {
+	t.Run("multiline basic string", func(t *testing.T) {
+		// Start multiline basic string with """
+		comment, state := scanLineForComment(`key = """start`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateMultiBasic, state)
+
+		// Continue in multiline basic string
+		comment, state = scanLineForComment(`middle # not a comment`, state, true)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateMultiBasic, state)
+
+		// End multiline basic string with """
+		comment, state = scanLineForComment(`end"""`, state, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
+
+	t.Run("multiline literal string", func(t *testing.T) {
+		// Start multiline literal string with '''
+		comment, state := scanLineForComment(`key = '''start`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateMultiLiteral, state)
+
+		// Continue in multiline literal string
+		comment, state = scanLineForComment(`middle # not a comment`, state, true)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateMultiLiteral, state)
+
+		// End multiline literal string with '''
+		comment, state = scanLineForComment(`end'''`, state, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
+
+	t.Run("basic string with escape", func(t *testing.T) {
+		// String with escaped quote
+		comment, state := scanLineForComment(`key = "value \" more"`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
+
+	t.Run("multiline basic string with escape", func(t *testing.T) {
+		// Start multiline basic string
+		_, state := scanLineForComment(`key = """`, stateNone, false)
+		assert.Equal(t, stateMultiBasic, state)
+
+		// Line with escaped quote
+		comment, state := scanLineForComment(`escape \" here`, state, true)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateMultiBasic, state)
+	})
+
+	t.Run("literal string", func(t *testing.T) {
+		// Start literal string with '
+		comment, state := scanLineForComment(`key = 'value`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateLiteral, state)
+
+		// End literal string with '
+		comment, state = scanLineForComment(`more'`, state, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
+
+	t.Run("basic string", func(t *testing.T) {
+		// Start basic string with "
+		comment, state := scanLineForComment(`key = "value`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateBasic, state)
+
+		// End basic string with "
+		comment, state = scanLineForComment(`more"`, state, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
+
+	t.Run("comment in basic string state (non-capture)", func(t *testing.T) {
+		// Should not extract comment when not capturing
+		comment, state := scanLineForComment(`key = "value" # comment`, stateNone, false)
+		assert.Equal(t, "", comment)
+		assert.Equal(t, stateNone, state)
+	})
 }

@@ -56,9 +56,13 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 		return "", fmt.Errorf("default MCP servers are required to patch config")
 	}
 
+	restoredServers := map[string]bool{}
 	if choices.RestoreMissingMCPServers && len(choices.MissingDefaultMCPServers) > 0 {
 		if err := appendMissingDefaultMCPServers(configTree, choices.MissingDefaultMCPServers); err != nil {
 			return "", err
+		}
+		for _, id := range choices.MissingDefaultMCPServers {
+			restoredServers[id] = true
 		}
 	}
 
@@ -70,7 +74,24 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 		}
 		for _, server := range choices.DefaultMCPServers {
 			enabled := choices.EnabledMCPServers[server.ID]
-			setMCPServerEnabled(servers, lines, server.ID, enabled)
+			preserveComment := !restoredServers[server.ID]
+			setMCPServerEnabled(servers, lines, server.ID, enabled, preserveComment)
+		}
+	}
+
+	// 4. Warnings
+	if choices.WarningsEnabledTouched {
+		if !choices.WarningsEnabled {
+			if err := deletePath(configTree, []string{"warnings"}); err != nil {
+				return "", err
+			}
+		} else {
+			setPathPreservingComment(configTree, lines, []string{"warnings", "instruction_token_threshold"}, choices.InstructionTokenThreshold)
+			setPathPreservingComment(configTree, lines, []string{"warnings", "mcp_server_threshold"}, choices.MCPServerThreshold)
+			setPathPreservingComment(configTree, lines, []string{"warnings", "mcp_tools_total_threshold"}, choices.MCPToolsTotalThreshold)
+			setPathPreservingComment(configTree, lines, []string{"warnings", "mcp_server_tools_threshold"}, choices.MCPServerToolsThreshold)
+			setPathPreservingComment(configTree, lines, []string{"warnings", "mcp_schema_tokens_total_threshold"}, choices.MCPSchemaTokensTotalThreshold)
+			setPathPreservingComment(configTree, lines, []string{"warnings", "mcp_schema_tokens_server_threshold"}, choices.MCPSchemaTokensServerThreshold)
 		}
 	}
 
@@ -84,6 +105,10 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 // setPathPreservingComment sets a value while retaining existing inline/leading comments when possible.
 // tree is the parsed config; lines is the original content split by line; keys is the TOML path; value is the new value.
 func setPathPreservingComment(tree *toml.Tree, lines []string, keys []string, value interface{}) {
+	switch v := value.(type) {
+	case int:
+		value = int64(v)
+	}
 	comment := commentForPath(tree, lines, keys)
 	if comment != "" {
 		tree.SetPathWithComment(keys, comment, false, value)
@@ -103,14 +128,19 @@ func deletePath(tree *toml.Tree, keys []string) error {
 
 // setMCPServerEnabled updates an MCP server's enabled flag when the server is present.
 // servers is the parsed MCP server list; lines is the original config; serverID identifies the target server.
-func setMCPServerEnabled(servers []*toml.Tree, lines []string, serverID string, enabled bool) {
+// preserveComment controls whether inline/leading comments should be retained.
+func setMCPServerEnabled(servers []*toml.Tree, lines []string, serverID string, enabled bool, preserveComment bool) {
 	for _, server := range servers {
 		id, ok := server.Get("id").(string)
 		if !ok || id == "" {
 			continue
 		}
 		if id == serverID {
-			setPathPreservingComment(server, lines, []string{"enabled"}, enabled)
+			if preserveComment {
+				setPathPreservingComment(server, lines, []string{"enabled"}, enabled)
+				return
+			}
+			server.SetPath([]string{"enabled"}, enabled)
 			return
 		}
 	}
@@ -149,7 +179,7 @@ func commentForLine(lines []string, lineIndex int) string {
 	for i, j := 0, len(commentLines)-1; i < j; i, j = i+1, j-1 {
 		commentLines[i], commentLines[j] = commentLines[j], commentLines[i]
 	}
-	if inline := inlineComment(lines[lineIndex]); inline != "" {
+	if inline := inlineCommentForLine(lines, lineIndex); inline != "" {
 		commentLines = append(commentLines, inline)
 	}
 	if len(commentLines) == 0 {
@@ -158,18 +188,34 @@ func commentForLine(lines []string, lineIndex int) string {
 	return strings.Join(commentLines, "\n")
 }
 
-// inlineComment extracts a TOML inline comment, ignoring hashes inside quoted strings.
-// line is the raw line content; returns the comment text without the leading #.
-func inlineComment(line string) string {
-	const (
-		stateNone = iota
-		stateBasic
-		stateLiteral
-		stateMultiBasic
-		stateMultiLiteral
-	)
+const (
+	stateNone = iota
+	stateBasic
+	stateLiteral
+	stateMultiBasic
+	stateMultiLiteral
+)
 
+// inlineCommentForLine extracts a TOML inline comment on a specific line, tracking multiline strings.
+// lines is the full TOML content split by line; lineIndex is the target line (0-based).
+func inlineCommentForLine(lines []string, lineIndex int) string {
+	if lineIndex < 0 || lineIndex >= len(lines) {
+		return ""
+	}
 	state := stateNone
+	for i, line := range lines {
+		comment, nextState := scanLineForComment(line, state, i == lineIndex)
+		state = nextState
+		if i == lineIndex {
+			return comment
+		}
+	}
+	return ""
+}
+
+// scanLineForComment returns an inline comment when capture is true and updates the parser state.
+// state tracks whether the parser is inside a TOML string; it persists across lines for multiline strings.
+func scanLineForComment(line string, state int, capture bool) (string, int) {
 	i := 0
 	for i < len(line) {
 		ch := line[i]
@@ -184,7 +230,10 @@ func inlineComment(line string) string {
 		switch state {
 		case stateNone:
 			if ch == '#' {
-				return strings.TrimSpace(line[i+1:])
+				if capture {
+					return strings.TrimSpace(line[i+1:]), state
+				}
+				return "", state
 			}
 			if ch == '"' {
 				if strings.HasPrefix(line[i:], `"""`) {
@@ -228,5 +277,5 @@ func inlineComment(line string) string {
 		}
 		i++
 	}
-	return ""
+	return "", state
 }

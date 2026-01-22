@@ -3,10 +3,14 @@ package wizard
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
-const leaveBlankOption = "Leave blank (use client default)"
+const (
+	leaveBlankOption = "Leave blank (use client default)"
+	customOption     = "Custom..."
+)
 
 // buildSummary returns a formatted summary of wizard choices.
 // c is the current choices; returns the summary text.
@@ -68,6 +72,18 @@ func buildSummary(c *Choices) string {
 		sb.WriteString("(none)\n")
 	}
 
+	sb.WriteString("\nWarnings:\n")
+	if !c.WarningsEnabled {
+		sb.WriteString("(disabled)\n")
+		return sb.String()
+	}
+	sb.WriteString(fmt.Sprintf("- instruction_token_threshold = %d\n", c.InstructionTokenThreshold))
+	sb.WriteString(fmt.Sprintf("- mcp_server_threshold = %d\n", c.MCPServerThreshold))
+	sb.WriteString(fmt.Sprintf("- mcp_tools_total_threshold = %d\n", c.MCPToolsTotalThreshold))
+	sb.WriteString(fmt.Sprintf("- mcp_server_tools_threshold = %d\n", c.MCPServerToolsThreshold))
+	sb.WriteString(fmt.Sprintf("- mcp_schema_tokens_total_threshold = %d\n", c.MCPSchemaTokensTotalThreshold))
+	sb.WriteString(fmt.Sprintf("- mcp_schema_tokens_server_threshold = %d\n", c.MCPSchemaTokensServerThreshold))
+
 	return sb.String()
 }
 
@@ -110,13 +126,27 @@ func agentIDSet(ids []string) map[string]bool {
 
 // selectOptionalValue prompts for an optional selection and updates value.
 // title and options define the prompt; value holds the current selection.
-// Returns an error if the prompt fails.
+// Returns an error if the prompt fails or a custom value is left blank.
 func selectOptionalValue(ui UI, title string, options []string, value *string) error {
 	selection := *value
 	if selection == "" {
 		selection = leaveBlankOption
+	} else {
+		found := false
+		for _, option := range options {
+			if selection == option {
+				found = true
+				break
+			}
+		}
+		if !found {
+			selection = customOption
+		}
 	}
-	opts := append([]string{leaveBlankOption}, options...)
+	opts := make([]string, 0, len(options)+2)
+	opts = append(opts, leaveBlankOption)
+	opts = append(opts, options...)
+	opts = append(opts, customOption)
 	if err := ui.Select(title, opts, &selection); err != nil {
 		return err
 	}
@@ -124,7 +154,38 @@ func selectOptionalValue(ui UI, title string, options []string, value *string) e
 		*value = ""
 		return nil
 	}
+	if selection == customOption {
+		customValue := *value
+		if err := ui.Input(fmt.Sprintf("Custom %s", title), &customValue); err != nil {
+			return err
+		}
+		customValue = strings.TrimSpace(customValue)
+		if customValue == "" {
+			return fmt.Errorf("custom value required for %s", title)
+		}
+		*value = customValue
+		return nil
+	}
 	*value = selection
+	return nil
+}
+
+// promptPositiveInt asks for a positive integer, defaulting to the current value.
+// ui is the wizard UI; title is the prompt label; value holds the default and receives the parsed value.
+func promptPositiveInt(ui UI, title string, value *int) error {
+	input := strconv.Itoa(*value)
+	if err := ui.Input(title, &input); err != nil {
+		return err
+	}
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return nil
+	}
+	parsed, err := strconv.Atoi(input)
+	if err != nil || parsed <= 0 {
+		return fmt.Errorf("%s must be a positive integer", title)
+	}
+	*value = parsed
 	return nil
 }
 

@@ -6,6 +6,9 @@
 /.agent-layer/.env
 # Optional: keep uncommented to ignore .agent-layer/ config.
 /.agent-layer/
+# Optional: uncomment to ignore docs/agent-layer/ project memory.
+# Edit .agent-layer/gitignore.block (not .gitignore) to change this entry.
+# /docs/agent-layer/
 
 # Agent Layer launcher
 /al

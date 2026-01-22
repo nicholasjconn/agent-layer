@@ -13,14 +13,21 @@ import (
 	"github.com/nicholasjconn/agent-layer/internal/templates"
 )
 
+// PromptOverwriteFunc asks whether to overwrite a given path.
+type PromptOverwriteFunc func(path string) (bool, error)
+
 // Options controls installer behavior.
 type Options struct {
-	Overwrite bool
+	Overwrite       bool
+	Force           bool
+	PromptOverwrite PromptOverwriteFunc
 }
 
 type installer struct {
 	root      string
 	overwrite bool
+	force     bool
+	prompt    PromptOverwriteFunc
 	diffs     []string
 }
 
@@ -30,7 +37,17 @@ func Run(root string, opts Options) error {
 		return fmt.Errorf("root path is required")
 	}
 
-	inst := &installer{root: root, overwrite: opts.Overwrite}
+	overwrite := opts.Overwrite || opts.Force
+	if overwrite && !opts.Force && opts.PromptOverwrite == nil {
+		return fmt.Errorf("overwrite prompts require a prompt handler; re-run with --force to overwrite without prompts")
+	}
+
+	inst := &installer{
+		root:      root,
+		overwrite: overwrite,
+		force:     opts.Force,
+		prompt:    opts.PromptOverwrite,
+	}
 	steps := []func() error{
 		inst.createDirs,
 		inst.writeTemplateFiles,
@@ -86,12 +103,12 @@ func (inst *installer) writeTemplateFiles() error {
 	}
 	for _, file := range files {
 		if file.template == "gitignore.block" {
-			if err := writeGitignoreBlock(file.path, file.template, file.perm, inst.overwrite, inst.recordDiff); err != nil {
+			if err := writeGitignoreBlock(file.path, file.template, file.perm, inst.shouldOverwrite, inst.recordDiff); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := writeTemplateFile(file.path, file.template, file.perm, inst.overwrite, inst.recordDiff); err != nil {
+		if err := writeTemplateFile(file.path, file.template, file.perm, inst.shouldOverwrite, inst.recordDiff); err != nil {
 			return err
 		}
 	}
@@ -110,7 +127,7 @@ func (inst *installer) writeTemplateDirs() error {
 		{"docs/agent-layer", filepath.Join(root, ".agent-layer", "templates", "docs")},
 	}
 	for _, dir := range dirs {
-		if err := writeTemplateDir(dir.templateRoot, dir.destRoot, inst.overwrite, inst.recordDiff); err != nil {
+		if err := writeTemplateDir(dir.templateRoot, dir.destRoot, inst.shouldOverwrite, inst.recordDiff); err != nil {
 			return err
 		}
 	}
@@ -131,6 +148,27 @@ func (inst *installer) recordDiff(path string) {
 	inst.diffs = append(inst.diffs, path)
 }
 
+// shouldOverwrite decides whether to overwrite the given path.
+// It returns true to overwrite, false to keep existing content, or an error.
+func (inst *installer) shouldOverwrite(path string) (bool, error) {
+	if !inst.overwrite {
+		return false, nil
+	}
+	if inst.force {
+		return true, nil
+	}
+	if inst.prompt == nil {
+		return false, fmt.Errorf("overwrite prompts require a prompt handler; re-run with --force to overwrite without prompts")
+	}
+	rel := path
+	if inst.root != "" {
+		if candidate, err := filepath.Rel(inst.root, path); err == nil {
+			rel = candidate
+		}
+	}
+	return inst.prompt(rel)
+}
+
 func (inst *installer) warnDifferences() {
 	if inst.overwrite || len(inst.diffs) == 0 {
 		return
@@ -145,14 +183,14 @@ func (inst *installer) warnDifferences() {
 		}
 		_, _ = fmt.Fprintf(os.Stderr, "  - %s\n", rel)
 	}
-	_, _ = fmt.Fprintln(os.Stderr, "Re-run `./al install --overwrite` to replace them with template defaults.")
+	_, _ = fmt.Fprintln(os.Stderr, "Re-run `./al install --overwrite` to review each file, or `./al install --force` to replace them without prompts.")
 }
 
 func writeTemplateIfMissing(path string, templatePath string, perm fs.FileMode) error {
-	return writeTemplateFile(path, templatePath, perm, false, nil)
+	return writeTemplateFile(path, templatePath, perm, nil, nil)
 }
 
-func writeTemplateDir(templateRoot string, destRoot string, overwrite bool, recordDiff func(string)) error {
+func writeTemplateDir(templateRoot string, destRoot string, shouldOverwrite PromptOverwriteFunc, recordDiff func(string)) error {
 	return templates.Walk(templateRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -165,7 +203,7 @@ func writeTemplateDir(templateRoot string, destRoot string, overwrite bool, reco
 			return fmt.Errorf("unexpected template path %s", path)
 		}
 		destPath := filepath.Join(destRoot, rel)
-		return writeTemplateFile(destPath, path, 0o644, overwrite, recordDiff)
+		return writeTemplateFile(destPath, path, 0o644, shouldOverwrite, recordDiff)
 	})
 }
 
@@ -191,7 +229,7 @@ func ensureGitignore(path string, block string) error {
 	return nil
 }
 
-func writeGitignoreBlock(path string, templatePath string, perm fs.FileMode, overwrite bool, recordDiff func(string)) error {
+func writeGitignoreBlock(path string, templatePath string, perm fs.FileMode, shouldOverwrite PromptOverwriteFunc, recordDiff func(string)) error {
 	templateBytes, err := templates.Read(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templatePath, err)
@@ -214,11 +252,24 @@ func writeGitignoreBlock(path string, templatePath string, perm fs.FileMode, ove
 	}
 
 	existing := normalizeGitignoreBlock(string(existingBytes))
-	if existing == templateBlock || gitignoreBlockMatchesHash(existing) || overwrite {
+	if existing == templateBlock || gitignoreBlockMatchesHash(existing) {
 		if err := fsutil.WriteFileAtomic(path, []byte(rendered), perm); err != nil {
 			return fmt.Errorf("failed to write %s: %w", path, err)
 		}
 		return nil
+	}
+
+	if shouldOverwrite != nil {
+		overwrite, err := shouldOverwrite(path)
+		if err != nil {
+			return err
+		}
+		if overwrite {
+			if err := fsutil.WriteFileAtomic(path, []byte(rendered), perm); err != nil {
+				return fmt.Errorf("failed to write %s: %w", path, err)
+			}
+			return nil
+		}
 	}
 
 	if recordDiff != nil {
@@ -227,7 +278,7 @@ func writeGitignoreBlock(path string, templatePath string, perm fs.FileMode, ove
 	return nil
 }
 
-func writeTemplateFile(path string, templatePath string, perm fs.FileMode, overwrite bool, recordDiff func(string)) error {
+func writeTemplateFile(path string, templatePath string, perm fs.FileMode, shouldOverwrite PromptOverwriteFunc, recordDiff func(string)) error {
 	_, err := os.Stat(path)
 	if err == nil {
 		matches, err := fileMatchesTemplate(path, templatePath)
@@ -236,6 +287,13 @@ func writeTemplateFile(path string, templatePath string, perm fs.FileMode, overw
 		}
 		if matches {
 			return nil
+		}
+		overwrite := false
+		if shouldOverwrite != nil {
+			overwrite, err = shouldOverwrite(path)
+			if err != nil {
+				return err
+			}
 		}
 		if !overwrite {
 			if recordDiff != nil {

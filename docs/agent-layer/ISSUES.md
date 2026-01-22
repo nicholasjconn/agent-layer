@@ -20,6 +20,30 @@ Entry format:
 
 <!-- ENTRIES START -->
 
+- Issue 2026-01-22 71af41d: README missing overwrite prompt and force flag guidance
+    Priority: Medium. Area: documentation.
+    Description: README does not describe `--overwrite` prompting behavior or the `--force` flag, while other documentation does.
+    Next step: Add a short install note in README covering prompts and non-interactive overwrites.
+    Notes: Keep language aligned with Phase 7 install flow messaging.
+
+- Issue 2026-01-22 71af41d: Installer script lacks `--force` passthrough
+    Priority: Low. Area: installation.
+    Description: `agent-layer-install.sh` does not accept or pass through `--force`, limiting non-interactive overwrites when re-running the installer.
+    Next step: Add a `--force` flag to the script and forward it to `./al install`.
+    Notes: Ensure usage text remains concise.
+
+- Issue 2026-01-22 71af41d: Linux launcher always opens a terminal window
+    Priority: Low. Area: launchers.
+    Description: `open-vscode.desktop` sets `Terminal=true`, opening a terminal even on successful launches.
+    Next step: Consider a launcher that only opens a terminal on failure or uses a non-terminal notification for errors.
+    Notes: Keep `CODEX_HOME` behavior consistent across platforms.
+
+- Issue 2026-01-22 71af41d: Install documentation fragmented across files
+    Priority: Low. Area: documentation.
+    Description: Install guidance is split between README, developer documentation, and the installer script, which increases the risk of inconsistent messaging.
+    Next step: Consolidate or cross-link install flag guidance so changes remain synchronized.
+    Notes: Focus on user-facing install flags and prompt behavior.
+
 - Issue 2026-01-21 b1c2d3: Wizard Approval Mode should show descriptions
     Priority: Medium. Area: wizard.
     Description: Approval Mode selection in the wizard does not display the description of the mode, making it hard for users to remember details.

@@ -81,10 +81,11 @@ func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
 	return nil
 }
 
-// WriteVSCodeLaunchers generates VS Code launchers for macOS and Windows:
+// WriteVSCodeLaunchers generates VS Code launchers for macOS, Windows, and Linux:
 // - .agent-layer/open-vscode.command (macOS Terminal script)
 // - .agent-layer/open-vscode.app (macOS app bundle - no Terminal window)
 // - .agent-layer/open-vscode.bat (Windows batch file)
+// - .agent-layer/open-vscode.desktop (Linux desktop entry)
 func WriteVSCodeLaunchers(root string) error {
 	agentLayerDir := filepath.Join(root, ".agent-layer")
 	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
@@ -133,6 +134,20 @@ if %ERRORLEVEL% equ 0 (
 	batPath := filepath.Join(agentLayerDir, "open-vscode.bat")
 	if err := fsutil.WriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
 		return fmt.Errorf("failed to write %s: %w", batPath, err)
+	}
+
+	// Linux launcher (.desktop)
+	desktopContent := `[Desktop Entry]
+Type=Application
+Name=Open VS Code
+Comment=Open this repo in VS Code with CODEX_HOME set
+Exec=sh -c "PARENT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd -P)\"; export CODEX_HOME=\"$PARENT_ROOT/.codex\"; cd \"$PARENT_ROOT\"; if command -v code >/dev/null 2>&1; then exec code .; else echo \"Error: 'code' command not found.\"; echo \"To install: Open VS Code, press Ctrl+Shift+P, type 'Shell Command: Install code command in PATH', and run it.\"; printf \"Press Enter to exit.\"; read -r _; exit 1; fi" "%k"
+Terminal=true
+Categories=Development;IDE;
+`
+	desktopPath := filepath.Join(agentLayerDir, "open-vscode.desktop")
+	if err := fsutil.WriteFileAtomic(desktopPath, []byte(desktopContent), 0o755); err != nil {
+		return fmt.Errorf("failed to write %s: %w", desktopPath, err)
 	}
 
 	return nil

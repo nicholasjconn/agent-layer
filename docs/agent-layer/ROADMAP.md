@@ -78,9 +78,9 @@ Phase template (incomplete):
 
 ### Tasks
 - [ ] Implement `al completion bash|zsh|fish|powershell`.
-- [ ] Add Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
-- [ ] Add commented-out gitignore entry for `docs/agent-layer/` with explanatory note.
-- [ ] Add per-file overwrite prompts during `al install --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
+- [x] Add Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
+- [x] Add commented-out gitignore entry for `docs/agent-layer/` with explanatory note.
+- [x] Add per-file overwrite prompts during `al install --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
 
 ### Exit criteria
 - Shell completion works for all major shells.

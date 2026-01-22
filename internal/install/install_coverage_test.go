@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+func alwaysOverwrite(_ string) (bool, error) {
+	return true, nil
+}
+
 func TestFileMatchesTemplate_ReadError(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "unreadable")
@@ -47,7 +51,7 @@ func TestWriteGitignoreBlock_TemplateReadError(t *testing.T) {
 	path := filepath.Join(root, ".gitignore")
 
 	// Pass an invalid template path
-	err := writeGitignoreBlock(path, "non-existent-template", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "non-existent-template", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for non-existent template")
 	}
@@ -62,7 +66,7 @@ func TestWriteGitignoreBlock_FileReadError(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error when reading directory as file")
 	}
@@ -73,7 +77,7 @@ func TestWriteTemplateFile_TemplateReadError(t *testing.T) {
 	path := filepath.Join(root, "file")
 
 	// Pass an invalid template path
-	err := writeTemplateFile(path, "non-existent-template", 0o644, false, nil)
+	err := writeTemplateFile(path, "non-existent-template", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for non-existent template")
 	}
@@ -96,7 +100,7 @@ func TestWriteTemplateFile_StatError(t *testing.T) {
 	}
 	defer func() { _ = os.Chmod(sub, 0o755) }()
 
-	err := writeTemplateFile(target, "config.toml", 0o644, false, nil)
+	err := writeTemplateFile(target, "config.toml", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for stat failure")
 	}
@@ -113,7 +117,7 @@ func TestWriteTemplateFile_MkdirError(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	err := writeTemplateFile(path, "config.toml", 0o644, false, nil)
+	err := writeTemplateFile(path, "config.toml", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for mkdir failure")
 	}
@@ -127,7 +131,7 @@ func TestWriteTemplateFile_WriteError(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	err := writeTemplateFile(path, "config.toml", 0o644, true, nil)
+	err := writeTemplateFile(path, "config.toml", 0o644, alwaysOverwrite, nil)
 	if err == nil {
 		t.Fatalf("expected error for write failure")
 	}
@@ -145,7 +149,7 @@ func TestWriteTemplateFile_FileMatchesError(t *testing.T) {
 	defer func() { _ = os.Chmod(path, 0o644) }()
 
 	// fileMatchesTemplate should fail to read 'file'
-	err := writeTemplateFile(path, "config.toml", 0o644, false, nil)
+	err := writeTemplateFile(path, "config.toml", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for fileMatchesTemplate failure")
 	}
@@ -159,7 +163,7 @@ func TestWriteGitignoreBlock_WriteError(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, true, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, alwaysOverwrite, nil)
 	if err == nil {
 		t.Fatalf("expected error for write failure")
 	}
@@ -367,7 +371,7 @@ func TestWriteGitignoreBlock_MkdirError(t *testing.T) {
 	}
 
 	path := filepath.Join(parentFile, "gitignore.block")
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for mkdir failure")
 	}
@@ -385,7 +389,7 @@ func TestWriteGitignoreBlock_NewFileWriteError(t *testing.T) {
 	defer func() { _ = os.Chmod(agentLayerDir, 0o755) }()
 
 	path := filepath.Join(agentLayerDir, "gitignore.block")
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for write failure")
 	}
@@ -414,7 +418,7 @@ func TestWriteGitignoreBlock_OverwriteWriteError(t *testing.T) {
 	defer func() { _ = os.Chmod(agentLayerDir, 0o755) }()
 
 	// Use overwrite=true to trigger the overwrite path
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, true, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, alwaysOverwrite, nil)
 	if err == nil {
 		t.Fatalf("expected error for write failure during overwrite")
 	}

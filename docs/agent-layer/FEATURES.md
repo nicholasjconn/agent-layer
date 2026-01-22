@@ -20,3 +20,13 @@ Entry format:
 ## Backlog (not scheduled)
 
 <!-- ENTRIES START -->
+
+- Feature 2026-01-21 7b2c9d: Explicit `al install --upgrade` command
+    Priority: Medium. Area: installation
+    Description: Add an `--upgrade` flag to the `install` command to explicitly download and replace the existing `al` binary with the latest version.
+    Acceptance criteria: Running `./al install --upgrade` downloads the latest binary and refreshes the installation.
+
+- Feature 2026-01-21 4e8f1a: `al install --version vX.X.X` command
+    Priority: Medium. Area: installation
+    Description: Allow users to specify a specific version of Agent Layer to install or switch to using a `--version` flag.
+    Acceptance criteria: Running `./al install --version v1.2.3` downloads and installs the specified version of the binary.

@@ -297,6 +297,16 @@ func TestWriteVSCodeLaunchers(t *testing.T) {
 	if batInfo.Mode().Perm() != 0o755 {
 		t.Fatalf("expected 0755 permissions on .bat file, got %o", batInfo.Mode().Perm())
 	}
+
+	// Verify Linux launcher
+	desktopPath := filepath.Join(root, ".agent-layer", "open-vscode.desktop")
+	desktopInfo, err := os.Stat(desktopPath)
+	if err != nil {
+		t.Fatalf("expected open-vscode.desktop: %v", err)
+	}
+	if desktopInfo.Mode().Perm() != 0o755 {
+		t.Fatalf("expected 0755 permissions on .desktop file, got %o", desktopInfo.Mode().Perm())
+	}
 }
 
 func TestWriteVSCodeLaunchersContent(t *testing.T) {
@@ -391,6 +401,32 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 	}
 	if !strings.Contains(batStr, "Shell Command: Install") {
 		t.Fatal("Windows launcher missing install instructions")
+	}
+
+	// Verify Linux launcher content
+	desktopPath := filepath.Join(root, ".agent-layer", "open-vscode.desktop")
+	desktopContent, err := os.ReadFile(desktopPath)
+	if err != nil {
+		t.Fatalf("read .desktop file: %v", err)
+	}
+	desktopStr := string(desktopContent)
+	if len(desktopStr) == 0 {
+		t.Fatal("Linux launcher is empty")
+	}
+	if !strings.Contains(desktopStr, "[Desktop Entry]") {
+		t.Fatal("Linux launcher missing Desktop Entry header")
+	}
+	if !strings.Contains(desktopStr, "CODEX_HOME") {
+		t.Fatal("Linux launcher missing CODEX_HOME")
+	}
+	if !strings.Contains(desktopStr, "code .") {
+		t.Fatal("Linux launcher missing 'code .' command")
+	}
+	if !strings.Contains(desktopStr, "Shell Command: Install") {
+		t.Fatal("Linux launcher missing install instructions")
+	}
+	if !strings.Contains(desktopStr, "%k") {
+		t.Fatal("Linux launcher missing desktop entry path (%k)")
 	}
 }
 

@@ -257,6 +257,13 @@ Agent Layer generates two launcher options in `.agent-layer/`:
 - `open-vscode.bat` - Double-click to open VS Code with `CODEX_HOME` set
 - Requires `code` CLI in PATH
 
+### Linux Launcher
+
+- `open-vscode.desktop` - Double-click to open VS Code with `CODEX_HOME` set
+- Requires `code` CLI in PATH
+  - To install: Open VS Code, press Ctrl+Shift+P, type "Shell Command: Install code command in PATH", and run it
+- Opens a terminal to surface errors if the `code` command is missing
+
 See `docs/agent-layer/COMMANDS.md` for the canonical VS Code launch instructions for this repo.
 
 ---

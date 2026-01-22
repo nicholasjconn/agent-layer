@@ -20,6 +20,7 @@ var runWizard = func(root string) error {
 
 func newInstallCmd() *cobra.Command {
 	var overwrite bool
+	var force bool
 	var noWizard bool
 
 	cmd := &cobra.Command{
@@ -30,7 +31,21 @@ func newInstallCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := install.Run(root, install.Options{Overwrite: overwrite}); err != nil {
+			overwriteMode := overwrite || force
+			if overwriteMode && !force && !isTerminal() {
+				return fmt.Errorf("install overwrite prompts require an interactive terminal; re-run with --force to overwrite without prompts")
+			}
+			opts := install.Options{
+				Overwrite: overwriteMode,
+				Force:     force,
+			}
+			if overwriteMode && !force {
+				opts.PromptOverwrite = func(path string) (bool, error) {
+					prompt := fmt.Sprintf("Overwrite %s with the template version?", path)
+					return promptYesNo(cmd.InOrStdin(), cmd.OutOrStdout(), prompt, true)
+				}
+			}
+			if err := install.Run(root, opts); err != nil {
 				return err
 			}
 			if noWizard || !isTerminal() {
@@ -47,7 +62,8 @@ func newInstallCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "Overwrite existing template files")
+	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "Prompt before overwriting existing template files")
+	cmd.Flags().BoolVar(&force, "force", false, "Overwrite existing template files without prompting (implies --overwrite)")
 	cmd.Flags().BoolVar(&noWizard, "no-wizard", false, "Skip prompting to run the setup wizard after install")
 
 	return cmd

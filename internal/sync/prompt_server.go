@@ -11,18 +11,15 @@ import (
 var lookPath = exec.LookPath
 
 // resolvePromptServerCommand returns the command and args used to run the internal MCP prompt server.
-// The root argument is the repo root; it prefers "./al mcp-prompts" and falls back to "go run <root>/cmd/al mcp-prompts".
+// It prefers the globally installed "al mcp-prompts" and falls back to "go run <root>/cmd/al mcp-prompts" for dev usage.
 // It returns an error when it cannot resolve a runnable command.
 func resolvePromptServerCommand(root string) (string, []string, error) {
-	if root == "" {
-		return "./al", []string{"mcp-prompts"}, nil
+	if _, err := lookPath("al"); err == nil {
+		return "al", []string{"mcp-prompts"}, nil
 	}
 
-	alPath := filepath.Join(root, "al")
-	if _, err := os.Stat(alPath); err == nil {
-		return "./al", []string{"mcp-prompts"}, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", nil, fmt.Errorf("check %s: %w", alPath, err)
+	if root == "" {
+		return "", nil, fmt.Errorf("al not found on PATH and no repo root available for go run")
 	}
 
 	sourcePath := filepath.Join(root, "cmd", "al")

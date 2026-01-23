@@ -13,7 +13,7 @@ func newAntigravityCmd() *cobra.Command {
 		Use:   "antigravity",
 		Short: "Sync and launch Antigravity",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

@@ -6,12 +6,11 @@ import "strings"
 func approvalModeHelpText() string {
 	lines := []string{
 		"Approval modes control what runs without prompts:",
-		"- all: auto-approve shell commands and MCP tool calls (where supported).",
-		"- mcp: auto-approve MCP tool calls only; commands still prompt.",
-		"- commands: auto-approve shell commands only; MCP tools still prompt.",
-		"- none: prompt for everything.",
-		"Support varies by client; Agent Layer applies the closest available behavior.",
 	}
+	for _, option := range ApprovalModeOptions {
+		lines = append(lines, "- "+option.Value+": "+option.Description)
+	}
+	lines = append(lines, "Support varies by client; Agent Layer applies the closest available behavior.")
 	return strings.Join(lines, "\n")
 }
 

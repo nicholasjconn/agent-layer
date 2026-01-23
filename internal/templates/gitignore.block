@@ -1,14 +1,14 @@
 # >>> agent-layer
-# Managed by Agent Layer. Do not edit this block directly.
-# Edit .agent-layer/gitignore.block and re-run ./al install to apply changes.
+# Managed by Agent Layer. To customize, edit .agent-layer/gitignore.block
+# and re-run `al init` to apply changes.
 #
 # Agent Layer config (always ignore .env)
 /.agent-layer/.env
 # Optional: keep uncommented to ignore .agent-layer/ config.
 /.agent-layer/
-
-# Agent Layer launcher
-/al
+# Optional: uncomment to ignore docs/agent-layer/ project memory.
+# Edit .agent-layer/gitignore.block (not .gitignore) to change this entry.
+# /docs/agent-layer/
 
 # Agent Layer-generated instruction shims
 /AGENTS.md

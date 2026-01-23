@@ -19,11 +19,15 @@ func newWizardCmd() *cobra.Command {
 				return fmt.Errorf("Agent Layer wizard requires an interactive terminal")
 			}
 
-			root, err := getwd()
+			root, err := resolveInitRoot()
 			if err != nil {
 				return err
 			}
-			return runWizard(root)
+			pinned, err := resolvePinVersion("", Version)
+			if err != nil {
+				return err
+			}
+			return runWizard(root, pinned)
 		},
 	}
 }

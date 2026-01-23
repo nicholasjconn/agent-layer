@@ -30,6 +30,21 @@ func TestRootRunE_Version(t *testing.T) {
 	}
 }
 
+func TestRootRunE_VersionWriteError(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.Version = "dev"
+
+	if err := cmd.Flags().Set("version", "true"); err != nil {
+		t.Fatalf("set flag: %v", err)
+	}
+
+	cmd.SetOut(failingWriter{})
+
+	if err := cmd.RunE(cmd, nil); err == nil {
+		t.Fatal("expected RunE error")
+	}
+}
+
 func TestRootRunE_Help(t *testing.T) {
 	cmd := newRootCmd()
 	// Version default is false

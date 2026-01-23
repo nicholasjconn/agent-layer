@@ -23,6 +23,8 @@ type HuhUI struct {
 	isTerminal func() bool
 }
 
+var runFormFunc = func(form *huh.Form) error { return form.Run() }
+
 // NewHuhUI creates a new HuhUI using the default terminal check.
 func NewHuhUI() *HuhUI {
 	return &HuhUI{isTerminal: defaultIsTerminal}
@@ -50,7 +52,7 @@ func (ui *HuhUI) runForm(form *huh.Form) error {
 	if err := ui.ensureInteractive(); err != nil {
 		return err
 	}
-	return form.Run()
+	return runFormFunc(form)
 }
 
 // Select renders a single-choice prompt.

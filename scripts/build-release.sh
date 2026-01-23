@@ -23,12 +23,14 @@ build linux arm64 al-linux-arm64
 build linux amd64 al-linux-amd64
 build windows amd64 al-windows-amd64.exe
 
-cp agent-layer-install.sh "$dist_dir/"
+cp al-install.sh "$dist_dir/"
+cp al-install.ps1 "$dist_dir/"
 
 if command -v sha256sum >/dev/null 2>&1; then
-  (cd "$dist_dir" && sha256sum ./* > SHA256SUMS)
+  (cd "$dist_dir" && rm -f checksums.txt && sha256sum ./* > checksums.txt)
 elif command -v shasum >/dev/null 2>&1; then
-  (cd "$dist_dir" && shasum -a 256 ./* > SHA256SUMS)
+  (cd "$dist_dir" && rm -f checksums.txt && shasum -a 256 ./* > checksums.txt)
 else
-  echo "WARNING: sha256sum/shasum not found; skipping SHA256SUMS generation" >&2
+  echo "ERROR: sha256sum/shasum not found; cannot generate checksums.txt" >&2
+  exit 1
 fi

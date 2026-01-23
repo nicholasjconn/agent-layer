@@ -11,6 +11,8 @@ import (
 
 type syncer func(root string) ([]warnings.Warning, error)
 
+var writeFileAtomic = fsutil.WriteFileAtomic
+
 // applyChanges writes config/env updates and runs sync.
 // root/configPath/envPath identify files; c holds wizard selections; runSync is the sync function to call; returns an error on failure.
 func applyChanges(root, configPath, envPath string, c *Choices, runSync syncer) error {
@@ -60,11 +62,11 @@ func applyChanges(root, configPath, envPath string, c *Choices, runSync syncer) 
 		return err
 	}
 	// Patch
-	if err := fsutil.WriteFileAtomic(configPath, []byte(newConfig), configPerm); err != nil {
+	if err := writeFileAtomic(configPath, []byte(newConfig), configPerm); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 	newEnv := envfile.Patch(string(rawEnv), c.Secrets)
-	if err := fsutil.WriteFileAtomic(envPath, []byte(newEnv), envPerm); err != nil {
+	if err := writeFileAtomic(envPath, []byte(newEnv), envPerm); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
 

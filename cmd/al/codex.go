@@ -13,7 +13,7 @@ func newCodexCmd() *cobra.Command {
 		Use:   "codex",
 		Short: "Sync and launch Codex CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

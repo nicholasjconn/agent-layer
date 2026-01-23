@@ -1,6 +1,7 @@
 package fsutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,6 +63,78 @@ func TestWriteFileAtomicFailures(t *testing.T) {
 	})
 }
 
+func TestWriteFileAtomic_ErrorPaths(t *testing.T) {
+	t.Run("chmod error", func(t *testing.T) {
+		t.Cleanup(captureWriteFileAtomicDeps())
+		chmodTempFile = func(_ *os.File, _ os.FileMode) error {
+			return errors.New("chmod fail")
+		}
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.toml")
+		err := WriteFileAtomic(path, []byte("data"), 0644)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "set permissions for")
+	})
+
+	t.Run("write error", func(t *testing.T) {
+		t.Cleanup(captureWriteFileAtomicDeps())
+		writeTempFile = func(_ *os.File, _ []byte) (int, error) {
+			return 0, errors.New("write fail")
+		}
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.toml")
+		err := WriteFileAtomic(path, []byte("data"), 0644)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "write temp file")
+	})
+
+	t.Run("sync error", func(t *testing.T) {
+		t.Cleanup(captureWriteFileAtomicDeps())
+		syncTempFile = func(_ *os.File) error {
+			return errors.New("sync fail")
+		}
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.toml")
+		err := WriteFileAtomic(path, []byte("data"), 0644)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "sync temp file")
+	})
+
+	t.Run("close error", func(t *testing.T) {
+		t.Cleanup(captureWriteFileAtomicDeps())
+		closeTempFile = func(file *os.File) error {
+			_ = file.Close()
+			return errors.New("close fail")
+		}
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.toml")
+		err := WriteFileAtomic(path, []byte("data"), 0644)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "close temp file")
+	})
+
+	t.Run("sync dir error", func(t *testing.T) {
+		t.Cleanup(captureWriteFileAtomicDeps())
+		syncDirFunc = func(string) error {
+			return errors.New("sync dir fail")
+		}
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.toml")
+		err := WriteFileAtomic(path, []byte("data"), 0644)
+		assert.Error(t, err)
+		assert.Equal(t, "sync dir fail", err.Error())
+
+		data, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		assert.Equal(t, "data", string(data))
+	})
+}
+
 func TestSyncDir(t *testing.T) {
 	err := syncDir("/invalid/path")
 	assert.Error(t, err)
@@ -112,4 +185,24 @@ func TestSyncDir_File(t *testing.T) {
 	// This may or may not error depending on OS
 	// The point is to exercise the code path
 	_ = syncDir(filePath)
+}
+
+func captureWriteFileAtomicDeps() func() {
+	origCreateTemp := createTemp
+	origChmodTempFile := chmodTempFile
+	origWriteTempFile := writeTempFile
+	origSyncTempFile := syncTempFile
+	origCloseTempFile := closeTempFile
+	origRenameFile := renameFile
+	origSyncDirFunc := syncDirFunc
+
+	return func() {
+		createTemp = origCreateTemp
+		chmodTempFile = origChmodTempFile
+		writeTempFile = origWriteTempFile
+		syncTempFile = origSyncTempFile
+		closeTempFile = origCloseTempFile
+		renameFile = origRenameFile
+		syncDirFunc = origSyncDirFunc
+	}
 }

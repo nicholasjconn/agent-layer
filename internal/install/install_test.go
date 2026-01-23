@@ -22,6 +22,7 @@ func TestRunCreatesStructure(t *testing.T) {
 		filepath.Join(root, ".agent-layer", "config.toml"),
 		filepath.Join(root, ".agent-layer", "commands.allow"),
 		filepath.Join(root, ".agent-layer", ".env"),
+		filepath.Join(root, ".agent-layer", ".gitignore"),
 		filepath.Join(root, ".agent-layer", "gitignore.block"),
 		filepath.Join(root, "docs", "agent-layer", "ISSUES.md"),
 	}
@@ -38,6 +39,49 @@ func TestRunCreatesStructure(t *testing.T) {
 	}
 	if !strings.Contains(string(data), gitignoreStart) {
 		t.Fatalf("expected gitignore block to be present")
+	}
+}
+
+func TestRunWritesPinVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := Run(root, Options{PinVersion: "0.5.0"}); err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	path := filepath.Join(root, ".agent-layer", "al.version")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pin file: %v", err)
+	}
+	if string(data) != "0.5.0\n" {
+		t.Fatalf("unexpected pin content: %q", string(data))
+	}
+}
+
+func TestRunPinVersionDoesNotOverwriteWithoutFlag(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".agent-layer", "al.version")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("0.4.0\n"), 0o644); err != nil {
+		t.Fatalf("write pin file: %v", err)
+	}
+	if err := Run(root, Options{PinVersion: "0.5.0"}); err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pin file: %v", err)
+	}
+	if string(data) != "0.4.0\n" {
+		t.Fatalf("expected pin to remain unchanged")
+	}
+}
+
+func TestRunRejectsInvalidPinVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := Run(root, Options{PinVersion: "dev"}); err == nil {
+		t.Fatalf("expected error for invalid pin version")
 	}
 }
 
@@ -175,7 +219,7 @@ func TestWriteTemplateIfMissingExisting(t *testing.T) {
 
 func TestWriteTemplateDirMissing(t *testing.T) {
 	root := t.TempDir()
-	err := writeTemplateDir("missing-root", root, false, nil)
+	err := writeTemplateDir("missing-root", root, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for missing template root")
 	}
@@ -270,7 +314,7 @@ func TestWriteGitignoreBlockUpdatesLegacyTemplate(t *testing.T) {
 		t.Fatalf("write legacy: %v", err)
 	}
 
-	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil); err != nil {
+	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil); err != nil {
 		t.Fatalf("writeGitignoreBlock error: %v", err)
 	}
 	data, err := os.ReadFile(path)
@@ -294,7 +338,7 @@ func TestWriteGitignoreBlockPreservesCustom(t *testing.T) {
 		t.Fatalf("write custom: %v", err)
 	}
 
-	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil); err != nil {
+	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil); err != nil {
 		t.Fatalf("writeGitignoreBlock error: %v", err)
 	}
 	data, err := os.ReadFile(path)
@@ -384,7 +428,7 @@ func TestWriteGitignoreBlockRecordsDiff(t *testing.T) {
 	}
 
 	// Call without overwrite - should record diff.
-	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, recordDiff); err != nil {
+	if err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, recordDiff); err != nil {
 		t.Fatalf("writeGitignoreBlock error: %v", err)
 	}
 
@@ -401,7 +445,7 @@ func TestWriteGitignoreBlockReadError(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for read failure")
 	}
@@ -512,7 +556,7 @@ func TestRunWithOverwrite(t *testing.T) {
 	}
 
 	// Run with overwrite - should replace the file.
-	if err := Run(root, Options{Overwrite: true}); err != nil {
+	if err := Run(root, Options{Overwrite: true, Force: true}); err != nil {
 		t.Fatalf("overwrite Run error: %v", err)
 	}
 
@@ -526,6 +570,50 @@ func TestRunWithOverwrite(t *testing.T) {
 	}
 }
 
+func TestRunWithOverwriteMissingPrompt(t *testing.T) {
+	root := t.TempDir()
+
+	if err := Run(root, Options{Overwrite: true}); err == nil {
+		t.Fatalf("expected error when overwrite prompt handler is missing")
+	}
+}
+
+func TestRunWithOverwritePromptDecline(t *testing.T) {
+	root := t.TempDir()
+
+	// First run to create structure.
+	if err := Run(root, Options{}); err != nil {
+		t.Fatalf("first Run error: %v", err)
+	}
+
+	// Modify a file to differ from template.
+	configPath := filepath.Join(root, ".agent-layer", "config.toml")
+	if err := os.WriteFile(configPath, []byte("# custom config"), 0o644); err != nil {
+		t.Fatalf("write custom config: %v", err)
+	}
+
+	var prompted []string
+	prompt := func(path string) (bool, error) {
+		prompted = append(prompted, path)
+		return false, nil
+	}
+
+	if err := Run(root, Options{Overwrite: true, PromptOverwrite: prompt}); err != nil {
+		t.Fatalf("overwrite Run error: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if string(data) != "# custom config" {
+		t.Fatalf("expected config to remain after declining prompt")
+	}
+	if len(prompted) != 1 || prompted[0] != filepath.Join(".agent-layer", "config.toml") {
+		t.Fatalf("unexpected prompt paths: %v", prompted)
+	}
+}
+
 func TestWriteGitignoreBlockTemplateReadError(t *testing.T) {
 	original := templates.ReadFunc
 	templates.ReadFunc = func(path string) ([]byte, error) {
@@ -536,7 +624,7 @@ func TestWriteGitignoreBlockTemplateReadError(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "gitignore.block")
 
-	err := writeGitignoreBlock(path, "gitignore.block", 0o644, false, nil)
+	err := writeGitignoreBlock(path, "gitignore.block", 0o644, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for template read failure")
 	}
@@ -553,7 +641,7 @@ func TestWriteTemplateDirWalkError(t *testing.T) {
 	t.Cleanup(func() { templates.WalkFunc = original })
 
 	root := t.TempDir()
-	err := writeTemplateDir("instructions", root, false, nil)
+	err := writeTemplateDir("instructions", root, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for walk failure")
 	}

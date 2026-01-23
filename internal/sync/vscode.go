@@ -29,9 +29,17 @@ type vscodeMCPServer struct {
 	Env     OrderedMap[string] `json:"env,omitempty"`
 }
 
+var (
+	buildVSCodeSettingsFunc  = buildVSCodeSettings
+	buildVSCodeMCPConfigFunc = buildVSCodeMCPConfig
+	vscodeMarshalIndent      = json.MarshalIndent
+	vscodeWriteFileAtomic    = fsutil.WriteFileAtomic
+	writeVSCodeAppBundleFunc = writeVSCodeAppBundle
+)
+
 // WriteVSCodeSettings generates .vscode/settings.json.
 func WriteVSCodeSettings(root string, project *config.ProjectConfig) error {
-	settings, err := buildVSCodeSettings(project)
+	settings, err := buildVSCodeSettingsFunc(project)
 	if err != nil {
 		return err
 	}
@@ -41,14 +49,14 @@ func WriteVSCodeSettings(root string, project *config.ProjectConfig) error {
 		return fmt.Errorf("failed to create %s: %w", vscodeDir, err)
 	}
 
-	data, err := json.MarshalIndent(settings, "", "  ")
+	data, err := vscodeMarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal vscode settings: %w", err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(vscodeDir, "settings.json")
-	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
+	if err := vscodeWriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 
@@ -57,7 +65,7 @@ func WriteVSCodeSettings(root string, project *config.ProjectConfig) error {
 
 // WriteVSCodeMCPConfig generates .vscode/mcp.json.
 func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
-	cfg, err := buildVSCodeMCPConfig(project)
+	cfg, err := buildVSCodeMCPConfigFunc(project)
 	if err != nil {
 		return err
 	}
@@ -67,24 +75,25 @@ func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
 		return fmt.Errorf("failed to create %s: %w", vscodeDir, err)
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := vscodeMarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal vscode mcp config: %w", err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(vscodeDir, "mcp.json")
-	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
+	if err := vscodeWriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 
 	return nil
 }
 
-// WriteVSCodeLaunchers generates VS Code launchers for macOS and Windows:
+// WriteVSCodeLaunchers generates VS Code launchers for macOS, Windows, and Linux:
 // - .agent-layer/open-vscode.command (macOS Terminal script)
 // - .agent-layer/open-vscode.app (macOS app bundle - no Terminal window)
 // - .agent-layer/open-vscode.bat (Windows batch file)
+// - .agent-layer/open-vscode.desktop (Linux desktop entry)
 func WriteVSCodeLaunchers(root string) error {
 	agentLayerDir := filepath.Join(root, ".agent-layer")
 	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
@@ -107,12 +116,12 @@ else
 fi
 `
 	shPath := filepath.Join(agentLayerDir, "open-vscode.command")
-	if err := fsutil.WriteFileAtomic(shPath, []byte(shContent), 0o755); err != nil {
+	if err := vscodeWriteFileAtomic(shPath, []byte(shContent), 0o755); err != nil {
 		return fmt.Errorf("failed to write %s: %w", shPath, err)
 	}
 
 	// macOS .app bundle (no Terminal window)
-	if err := writeVSCodeAppBundle(agentLayerDir); err != nil {
+	if err := writeVSCodeAppBundleFunc(agentLayerDir); err != nil {
 		return err
 	}
 
@@ -131,8 +140,22 @@ if %ERRORLEVEL% equ 0 (
 )
 `
 	batPath := filepath.Join(agentLayerDir, "open-vscode.bat")
-	if err := fsutil.WriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
+	if err := vscodeWriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
 		return fmt.Errorf("failed to write %s: %w", batPath, err)
+	}
+
+	// Linux launcher (.desktop)
+	desktopContent := `[Desktop Entry]
+Type=Application
+Name=Open VS Code
+Comment=Open this repo in VS Code with CODEX_HOME set
+Exec=sh -c "PARENT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd -P)\"; export CODEX_HOME=\"$PARENT_ROOT/.codex\"; cd \"$PARENT_ROOT\"; if command -v code >/dev/null 2>&1; then exec code .; else MSG1=\"Error: code command not found.\"; MSG2=\"To install: Open VS Code, press Ctrl+Shift+P, run Shell Command: Install code command in PATH.\"; if command -v zenity >/dev/null 2>&1; then zenity --error --title=\"VS Code\" --text=\"$MSG1\n\n$MSG2\"; elif command -v kdialog >/dev/null 2>&1; then kdialog --error \"$MSG1\n\n$MSG2\" --title \"VS Code\"; elif command -v notify-send >/dev/null 2>&1; then notify-send \"VS Code\" \"$MSG1 $MSG2\"; elif command -v x-terminal-emulator >/dev/null 2>&1; then exec x-terminal-emulator -e sh -c \"echo \\\"$MSG1\\\"; echo \\\"$MSG2\\\"; printf 'Press Enter to exit.'; read -r _\"; elif command -v gnome-terminal >/dev/null 2>&1; then exec gnome-terminal -- sh -c \"echo \\\"$MSG1\\\"; echo \\\"$MSG2\\\"; printf 'Press Enter to exit.'; read -r _\"; elif command -v konsole >/dev/null 2>&1; then exec konsole -e sh -c \"echo \\\"$MSG1\\\"; echo \\\"$MSG2\\\"; printf 'Press Enter to exit.'; read -r _\"; elif command -v xterm >/dev/null 2>&1; then exec xterm -e sh -c \"echo \\\"$MSG1\\\"; echo \\\"$MSG2\\\"; printf 'Press Enter to exit.'; read -r _\"; else echo \"$MSG1\"; echo \"$MSG2\"; fi; exit 1; fi" "%k"
+Terminal=false
+Categories=Development;IDE;
+`
+	desktopPath := filepath.Join(agentLayerDir, "open-vscode.desktop")
+	if err := vscodeWriteFileAtomic(desktopPath, []byte(desktopContent), 0o755); err != nil {
+		return fmt.Errorf("failed to write %s: %w", desktopPath, err)
 	}
 
 	return nil
@@ -171,7 +194,7 @@ func writeVSCodeAppBundle(agentLayerDir string) error {
 </plist>
 `
 	infoPlistPath := filepath.Join(contentsDir, "Info.plist")
-	if err := fsutil.WriteFileAtomic(infoPlistPath, []byte(infoPlist), 0o644); err != nil {
+	if err := vscodeWriteFileAtomic(infoPlistPath, []byte(infoPlist), 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", infoPlistPath, err)
 	}
 
@@ -196,7 +219,7 @@ else
 fi
 `
 	execPath := filepath.Join(macOSDir, "open-vscode")
-	if err := fsutil.WriteFileAtomic(execPath, []byte(execContent), 0o755); err != nil {
+	if err := vscodeWriteFileAtomic(execPath, []byte(execContent), 0o755); err != nil {
 		return fmt.Errorf("failed to write %s: %w", execPath, err)
 	}
 

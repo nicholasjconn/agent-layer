@@ -20,9 +20,10 @@ Entry format:
 <!-- ENTRIES START -->
 
 - Decision 2026-01-17 a1b2c3d: Distribution model (repo-local Go binary)
-    Decision: Ship as a repo-local Go binary (`./al`) installed via a shell script that downloads platform-specific releases. No global install, no runtime dependencies.
+    Decision: Ship as a repo-local Go binary installed via a shell script that downloads platform-specific releases. No global install, no runtime dependencies.
     Reason: Maximizes adoption by avoiding global installs and keeping the tool per-repo; Go binaries eliminate Node.js and Python runtime requirements.
     Tradeoffs: Requires installer step per repo; multiple repos mean multiple binary copies.
+    Notes: Superseded by Decision 2026-01-22 f1e2d3c (global CLI with pinning).
 
 - Decision 2026-01-17 b2c3d4e: Configuration approach (TOML in .agent-layer/)
     Decision: All user configuration lives in `.agent-layer/` as human-editable files: `config.toml` for structured settings, numbered `.md` files for instructions, and line-based files for allowlists.
@@ -35,12 +36,12 @@ Entry format:
     Tradeoffs: The installer adds files under `docs/agent-layer/`.
 
 - Decision 2026-01-17 d4e5f6a: Always sync on agent launch
-    Decision: `./al <client>` always regenerates client configs from `.agent-layer/` sources before launching.
+    Decision: `al <client>` always regenerates client configs from `.agent-layer/` sources before launching.
     Reason: "Always up to date" is the core product value; it prevents configuration drift.
     Tradeoffs: Slightly slower launches; optimization can be added later.
 
 - Decision 2026-01-17 e5f6a7b: MCP architecture (external servers + internal prompt server)
-    Decision: External MCP servers are user-defined in `config.toml` with HTTP or stdio transports. The internal prompt server (`./al mcp-prompts`) exposes slash commands automatically and is not user-configured.
+    Decision: External MCP servers are user-defined in `config.toml` with HTTP or stdio transports. The internal prompt server (`al mcp-prompts`) exposes slash commands automatically and is not user-configured.
     Reason: Users need arbitrary MCP servers while slash command discovery should be consistent and automatic.
     Tradeoffs: Requires per-client projection logic; some clients may not support all server features.
 
@@ -98,3 +99,8 @@ Entry format:
     Decision: Warning thresholds for instruction token count and MCP checks are configurable via `config.toml` with pointer fields (nil disables the warning). Token estimation uses a byte/rune heuristic (max(bytes/3, runes/4) with 10% buffer).
     Reason: Users need control over warning thresholds without exposing estimation internals; nil pointers clearly indicate disabled state.
     Tradeoffs: Pointer fields require careful handling in code; wizard must support "disable" as a selection option.
+
+- Decision 2026-01-22 f1e2d3c: Distribution model (global CLI with per-repo pinning)
+    Decision: Ship a single globally installed `al` CLI with per-repo version pinning via `.agent-layer/al.version` and cached binaries.
+    Reason: A single entrypoint reduces support burden while pinning keeps multi-repo setups reproducible.
+    Tradeoffs: Requires cache management, download verification, and dispatch logic.

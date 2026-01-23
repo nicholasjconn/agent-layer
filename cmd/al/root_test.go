@@ -13,6 +13,7 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/config"
 	"github.com/nicholasjconn/agent-layer/internal/doctor"
+	"github.com/nicholasjconn/agent-layer/internal/warnings"
 )
 
 func TestRootVersionFlag(t *testing.T) {
@@ -78,19 +79,21 @@ func TestStubCmd(t *testing.T) {
 	}
 }
 
-func TestInstallAndSyncCommands(t *testing.T) {
+func TestInitAndSyncCommands(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root, func() {
-		cmd := newInstallCmd()
+		cmd := newInitCmd()
 		cmd.SetArgs([]string{"--no-wizard"})
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		cmd.SetErr(&out)
 		cmd.SetIn(bytes.NewBufferString(""))
 		if err := cmd.Execute(); err != nil {
-			t.Fatalf("install error: %v", err)
+			t.Fatalf("init error: %v", err)
 		}
-		writeStub(t, root, "al")
+		binDir := t.TempDir()
+		writeStub(t, binDir, "al")
+		t.Setenv("PATH", binDir)
 
 		err := newSyncCmd().RunE(nil, nil)
 		// Sync might fail with warnings if templates are large, which is expected behavior now.
@@ -104,7 +107,7 @@ func TestInstallAndSyncCommands(t *testing.T) {
 	})
 }
 
-func TestInstallCommandNoWizardSkipsWizard(t *testing.T) {
+func TestInitCommandNoWizardSkipsWizard(t *testing.T) {
 	root := t.TempDir()
 	originalGetwd := getwd
 	getwd = func() (string, error) { return root, nil }
@@ -116,26 +119,26 @@ func TestInstallCommandNoWizardSkipsWizard(t *testing.T) {
 
 	originalRunWizard := runWizard
 	wizardCalled := false
-	runWizard = func(_ string) error {
+	runWizard = func(_ string, _ string) error {
 		wizardCalled = true
 		return nil
 	}
 	t.Cleanup(func() { runWizard = originalRunWizard })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{"--no-wizard"})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetIn(bytes.NewBufferString("y\n"))
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("install error: %v", err)
+		t.Fatalf("init error: %v", err)
 	}
 	if wizardCalled {
 		t.Fatalf("expected wizard to be skipped with --no-wizard")
 	}
 }
 
-func TestInstallCommandPromptYesRunsWizard(t *testing.T) {
+func TestInitCommandPromptYesRunsWizard(t *testing.T) {
 	root := t.TempDir()
 	originalGetwd := getwd
 	getwd = func() (string, error) { return root, nil }
@@ -147,26 +150,26 @@ func TestInstallCommandPromptYesRunsWizard(t *testing.T) {
 
 	originalRunWizard := runWizard
 	wizardCalled := false
-	runWizard = func(_ string) error {
+	runWizard = func(_ string, _ string) error {
 		wizardCalled = true
 		return nil
 	}
 	t.Cleanup(func() { runWizard = originalRunWizard })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetIn(bytes.NewBufferString("y\n"))
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("install error: %v", err)
+		t.Fatalf("init error: %v", err)
 	}
 	if !wizardCalled {
 		t.Fatalf("expected wizard to run after confirmation")
 	}
 }
 
-func TestInstallCommandNonInteractiveSkipsWizard(t *testing.T) {
+func TestInitCommandNonInteractiveSkipsWizard(t *testing.T) {
 	root := t.TempDir()
 	originalGetwd := getwd
 	getwd = func() (string, error) { return root, nil }
@@ -178,26 +181,72 @@ func TestInstallCommandNonInteractiveSkipsWizard(t *testing.T) {
 
 	originalRunWizard := runWizard
 	wizardCalled := false
-	runWizard = func(_ string) error {
+	runWizard = func(_ string, _ string) error {
 		wizardCalled = true
 		return nil
 	}
 	t.Cleanup(func() { runWizard = originalRunWizard })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetIn(bytes.NewBufferString(""))
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("install error: %v", err)
+		t.Fatalf("init error: %v", err)
 	}
 	if wizardCalled {
 		t.Fatalf("expected wizard to be skipped in non-interactive mode")
 	}
 }
 
-func TestInstallCommandPromptNoDeclinesWizard(t *testing.T) {
+func TestInitCommandOverwriteRequiresTerminal(t *testing.T) {
+	root := t.TempDir()
+	originalGetwd := getwd
+	getwd = func() (string, error) { return root, nil }
+	t.Cleanup(func() { getwd = originalGetwd })
+
+	originalIsTerminal := isTerminal
+	isTerminal = func() bool { return false }
+	t.Cleanup(func() { isTerminal = originalIsTerminal })
+
+	cmd := newInitCmd()
+	cmd.SetArgs([]string{"--overwrite"})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetIn(bytes.NewBufferString(""))
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when overwrite prompts are requested without a terminal")
+	}
+	if !strings.Contains(err.Error(), "interactive terminal") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInitCommandForceNonInteractive(t *testing.T) {
+	root := t.TempDir()
+	originalGetwd := getwd
+	getwd = func() (string, error) { return root, nil }
+	t.Cleanup(func() { getwd = originalGetwd })
+
+	originalIsTerminal := isTerminal
+	isTerminal = func() bool { return false }
+	t.Cleanup(func() { isTerminal = originalIsTerminal })
+
+	cmd := newInitCmd()
+	cmd.SetArgs([]string{"--force"})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetIn(bytes.NewBufferString(""))
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("init error: %v", err)
+	}
+}
+
+func TestInitCommandPromptNoDeclinesWizard(t *testing.T) {
 	root := t.TempDir()
 	originalGetwd := getwd
 	getwd = func() (string, error) { return root, nil }
@@ -209,19 +258,19 @@ func TestInstallCommandPromptNoDeclinesWizard(t *testing.T) {
 
 	originalRunWizard := runWizard
 	wizardCalled := false
-	runWizard = func(_ string) error {
+	runWizard = func(_ string, _ string) error {
 		wizardCalled = true
 		return nil
 	}
 	t.Cleanup(func() { runWizard = originalRunWizard })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetIn(bytes.NewBufferString("n\n")) // Decline wizard
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("install error: %v", err)
+		t.Fatalf("init error: %v", err)
 	}
 	if wizardCalled {
 		t.Fatalf("expected wizard to be skipped when user declines")
@@ -258,6 +307,7 @@ func TestClientCommandsSuccess(t *testing.T) {
 	writeStub(t, binDir, "codex")
 	writeStub(t, binDir, "code")
 	writeStub(t, binDir, "antigravity")
+	writeStub(t, binDir, "al")
 
 	t.Setenv("PATH", binDir)
 
@@ -324,6 +374,60 @@ func TestDoctorCommand_WithWarnings(t *testing.T) {
 	})
 }
 
+func TestDoctorCommand_InstructionsError(t *testing.T) {
+	root := t.TempDir()
+	writeTestRepo(t, root)
+
+	origInstructions := checkInstructions
+	origMCP := checkMCPServers
+	t.Cleanup(func() {
+		checkInstructions = origInstructions
+		checkMCPServers = origMCP
+	})
+
+	checkInstructions = func(string, *int) ([]warnings.Warning, error) {
+		return nil, errors.New("instructions failed")
+	}
+	checkMCPServers = func(context.Context, *config.ProjectConfig, warnings.Connector) ([]warnings.Warning, error) {
+		return nil, nil
+	}
+
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatal("expected doctor error")
+		}
+	})
+}
+
+func TestDoctorCommand_MCPError(t *testing.T) {
+	root := t.TempDir()
+	writeTestRepo(t, root)
+
+	origInstructions := checkInstructions
+	origMCP := checkMCPServers
+	t.Cleanup(func() {
+		checkInstructions = origInstructions
+		checkMCPServers = origMCP
+	})
+
+	checkInstructions = func(string, *int) ([]warnings.Warning, error) {
+		return nil, nil
+	}
+	checkMCPServers = func(context.Context, *config.ProjectConfig, warnings.Connector) ([]warnings.Warning, error) {
+		return nil, errors.New("mcp failed")
+	}
+
+	withWorkingDir(t, root, func() {
+		cmd := newDoctorCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatal("expected doctor error")
+		}
+	})
+}
+
 func TestPrintResult_AllStatuses(t *testing.T) {
 	// Test all status types to ensure coverage
 	results := []doctor.Result{
@@ -340,6 +444,9 @@ func TestPrintResult_AllStatuses(t *testing.T) {
 func TestSyncCommand_WithWarnings(t *testing.T) {
 	root := t.TempDir()
 	writeTestRepoWithWarnings(t, root)
+	binDir := t.TempDir()
+	writeStub(t, binDir, "al")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	withWorkingDir(t, root, func() {
 		cmd := newSyncCmd()
 		err := cmd.RunE(cmd, nil)
@@ -381,7 +488,7 @@ func TestCommandsGetwdError(t *testing.T) {
 	t.Cleanup(func() { getwd = original })
 
 	commands := []*cobra.Command{
-		newInstallCmd(),
+		newInitCmd(),
 		newSyncCmd(),
 		newMcpPromptsCmd(),
 		newGeminiCmd(),
@@ -398,7 +505,7 @@ func TestCommandsGetwdError(t *testing.T) {
 	}
 }
 
-func TestInstallCommandInstallRunError(t *testing.T) {
+func TestInitCommandInstallRunError(t *testing.T) {
 	// Point to a file instead of directory to cause install.Run to fail
 	root := t.TempDir()
 	blockingFile := filepath.Join(root, ".agent-layer")
@@ -410,7 +517,7 @@ func TestInstallCommandInstallRunError(t *testing.T) {
 	getwd = func() (string, error) { return root, nil }
 	t.Cleanup(func() { getwd = originalGetwd })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
@@ -422,7 +529,7 @@ func TestInstallCommandInstallRunError(t *testing.T) {
 	}
 }
 
-func TestInstallCommandPromptError(t *testing.T) {
+func TestInitCommandPromptError(t *testing.T) {
 	root := t.TempDir()
 	originalGetwd := getwd
 	getwd = func() (string, error) { return root, nil }
@@ -432,7 +539,7 @@ func TestInstallCommandPromptError(t *testing.T) {
 	isTerminal = func() bool { return true }
 	t.Cleanup(func() { isTerminal = originalIsTerminal })
 
-	cmd := newInstallCmd()
+	cmd := newInitCmd()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
@@ -500,7 +607,6 @@ Do it.`
 	if err := os.WriteFile(paths.CommandsAllow, []byte("git status"), 0o644); err != nil {
 		t.Fatalf("write commands allow: %v", err)
 	}
-	writeStub(t, root, "al")
 }
 
 func writeTestRepoWithWarnings(t *testing.T, root string) {
@@ -553,7 +659,6 @@ instruction_token_threshold = 1
 	if err := os.WriteFile(paths.CommandsAllow, []byte("git status"), 0o644); err != nil {
 		t.Fatalf("write commands allow: %v", err)
 	}
-	writeStub(t, root, "al")
 }
 
 func writeStub(t *testing.T, dir string, name string) {

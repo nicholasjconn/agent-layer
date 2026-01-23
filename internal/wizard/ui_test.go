@@ -3,6 +3,7 @@ package wizard
 import (
 	"testing"
 
+	"github.com/charmbracelet/huh"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,6 +48,12 @@ func TestHuhUI_NoTTY(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("Input", func(t *testing.T) {
+		var res string
+		err := ui.Input("Title", &res)
+		assert.Error(t, err)
+	})
+
 	t.Run("SecretInput", func(t *testing.T) {
 		var res string
 		err := ui.SecretInput("Title", &res)
@@ -57,4 +64,24 @@ func TestHuhUI_NoTTY(t *testing.T) {
 		err := ui.Note("Title", "Body")
 		assert.Error(t, err)
 	})
+}
+
+func TestHuhUI_RunFormSuccess(t *testing.T) {
+	ui := &HuhUI{isTerminal: func() bool { return true }}
+	origRunForm := runFormFunc
+	t.Cleanup(func() {
+		runFormFunc = origRunForm
+	})
+
+	called := false
+	runFormFunc = func(form *huh.Form) error {
+		assert.NotNil(t, form)
+		called = true
+		return nil
+	}
+
+	var res string
+	err := ui.Input("Title", &res)
+	assert.NoError(t, err)
+	assert.True(t, called)
 }

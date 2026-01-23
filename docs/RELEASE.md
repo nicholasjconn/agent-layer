@@ -28,7 +28,7 @@ git push origin "$VERSION"
 
 ## GitHub release (automatic)
 1. Tag push triggers the release workflow.
-2. The workflow publishes `agent-layer-install.sh`, platform binaries, and `SHA256SUMS`.
+2. The workflow publishes `al-install.sh`, `al-install.ps1`, platform binaries, and `checksums.txt`.
 3. Release notes are automatically extracted from `CHANGELOG.md` by the workflow.
 
 ## Post-release verification (fresh repo)
@@ -36,9 +36,9 @@ git push origin "$VERSION"
 VERSION="vX.Y.Z"
 tmp_dir="$(mktemp -d)"
 cd "$tmp_dir"
-curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh \
+curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.sh \
   | bash -s -- --version "$VERSION"
-./al --version
+~/.local/bin/al --version
 ```
 
-Expected: `./al --version` prints `$VERSION`.
+Expected: `al --version` prints `$VERSION`.

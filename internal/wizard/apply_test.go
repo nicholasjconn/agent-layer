@@ -135,38 +135,7 @@ mode = "none"
 		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
 		require.NoError(t, err)
 
-		// Verify backups were NOT overwritten (based on implementation of writeBackup)
-		// Wait, writeBackup checks existence and returns false if exists.
-		// Does it error? No.
-		// "if _, err := writeBackup(...); err != nil"
-		// So it should be fine.
-
-		// Let's verify content is preserved if implementation says so.
-		// Actually implementation:
-		// _, err := os.Stat(path)
-		// backupExists := err == nil
-		// if err != nil && !os.IsNotExist(err) { return false, err }
-		// if err := os.WriteFile(path, data, perm); err != nil { ... }
-		// Wait! writeBackup calls os.WriteFile UNCONDITIONALLY?
-
-		/*
-			func writeBackup(path string, data []byte, perm os.FileMode) (bool, error) {
-				_, err := os.Stat(path)
-				backupExists := err == nil
-				if err != nil && !os.IsNotExist(err) {
-					return false, err
-				}
-				// It overwrites!
-				if err := os.WriteFile(path, data, perm); err != nil {
-					return false, err
-				}
-				return !backupExists, nil
-			}
-		*/
-
-		// So it DOES overwrite. It just returns whether it was a *new* backup.
-		// So I should expect overwrite.
-
+		// writeBackup always overwrites; it only returns whether the backup was new.
 		bakData, _ := os.ReadFile(configPath + ".bak")
 		assert.Equal(t, initialConfig, string(bakData))
 	})
@@ -225,6 +194,57 @@ mode = "none"
 		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
 		assert.Error(t, err)
 		// Config backup should be cleaned up
+		assert.NoFileExists(t, configPath+".bak")
+	})
+
+	t.Run("config write error", func(t *testing.T) {
+		tmpDir, configPath, envPath := setup(t)
+
+		origWrite := writeFileAtomic
+		t.Cleanup(func() { writeFileAtomic = origWrite })
+		writeFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+			if path == configPath {
+				return errors.New("write config failed")
+			}
+			return origWrite(path, data, perm)
+		}
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write config")
+	})
+
+	t.Run("env write error", func(t *testing.T) {
+		tmpDir, configPath, envPath := setup(t)
+
+		origWrite := writeFileAtomic
+		t.Cleanup(func() { writeFileAtomic = origWrite })
+		writeFileAtomic = func(path string, data []byte, perm os.FileMode) error {
+			if path == envPath {
+				return errors.New("write env failed")
+			}
+			return origWrite(path, data, perm)
+		}
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write .env")
+	})
+
+	t.Run("env perm error cleans config backup", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.toml")
+		require.NoError(t, os.WriteFile(configPath, []byte(initialConfig), 0644))
+
+		envRoot := filepath.Join(tmpDir, "env-root")
+		require.NoError(t, os.WriteFile(envRoot, []byte("not a dir"), 0644))
+		envPath := filepath.Join(envRoot, ".env")
+
+		mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
+		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
+		assert.Error(t, err)
 		assert.NoFileExists(t, configPath+".bak")
 	})
 }

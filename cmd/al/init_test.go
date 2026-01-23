@@ -11,25 +11,19 @@ import (
 )
 
 func TestInitCmd(t *testing.T) {
-	// Restore globals
-	defer func() {
-		getwd = os.Getwd
-		isTerminal = func() bool { return false } // Default mock to false? No, restore original behavior logic if possible, but actually we can just reset to a known state or assume original was correct.
-		// Since we don't have access to original anonymous functions easily unless we stored them,
-		// we should store them in the test.
-	}()
-
+	// Capture original globals and restore them after the test.
+	// Using a single defer avoids LIFO ordering issues with multiple defers.
 	origGetwd := getwd
 	origIsTerminal := isTerminal
 	origInstallRun := installRun
 	origRunWizard := runWizard
 
-	defer func() {
+	t.Cleanup(func() {
 		getwd = origGetwd
 		isTerminal = origIsTerminal
 		installRun = origInstallRun
 		runWizard = origRunWizard
-	}()
+	})
 
 	tests := []struct {
 		name           string
@@ -116,6 +110,14 @@ func TestInitCmd(t *testing.T) {
 			wantErr: true,
 			checkErr: func(err error) bool {
 				return err != nil // Specific error message check if needed
+			},
+		},
+		{
+			name:    "Resolve Root Error",
+			args:    []string{},
+			wantErr: true,
+			checkErr: func(err error) bool {
+				return err != nil && err.Error() == "getwd failed"
 			},
 		},
 		{

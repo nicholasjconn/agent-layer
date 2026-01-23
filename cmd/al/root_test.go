@@ -379,7 +379,7 @@ func TestDoctorCommand(t *testing.T) {
 func TestDoctorCommand_WithWarnings(t *testing.T) {
 	root := t.TempDir()
 	writeTestRepoWithWarnings(t, root)
-	stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "2.0.0", Outdated: true}, nil)
+	calls := stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "2.0.0", Outdated: true}, nil)
 	withWorkingDir(t, root, func() {
 		cmd := newDoctorCmd()
 		err := cmd.RunE(cmd, nil)
@@ -391,12 +391,15 @@ func TestDoctorCommand_WithWarnings(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+	if *calls == 0 {
+		t.Fatal("expected update check to run")
+	}
 }
 
 func TestDoctorCommand_InstructionsError(t *testing.T) {
 	root := t.TempDir()
 	writeTestRepo(t, root)
-	stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "1.0.0"}, nil)
+	calls := stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "1.0.0"}, nil)
 
 	origInstructions := checkInstructions
 	origMCP := checkMCPServers
@@ -419,12 +422,15 @@ func TestDoctorCommand_InstructionsError(t *testing.T) {
 			t.Fatal("expected doctor error")
 		}
 	})
+	if *calls == 0 {
+		t.Fatal("expected update check to run")
+	}
 }
 
 func TestDoctorCommand_MCPError(t *testing.T) {
 	root := t.TempDir()
 	writeTestRepo(t, root)
-	stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "1.0.0"}, nil)
+	calls := stubUpdateCheck(t, update.CheckResult{Current: "1.0.0", Latest: "1.0.0"}, nil)
 
 	origInstructions := checkInstructions
 	origMCP := checkMCPServers
@@ -447,6 +453,9 @@ func TestDoctorCommand_MCPError(t *testing.T) {
 			t.Fatal("expected doctor error")
 		}
 	})
+	if *calls == 0 {
+		t.Fatal("expected update check to run")
+	}
 }
 
 func TestPrintResult_AllStatuses(t *testing.T) {

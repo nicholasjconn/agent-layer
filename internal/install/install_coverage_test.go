@@ -1,11 +1,158 @@
 package install
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestWriteVersionFile_EmptyExisting(t *testing.T) {
+	root := t.TempDir()
+	inst := &installer{root: root, pinVersion: "1.0.0"}
+	alDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(alDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pinFile := filepath.Join(alDir, "al.version")
+	if err := os.WriteFile(pinFile, []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := inst.writeVersionFile()
+	if err == nil || !strings.Contains(err.Error(), "existing pin file") {
+		t.Fatalf("expected error for empty pin file, got %v", err)
+	}
+}
+
+func TestWriteVersionFile_ReadError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping read error test as root")
+	}
+	root := t.TempDir()
+	inst := &installer{root: root, pinVersion: "1.0.0"}
+	alDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(alDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pinFile := filepath.Join(alDir, "al.version")
+	// Make a directory to force read error
+	if err := os.Mkdir(pinFile, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := inst.writeVersionFile()
+	if err == nil || !strings.Contains(err.Error(), "failed to read") {
+		t.Fatalf("expected error for read failure, got %v", err)
+	}
+}
+
+func TestWriteVersionFile_MkdirError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("skipping mkdir error test as root")
+	}
+	root := t.TempDir()
+	inst := &installer{root: root, pinVersion: "1.0.0"}
+
+	// Create parent dir as read-only to force MkdirAll to fail when creating subdir
+	parent := filepath.Join(root, "parent")
+	if err := os.Mkdir(parent, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	// Use a read-only directory as root to force MkdirAll failure when creating .agent-layer.
+	inst.root = parent
+
+	err := inst.writeVersionFile()
+	if err == nil || !strings.Contains(err.Error(), "failed to create directory") {
+		t.Fatalf("expected error for mkdir failure, got %v", err)
+	}
+}
+
+func TestWriteVersionFile_PromptError(t *testing.T) {
+	root := t.TempDir()
+	inst := &installer{
+		root:       root,
+		overwrite:  true, // Must be true to trigger prompt
+		pinVersion: "1.0.0",
+		prompt: func(path string) (bool, error) {
+			return false, fmt.Errorf("prompt failed")
+		},
+	}
+	alDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(alDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pinFile := filepath.Join(alDir, "al.version")
+	if err := os.WriteFile(pinFile, []byte("0.9.0"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := inst.writeVersionFile()
+	if err == nil || !strings.Contains(err.Error(), "prompt failed") {
+		t.Fatalf("expected error from prompt, got %v", err)
+	}
+}
+
+func TestWriteVersionFile_NoOverwrite(t *testing.T) {
+	root := t.TempDir()
+	inst := &installer{
+		root:       root,
+		overwrite:  true, // Must be true to trigger prompt
+		pinVersion: "1.0.0",
+		prompt: func(path string) (bool, error) {
+			return false, nil
+		},
+	}
+	alDir := filepath.Join(root, ".agent-layer")
+	if err := os.MkdirAll(alDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pinFile := filepath.Join(alDir, "al.version")
+	if err := os.WriteFile(pinFile, []byte("0.9.0"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := inst.writeVersionFile()
+	if err != nil {
+		t.Fatalf("expected nil error for declined overwrite, got %v", err)
+	}
+	if len(inst.diffs) != 1 {
+		t.Errorf("expected 1 diff, got %d", len(inst.diffs))
+	}
+}
+
+func TestShouldOverwrite_PromptError(t *testing.T) {
+	inst := &installer{
+		overwrite: true,
+		prompt: func(path string) (bool, error) {
+			return false, fmt.Errorf("prompt error")
+		},
+	}
+	_, err := inst.shouldOverwrite("path")
+	if err == nil {
+		t.Fatal("expected error from prompt")
+	}
+}
+
+func TestShouldOverwrite_Force(t *testing.T) {
+	inst := &installer{overwrite: true, force: true}
+	overwrite, err := inst.shouldOverwrite("path")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !overwrite {
+		t.Error("expected true when forced")
+	}
+}
+
+func TestShouldOverwrite_MissingPrompt(t *testing.T) {
+	inst := &installer{overwrite: true, prompt: nil}
+	_, err := inst.shouldOverwrite("path")
+	if err == nil {
+		t.Fatal("expected error when prompt handler is missing")
+	}
+}
 
 func alwaysOverwrite(_ string) (bool, error) {
 	return true, nil
@@ -241,11 +388,7 @@ func TestRun_Error(t *testing.T) {
 	}
 	root := t.TempDir()
 
-	// Create .agent-layer as read-only to force createDirs (or subsequent steps) to fail
-	// createDirs tries to MkdirAll .agent-layer/instructions etc.
-	// If .agent-layer exists and is 0555, MkdirAll should fail to create subdirs?
-	// Actually createDirs creates .agent-layer/instructions.
-	// Let's make 'docs' read-only to fail creating docs/agent-layer
+	// Make docs read-only so creating docs/agent-layer fails.
 	docsDir := filepath.Join(root, "docs")
 	if err := os.Mkdir(docsDir, 0o555); err != nil {
 		t.Fatalf("mkdir: %v", err)

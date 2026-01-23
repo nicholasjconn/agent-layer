@@ -15,7 +15,7 @@ import (
 const codexHeader = `# GENERATED FILE — MAY CONTAIN SECRETS
 # This file is gitignored. Do not commit or share it.
 # Source: .agent-layer/config.toml
-# Regenerate: ./al sync
+# Regenerate: al sync
 
 `
 
@@ -204,7 +204,7 @@ func buildCodexRules(project *config.ProjectConfig) string {
 	var builder strings.Builder
 	builder.WriteString("# GENERATED FILE\n")
 	builder.WriteString("# Source: .agent-layer/commands.allow\n")
-	builder.WriteString("# Regenerate: ./al sync\n")
+	builder.WriteString("# Regenerate: al sync\n")
 	builder.WriteString("\n")
 
 	approvals := projection.BuildApprovals(project.Config, project.CommandsAllow)

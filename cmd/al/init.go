@@ -11,33 +11,42 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/install"
 	alsync "github.com/nicholasjconn/agent-layer/internal/sync"
+	"github.com/nicholasjconn/agent-layer/internal/version"
 	"github.com/nicholasjconn/agent-layer/internal/wizard"
 )
 
-var runWizard = func(root string) error {
-	return wizard.Run(root, wizard.NewHuhUI(), alsync.Run)
+var runWizard = func(root string, pinVersion string) error {
+	return wizard.Run(root, wizard.NewHuhUI(), alsync.Run, pinVersion)
 }
 
-func newInstallCmd() *cobra.Command {
+var installRun = install.Run
+
+func newInitCmd() *cobra.Command {
 	var overwrite bool
 	var force bool
 	var noWizard bool
+	var pinVersion string
 
 	cmd := &cobra.Command{
-		Use:   "install",
+		Use:   "init",
 		Short: "Initialize Agent Layer in this repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveInitRoot()
 			if err != nil {
 				return err
 			}
 			overwriteMode := overwrite || force
 			if overwriteMode && !force && !isTerminal() {
-				return fmt.Errorf("install overwrite prompts require an interactive terminal; re-run with --force to overwrite without prompts")
+				return fmt.Errorf("init overwrite prompts require an interactive terminal; re-run with --force to overwrite without prompts")
+			}
+			pinned, err := resolvePinVersion(pinVersion, Version)
+			if err != nil {
+				return err
 			}
 			opts := install.Options{
-				Overwrite: overwriteMode,
-				Force:     force,
+				Overwrite:  overwriteMode,
+				Force:      force,
+				PinVersion: pinned,
 			}
 			if overwriteMode && !force {
 				opts.PromptOverwrite = func(path string) (bool, error) {
@@ -45,7 +54,7 @@ func newInstallCmd() *cobra.Command {
 					return promptYesNo(cmd.InOrStdin(), cmd.OutOrStdout(), prompt, true)
 				}
 			}
-			if err := install.Run(root, opts); err != nil {
+			if err := installRun(root, opts); err != nil {
 				return err
 			}
 			if noWizard || !isTerminal() {
@@ -58,15 +67,35 @@ func newInstallCmd() *cobra.Command {
 			if !run {
 				return nil
 			}
-			return runWizard(root)
+			return runWizard(root, pinned)
 		},
 	}
 
 	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "Prompt before overwriting existing template files")
 	cmd.Flags().BoolVar(&force, "force", false, "Overwrite existing template files without prompting (implies --overwrite)")
-	cmd.Flags().BoolVar(&noWizard, "no-wizard", false, "Skip prompting to run the setup wizard after install")
+	cmd.Flags().BoolVar(&noWizard, "no-wizard", false, "Skip prompting to run the setup wizard after init")
+	cmd.Flags().StringVar(&pinVersion, "version", "", "Pin the repo to a specific Agent Layer version (vX.Y.Z or X.Y.Z)")
 
 	return cmd
+}
+
+// resolvePinVersion returns the normalized pin version for init, or empty when dev builds should not pin.
+func resolvePinVersion(flagValue string, buildVersion string) (string, error) {
+	if strings.TrimSpace(flagValue) != "" {
+		normalized, err := version.Normalize(flagValue)
+		if err != nil {
+			return "", err
+		}
+		return normalized, nil
+	}
+	if version.IsDev(buildVersion) {
+		return "", nil
+	}
+	normalized, err := version.Normalize(buildVersion)
+	if err != nil {
+		return "", err
+	}
+	return normalized, nil
 }
 
 // promptYesNo asks a yes/no question and returns the user's choice or an error.

@@ -21,7 +21,7 @@ func TestWizardCommandInteractiveRunsWizard(t *testing.T) {
 	getwd = func() (string, error) { return wantRoot, nil }
 
 	wizardCalled := false
-	runWizard = func(root string) error {
+	runWizard = func(root string, _ string) error {
 		wizardCalled = true
 		if root != wantRoot {
 			t.Fatalf("expected root %q, got %q", wantRoot, root)

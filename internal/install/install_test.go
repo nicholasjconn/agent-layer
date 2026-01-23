@@ -22,6 +22,7 @@ func TestRunCreatesStructure(t *testing.T) {
 		filepath.Join(root, ".agent-layer", "config.toml"),
 		filepath.Join(root, ".agent-layer", "commands.allow"),
 		filepath.Join(root, ".agent-layer", ".env"),
+		filepath.Join(root, ".agent-layer", ".gitignore"),
 		filepath.Join(root, ".agent-layer", "gitignore.block"),
 		filepath.Join(root, "docs", "agent-layer", "ISSUES.md"),
 	}
@@ -38,6 +39,49 @@ func TestRunCreatesStructure(t *testing.T) {
 	}
 	if !strings.Contains(string(data), gitignoreStart) {
 		t.Fatalf("expected gitignore block to be present")
+	}
+}
+
+func TestRunWritesPinVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := Run(root, Options{PinVersion: "0.5.0"}); err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	path := filepath.Join(root, ".agent-layer", "al.version")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pin file: %v", err)
+	}
+	if string(data) != "0.5.0\n" {
+		t.Fatalf("unexpected pin content: %q", string(data))
+	}
+}
+
+func TestRunPinVersionDoesNotOverwriteWithoutFlag(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".agent-layer", "al.version")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("0.4.0\n"), 0o644); err != nil {
+		t.Fatalf("write pin file: %v", err)
+	}
+	if err := Run(root, Options{PinVersion: "0.5.0"}); err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pin file: %v", err)
+	}
+	if string(data) != "0.4.0\n" {
+		t.Fatalf("expected pin to remain unchanged")
+	}
+}
+
+func TestRunRejectsInvalidPinVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := Run(root, Options{PinVersion: "dev"}); err == nil {
+		t.Fatalf("expected error for invalid pin version")
 	}
 }
 

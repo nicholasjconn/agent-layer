@@ -4,11 +4,12 @@ Agent Layer keeps AI-assisted development consistent across tools by generating 
 
 In every repo where you install it:
 
-- `./al` is a **repo-local executable** (gitignored)
-- `.agent-layer/` contains **only user-editable configuration** (optionally committed)
+- `al` is a **globally installed CLI** on your `PATH`
+- `.agent-layer/` contains user-editable configuration plus repo-local launchers (use `.agent-layer/.gitignore` to keep non-config files out of commits)
+- `.agent-layer/al.version` pins the repo to a specific Agent Layer release when present
 - `docs/agent-layer/` contains **project memory** the agents rely on (teams can commit or ignore)
 
-Running `./al <client>` always:
+Running `al <client>` always:
 1) reads `.agent-layer/` config
 2) regenerates (syncs) client files
 3) launches the client
@@ -17,29 +18,62 @@ Running `./al <client>` always:
 
 ## Quick start
 
-Install into the current repository (one command). Run this from the repo root where you want `.agent-layer/` and `docs/agent-layer/` created:
+Install the global CLI (macOS/Linux):
 
 ```bash
-curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/agent-layer-install.sh | bash
+curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.sh | bash
 ```
 
-The installer downloads `./al` and runs `./al install` in the current directory.
-By default, `./al install` prompts to run `./al wizard` after seeding files. Use `./al install --no-wizard` (or `agent-layer-install.sh --no-wizard`) to skip; non-interactive shells skip automatically.
-If you need to refresh template-managed files, use `./al install --overwrite` to review each file or `./al install --force` to overwrite without prompts (for non-interactive shells). The installer script supports `--force` as well.
+Homebrew (macOS/Linux) is supported via a separate tap; see release notes for the current tap name.
+
+Windows (manual; **not tested / not guaranteed**):
+
+```powershell
+iwr -useb https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.ps1 | iex
+```
+
+Initialize a repo (run from any subdirectory):
+
+```bash
+cd /path/to/repo
+al init
+```
 
 Then run an agent:
 
 ```bash
-./al gemini
+al gemini
 ```
+
+Notes:
+- `al init` prompts to run `al wizard` after seeding files. Use `al init --no-wizard` to skip; non-interactive shells skip automatically.
+- To refresh template-managed files, use `al init --overwrite` to review each file or `al init --force` to overwrite without prompts.
 
 Note: you must have the target client installed and on your `PATH` (Gemini CLI, Claude Code CLI, Codex, VS Code, etc.).
 
 ---
 
+## Version pinning (per repo)
+
+When a release version is available, `al init` writes `.agent-layer/al.version` (for example, `0.5.0`). You can also edit it manually or pass `--version` to pin a specific release.
+When you run `al` inside a repo, it locates `.agent-layer/`, reads the pinned version when present, and dispatches to that version automatically.
+
+Pin format:
+- `0.5.0` or `v0.5.0` (both are accepted)
+
+Cache location (per user):
+- default: user cache dir (for example `~/.cache/agent-layer/versions/<version>/<os>-<arch>/al-<os>-<arch>` on Linux)
+- override: `AL_CACHE_DIR=/path/to/cache`
+
+Overrides:
+- `AL_VERSION=0.5.0` forces a version (overrides the repo pin)
+- `AL_NO_NETWORK=1` disables downloads (fails if the pinned version is missing)
+
+---
+
 ## Interactive Setup (`al wizard`)
 
-Run `./al wizard` to interactively configure the most important settings:
+Run `al wizard` to interactively configure the most important settings:
 
 - **Approvals Mode** (all, mcp, commands, none)
 - **Agent Enablement** (Gemini, Claude, Codex, VS Code, Antigravity)
@@ -59,27 +93,29 @@ The wizard preserves your configuration’s table structure and key ordering and
 
 ## What gets created in your repo
 
-### Repo-local executable (gitignored)
-- `./al`
-
 ### User configuration (gitignored by default, but can be committed)
 - `.agent-layer/`
   - `config.toml` (main configuration; human-editable)
+  - `al.version` (repo pin; optional but recommended)
   - `instructions/` (numbered `*.md` fragments; lexicographic order)
   - `slash-commands/` (workflow markdown; one file per command)
   - `commands.allow` (approved shell commands; line-based)
   - `gitignore.block` (managed `.gitignore` block template; customize here)
+  - `.gitignore` (ignores repo-local launchers, template copies, and backups inside `.agent-layer/`)
   - `.env` (tokens/secrets; gitignored)
 
+Repo-local launchers and template copies live under `.agent-layer/` and are ignored by `.agent-layer/.gitignore`.
+
 ### Project memory (required; teams can commit or ignore)
-Default instructions and slash commands rely on these files existing.
+Default instructions and slash commands rely on these files existing, along with any additional memory files your team adopts.
 
 - `docs/agent-layer/`
   - `ISSUES.md`
   - `FEATURES.md`
   - `ROADMAP.md`
   - `DECISIONS.md`
-  - `COMMANDS.md`
+
+Additional agent memory files may be added as needed by your team.
 
 ### Generated client files (gitignored by default)
 Generated outputs are written to the repo root in client-specific formats (examples):
@@ -194,7 +230,7 @@ API tokens and other secrets live in `.agent-layer/.env` (always gitignored). Ex
 - `CONTEXT7_API_KEY`
 - `TAVILY_API_KEY`
 
-When launching via `./al`, your existing process environment takes precedence. `.agent-layer/.env` fills missing keys only, and empty values in `.agent-layer/.env` are ignored (so template entries cannot override real tokens).
+When launching via `al`, your existing process environment takes precedence. `.agent-layer/.env` fills missing keys only, and empty values in `.agent-layer/.env` are ignored (so template entries cannot override real tokens).
 
 ### Instructions: `.agent-layer/instructions/`
 
@@ -219,7 +255,7 @@ When launching via `./al`, your existing process environment takes precedence. `
 Some clients discover slash commands via MCP prompts. Agent Layer provides an **internal MCP prompt server** automatically.
 
 - You do not configure this in `config.toml`.
-- It is generated and wired into client configs by `./al sync`.
+- It is generated and wired into client configs by `al sync`.
 - External MCP servers (tool/data servers) are configured under `[mcp]` in `config.toml`.
 
 ---
@@ -265,8 +301,6 @@ Agent Layer generates two launcher options in `.agent-layer/`:
   - To install: Open VS Code, press Ctrl+Shift+P, type "Shell Command: Install code command in PATH", and run it
 - Shows a dialog when `code` is missing (falls back to notification or terminal)
 
-See `docs/agent-layer/COMMANDS.md` for the canonical VS Code launch instructions for this repo.
-
 ---
 
 ## Temporary run folders (concurrency-safe)
@@ -277,6 +311,7 @@ Some workflows produce artifacts (plans, task lists, reports). Agent Layer assig
 
 It exports:
 - `AL_RUN_DIR` — the run directory for this invocation
+- `AL_RUN_ID` — the run identifier for this invocation
 
 This avoids collisions when multiple agents run concurrently.
 
@@ -287,54 +322,61 @@ This avoids collisions when multiple agents run concurrently.
 Common usage:
 
 ```bash
-./al gemini
-./al claude
-./al codex
-./al vscode
-./al antigravity
+al gemini
+al claude
+al codex
+al vscode
+al antigravity
 ```
 
 Other commands:
 
-- `./al install` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore` (usually run by the installer)
-- `./al sync` — regenerate configs without launching a client
-- `./al doctor` — check common setup issues (secrets missing, files not writable, etc.)
-- `./al wizard` — interactive setup wizard (configure agents, models, MCP secrets)
-- `./al completion` — (TODO, Phase 6) print shell completion scripts
-- `./al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)
+- `al init` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore`
+- `al sync` — regenerate configs without launching a client
+- `al doctor` — check common setup issues (secrets missing, files not writable, etc.)
+- `al wizard` — interactive setup wizard (configure agents, models, MCP secrets)
+- `al completion` — generate shell completion scripts (bash/zsh/fish)
+- `al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)
 
 ---
 
 ## Development
 
-See `docs/DEVELOPMENT.md` for setup and troubleshooting, and `docs/agent-layer/COMMANDS.md` for the canonical command list.
+See `docs/DEVELOPMENT.md` for setup and troubleshooting.
 
 ---
 
-## Shell completion output (tab completion) (TODO, Phase 6)
+## Shell completion output (tab completion)
 
-“Shell completion output” is a snippet of shell script that enables tab-completion for `./al` in your shell.
+“Shell completion output” is a snippet of shell script that enables tab-completion for `al` in your shell.
 
 Typical behavior:
-- `./al completion bash` prints a Bash completion script to stdout
-- `./al completion zsh` prints a Zsh completion script to stdout
+- `al completion bash` prints a Bash completion script to stdout
+- `al completion zsh` prints a Zsh completion script to stdout
+- `al completion fish` prints a Fish completion script to stdout
+- `al completion <shell> --install` writes the completion file to the standard user location
 
 This enables:
-- `./al <TAB>` to complete supported subcommands (gemini/claude/codex/vscode/antigravity/sync/…)
+- `al <TAB>` to complete supported subcommands (gemini/claude/codex/vscode/antigravity/sync/…)
+
+Notes:
+- Zsh may require adding the install directory to `$fpath` before `compinit` (the command prints a snippet when needed).
+- Bash completion requires bash-completion to be enabled in your shell.
+- Windows completions are not supported.
 
 ---
 
 ## Git ignore defaults
 
 Installer adds a managed `.gitignore` block that typically ignores:
-
-- `./al`
 - `.agent-layer/` (except if teams choose to commit it)
 - `.agent-layer/.env`
 - generated client config directories/files (`.gemini/`, `.claude/`, `.vscode/`, `.codex/`, `.mcp.json`, etc.)
 - `tmp/agent-layer/`
 
-To customize the managed block, edit `.agent-layer/gitignore.block` and re-run `./al install`.
+If you choose to commit `.agent-layer/`, keep `.agent-layer/.gitignore` so repo-local launchers, template copies, and backups stay untracked.
+
+To customize the managed block, edit `.agent-layer/gitignore.block` and re-run `al init`.
 
 `docs/agent-layer/` is created by default; teams may choose to commit it or ignore it.
 
@@ -344,4 +386,4 @@ To customize the managed block, edit `.agent-layer/gitignore.block` and re-run `
 
 - Make installation and day-to-day usage trivial
 - Preserve 100% feature parity with the current system (instructions, slash commands, config generation, sync-on-run)
-- Reduce moving parts by shipping a single repo-local executable and keeping `.agent-layer/` config-only
+- Reduce moving parts by shipping a single global CLI and keeping `.agent-layer/` config-first with minimal repo-local launchers

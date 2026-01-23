@@ -18,7 +18,7 @@ func TestRun_NotInstalled_UserCancels(t *testing.T) {
 
 	ui := &MockUI{
 		ConfirmFunc: func(title string, value *bool) error {
-			if title == "Agent Layer is not installed in this repo. Run 'al install' now? (recommended)" {
+			if title == "Agent Layer is not installed in this repo. Run 'al init' now? (recommended)" {
 				*value = false
 				return nil
 			}
@@ -28,7 +28,7 @@ func TestRun_NotInstalled_UserCancels(t *testing.T) {
 
 	mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 	// Should return nil (Exit without changes)
 
@@ -42,7 +42,7 @@ func TestRun_Install(t *testing.T) {
 
 	ui := &MockUI{
 		ConfirmFunc: func(title string, value *bool) error {
-			if title == "Agent Layer is not installed in this repo. Run 'al install' now? (recommended)" {
+			if title == "Agent Layer is not installed in this repo. Run 'al init' now? (recommended)" {
 				*value = true
 				return nil
 			}
@@ -60,7 +60,7 @@ func TestRun_Install(t *testing.T) {
 
 	mockSync := func(root string) ([]warnings.Warning, error) { return nil, nil }
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 
 	// Verify install ran (config exists)
@@ -77,7 +77,7 @@ func TestRun_ConfirmError_Install(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "confirm error")
 }
@@ -98,7 +98,7 @@ func TestRun_InstallFailure(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "install failed")
 }
@@ -123,7 +123,7 @@ mode = "none"`
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load config")
 }
@@ -143,7 +143,7 @@ func TestRun_ConfigLoadFailureAfterInstall(t *testing.T) {
 	}
 
 	// Run wizard - install will succeed
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	// Install succeeds, config load should succeed too
 	// This test verifies the path works when install succeeds
 	// To test config failure after install, we'd need to corrupt config after install

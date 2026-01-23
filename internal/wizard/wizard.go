@@ -11,14 +11,20 @@ import (
 	"github.com/nicholasjconn/agent-layer/internal/install"
 )
 
+var (
+	loadDefaultMCPServersFunc = loadDefaultMCPServers
+	loadWarningDefaultsFunc   = loadWarningDefaults
+)
+
 // Run starts the interactive wizard.
-func Run(root string, ui UI, runSync syncer) error {
+// pinVersion is written to .agent-layer/al.version when install is needed.
+func Run(root string, ui UI, runSync syncer, pinVersion string) error {
 	configPath := filepath.Join(root, ".agent-layer", "config.toml")
 
 	// 2. Install gating
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		confirm := true
-		err := ui.Confirm("Agent Layer is not installed in this repo. Run 'al install' now? (recommended)", &confirm)
+		err := ui.Confirm("Agent Layer is not installed in this repo. Run 'al init' now? (recommended)", &confirm)
 		if err != nil {
 			return err
 		}
@@ -28,7 +34,7 @@ func Run(root string, ui UI, runSync syncer) error {
 		}
 
 		// Run install
-		if err := install.Run(root, install.Options{Overwrite: false}); err != nil {
+		if err := install.Run(root, install.Options{Overwrite: false, PinVersion: pinVersion}); err != nil {
 			return fmt.Errorf("install failed: %w", err)
 		}
 		fmt.Println("Installation complete. Continuing wizard...")
@@ -43,12 +49,12 @@ func Run(root string, ui UI, runSync syncer) error {
 	// 4. Initialize choices from config
 	choices := NewChoices()
 
-	defaultServers, err := loadDefaultMCPServers()
+	defaultServers, err := loadDefaultMCPServersFunc()
 	if err != nil {
 		return fmt.Errorf("failed to load default MCP servers: %w", err)
 	}
 	choices.DefaultMCPServers = defaultServers
-	warningDefaults, err := loadWarningDefaults()
+	warningDefaults, err := loadWarningDefaultsFunc()
 	if err != nil {
 		return fmt.Errorf("failed to load warning defaults: %w", err)
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/nicholasjconn/agent-layer/internal/fsutil"
 	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/nicholasjconn/agent-layer/internal/version"
 )
 
 // PromptOverwriteFunc asks whether to overwrite a given path.
@@ -21,14 +22,16 @@ type Options struct {
 	Overwrite       bool
 	Force           bool
 	PromptOverwrite PromptOverwriteFunc
+	PinVersion      string
 }
 
 type installer struct {
-	root      string
-	overwrite bool
-	force     bool
-	prompt    PromptOverwriteFunc
-	diffs     []string
+	root       string
+	overwrite  bool
+	force      bool
+	prompt     PromptOverwriteFunc
+	diffs      []string
+	pinVersion string
 }
 
 // Run initializes the repository with the required Agent Layer structure.
@@ -48,8 +51,16 @@ func Run(root string, opts Options) error {
 		force:     opts.Force,
 		prompt:    opts.PromptOverwrite,
 	}
+	if strings.TrimSpace(opts.PinVersion) != "" {
+		normalized, err := version.Normalize(opts.PinVersion)
+		if err != nil {
+			return fmt.Errorf("invalid pin version: %w", err)
+		}
+		inst.pinVersion = normalized
+	}
 	steps := []func() error{
 		inst.createDirs,
+		inst.writeVersionFile,
 		inst.writeTemplateFiles,
 		inst.writeTemplateDirs,
 		inst.updateGitignore,
@@ -99,6 +110,7 @@ func (inst *installer) writeTemplateFiles() error {
 		{filepath.Join(root, ".agent-layer", "config.toml"), "config.toml", 0o644},
 		{filepath.Join(root, ".agent-layer", "commands.allow"), "commands.allow", 0o644},
 		{filepath.Join(root, ".agent-layer", ".env"), "env", 0o600},
+		{filepath.Join(root, ".agent-layer", ".gitignore"), "agent-layer.gitignore", 0o644},
 		{filepath.Join(root, ".agent-layer", "gitignore.block"), "gitignore.block", 0o644},
 	}
 	for _, file := range files {
@@ -111,6 +123,47 @@ func (inst *installer) writeTemplateFiles() error {
 		if err := writeTemplateFile(file.path, file.template, file.perm, inst.shouldOverwrite, inst.recordDiff); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// writeVersionFile writes .agent-layer/al.version when pinning is enabled.
+func (inst *installer) writeVersionFile() error {
+	if inst.pinVersion == "" {
+		return nil
+	}
+	path := filepath.Join(inst.root, ".agent-layer", "al.version")
+	existingBytes, err := os.ReadFile(path)
+	if err == nil {
+		existing := strings.TrimSpace(string(existingBytes))
+		if existing == "" {
+			return fmt.Errorf("existing pin file %s is empty", path)
+		}
+		normalized, err := version.Normalize(existing)
+		if err != nil {
+			normalized = ""
+		}
+		if normalized == inst.pinVersion {
+			return nil
+		}
+		overwrite, err := inst.shouldOverwrite(path)
+		if err != nil {
+			return err
+		}
+		if !overwrite {
+			inst.recordDiff(path)
+			return nil
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to read %s: %w", path, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", path, err)
+	}
+	content := []byte(inst.pinVersion + "\n")
+	if err := fsutil.WriteFileAtomic(path, content, 0o644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil
 }
@@ -183,7 +236,7 @@ func (inst *installer) warnDifferences() {
 		}
 		_, _ = fmt.Fprintf(os.Stderr, "  - %s\n", rel)
 	}
-	_, _ = fmt.Fprintln(os.Stderr, "Re-run `./al install --overwrite` to review each file, or `./al install --force` to replace them without prompts.")
+	_, _ = fmt.Fprintln(os.Stderr, "Re-run `al init --overwrite` to review each file, or `al init --force` to replace them without prompts.")
 }
 
 func writeTemplateIfMissing(path string, templatePath string, perm fs.FileMode) error {

@@ -39,13 +39,13 @@ Phase template (incomplete):
 <!-- PHASES START -->
 
 ## Phase 1 ✅ — Define the vNext contract (docs-first)
-- Defined the vNext product contract: repo-local `./al`, config-only `.agent-layer/`, required `docs/agent-layer/` memory, always-sync-on-run.
+- Defined the vNext product contract: repo-local CLI (later superseded by global CLI), config-first `.agent-layer/` with repo-local launchers, required `docs/agent-layer/` memory, always-sync-on-run.
 - Created simplified `README.md`, `DECISIONS.md`, and `ROADMAP.md` as the foundation for the Go rewrite.
 - Moved project memory into `docs/agent-layer/` and templated it for installer seeding.
 
 ## Phase 2 ✅ — Repository installer + skeleton (single command install)
-- Implemented repo initialization (`al install`), gitignore management, and template seeding.
-- Added release workflow + installer script for repo-local binary installation.
+- Implemented repo initialization (`al init`), gitignore management, and template seeding.
+- Added release workflow + installer script for repo-local CLI installation (later superseded by global installers).
 
 ## Phase 3 ✅ — Core sync engine (parity with current generators)
 - Implemented config parsing/validation, instruction + workflow parsing, and deterministic generators for all clients.
@@ -59,7 +59,7 @@ Phase template (incomplete):
 - Implemented `[[mcp.servers]]` projection for HTTP and stdio transports with environment variable wiring.
 - Added `${ENV_VAR}` substitution from `.agent-layer/.env` with client-specific placeholder syntax preservation.
 - Implemented approval modes (`all`, `mcp`, `commands`, `none`) with per-client projections.
-- Added `al install --overwrite` flag and warnings for existing files that differ from templates.
+- Added `al init --overwrite` flag and warnings for existing files that differ from templates.
 - Fixed `go run ./cmd/al <client>` to locate the binary correctly for the internal MCP prompt server.
 - Updated default `gitignore.block` to make `.agent-layer/` optional with customization guidance.
 - Release workflow now auto-extracts release notes from `CHANGELOG.md`.
@@ -74,19 +74,22 @@ Phase template (incomplete):
 ## Phase 7 — v0.5.0 Global CLI and install improvements
 
 ### Goal
-- Transition from repo-local binary to a single globally installed `al` CLI with Homebrew support.
+- Transition from repo-local binary to a single globally installed `al` CLI with per-repo pinning and improved installers.
 
 ### Tasks
-- [ ] Move to a single globally installed `al` CLI (remove repo-local `./al` binary pattern).
-- [ ] Publish Homebrew tap for `al` installation (`brew install nicholasjconn/tap/al`).
-- [ ] Implement `al completion bash|zsh|fish|powershell`.
+- [x] Move to a single globally installed `al` CLI (remove repo-local CLI binary pattern).
+- [ ] Publish Homebrew tap for `al` installation (tap managed separately).
+- [x] Implement `al completion bash|zsh|fish`.
+- [x] Add per-repo version pinning via `.agent-layer/al.version` with cache dispatch and checksum verification.
+- [x] Add manual installers (`al-install.sh`, `al-install.ps1`) and `checksums.txt` artifacts.
 - [x] Add Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
 - [x] Add commented-out gitignore entry for `docs/agent-layer/` with explanatory note.
-- [x] Add per-file overwrite prompts during `al install --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
+- [x] Add per-file overwrite prompts during `al init --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
 
 ### Exit criteria
 - `al` is installable globally via Homebrew and works from any directory.
-- Shell completion works for all major shells.
+- Shell completion works for bash, zsh, and fish.
+- Per-repo pinning resolves versions and verifies cached binaries.
 - Linux launcher ships with `CODEX_HOME` support.
 - Install flow offers an optional `docs/agent-layer/` gitignore entry.
 - Install overwrite prompts allow per-file decisions or force override.

@@ -1,0 +1,65 @@
+package dispatch
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestWithFileLock(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "test.lock")
+
+	err := withFileLock(path, func() error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("withFileLock failed: %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("lock file not created")
+	}
+}
+
+func TestWithFileLock_OpenError(t *testing.T) {
+	tmp := t.TempDir()
+	// Create a directory where the file should be
+	path := filepath.Join(tmp, "test.lock")
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	err := withFileLock(path, func() error {
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected error opening lock file on directory")
+	}
+}
+
+func TestWithFileLock_FnError(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "test.lock")
+
+	expectedErr := fmt.Errorf("callback error")
+	err := withFileLock(path, func() error {
+		return expectedErr
+	})
+	if err != expectedErr {
+		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestFileLock_Release_Nil(t *testing.T) {
+	var l *fileLock
+	if err := l.release(); err != nil {
+		t.Errorf("expected nil error for nil lock release, got %v", err)
+	}
+
+	l = &fileLock{}
+	if err := l.release(); err != nil {
+		t.Errorf("expected nil error for nil file release, got %v", err)
+	}
+}

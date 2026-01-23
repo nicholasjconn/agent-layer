@@ -99,7 +99,11 @@ func PatchConfig(content string, choices *Choices) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("render config: %w", err)
 	}
-	return updated, nil
+	formatted, err := formatTomlNoIndent(updated)
+	if err != nil {
+		return "", fmt.Errorf("format config: %w", err)
+	}
+	return formatted, nil
 }
 
 // setPathPreservingComment sets a value while retaining existing inline/leading comments when possible.

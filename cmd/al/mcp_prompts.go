@@ -16,7 +16,7 @@ func newMcpPromptsCmd() *cobra.Command {
 		Use:   "mcp-prompts",
 		Short: "Run the internal MCP prompt server over stdio",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

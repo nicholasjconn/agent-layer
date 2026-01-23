@@ -68,7 +68,7 @@ enabled = false
 
 	mockSync := func(r string) ([]warnings.Warning, error) { return nil, nil }
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 
 	// Verify .env
@@ -122,7 +122,7 @@ enabled = false
 			},
 		}
 
-		err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+		err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 		require.NoError(t, err)
 
 		envData, _ := os.ReadFile(filepath.Join(configDir, ".env"))
@@ -156,7 +156,7 @@ enabled = false
 			},
 		}
 
-		err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+		err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 		require.NoError(t, err)
 
 		envData, _ := os.ReadFile(filepath.Join(configDir, ".env"))
@@ -188,7 +188,7 @@ func TestRun_SecretFromEnv(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	require.NoError(t, err)
 
 	envData, _ := os.ReadFile(filepath.Join(configDir, ".env"))
@@ -225,7 +225,7 @@ func TestRun_SecretFromEnv_ConfirmError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "env confirm error")
 }
@@ -265,7 +265,7 @@ func TestRun_SecretFromEnv_Declined(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	require.NoError(t, err)
 
 	envData, _ := os.ReadFile(filepath.Join(configDir, ".env"))
@@ -299,7 +299,7 @@ func TestRun_SecretInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "secret input error")
 }
@@ -334,7 +334,7 @@ func TestRun_SecretBlank_DisableMCP(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, secretInputCalls)
 }
@@ -373,7 +373,7 @@ func TestRun_SecretBlank_DisableMCP_ConfirmError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "disable confirm error")
 }
@@ -419,7 +419,7 @@ func TestRun_SecretBlank_Retry(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	require.NoError(t, err)
 	assert.Equal(t, 2, secretInputCalls)
 
@@ -457,7 +457,7 @@ func TestRun_ExistingSecret_OverrideConfirmError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "override confirm error")
 }

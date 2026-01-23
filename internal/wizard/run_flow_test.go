@@ -71,7 +71,7 @@ enabled = false
 		return nil, nil
 	}
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 	assert.True(t, syncCalled)
 
@@ -121,7 +121,7 @@ enabled = false
 		return nil, nil
 	}
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 	assert.False(t, syncCalled)
 }
@@ -161,7 +161,7 @@ enabled = false
 		return nil, errors.New("sync failed")
 	}
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "sync failed")
 }
@@ -201,7 +201,7 @@ enabled = false
 
 	mockSync := func(r string) ([]warnings.Warning, error) { return nil, nil }
 
-	err := Run(root, ui, mockSync)
+	err := Run(root, ui, mockSync, "")
 	require.NoError(t, err)
 
 	// Verify restored in config

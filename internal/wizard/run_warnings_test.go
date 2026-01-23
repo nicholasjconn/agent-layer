@@ -36,7 +36,7 @@ func TestRun_WarningsConfirmError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "warnings confirm error")
 }
@@ -66,7 +66,7 @@ func TestRun_WarningsEnabled_HappyPath(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	require.NoError(t, err)
 
 	// Verify warnings thresholds are in config
@@ -99,7 +99,7 @@ func TestRun_WarningsEnabled_InputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "input error")
 }
@@ -133,7 +133,7 @@ func TestRun_WarningsEnabled_SecondInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "second input error")
 }
@@ -167,7 +167,7 @@ func TestRun_WarningsEnabled_ThirdInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "third input error")
 }
@@ -201,7 +201,7 @@ func TestRun_WarningsEnabled_FourthInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "fourth input error")
 }
@@ -235,7 +235,7 @@ func TestRun_WarningsEnabled_FifthInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "fifth input error")
 }
@@ -269,7 +269,7 @@ func TestRun_WarningsEnabled_SixthInputError(t *testing.T) {
 		},
 	}
 
-	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil })
+	err := Run(root, ui, func(r string) ([]warnings.Warning, error) { return nil, nil }, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "sixth input error")
 }

@@ -7,7 +7,7 @@
   },
   "mcpServers": {
     "agent-layer": {
-      "command": "./al",
+      "command": "al",
       "args": [
         "mcp-prompts"
       ],

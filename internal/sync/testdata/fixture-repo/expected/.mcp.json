@@ -2,7 +2,7 @@
   "mcpServers": {
     "agent-layer": {
       "type": "stdio",
-      "command": "./al",
+      "command": "al",
       "args": [
         "mcp-prompts"
       ]

@@ -135,38 +135,7 @@ mode = "none"
 		err := applyChanges(tmpDir, configPath, envPath, choices, mockSync)
 		require.NoError(t, err)
 
-		// Verify backups were NOT overwritten (based on implementation of writeBackup)
-		// Wait, writeBackup checks existence and returns false if exists.
-		// Does it error? No.
-		// "if _, err := writeBackup(...); err != nil"
-		// So it should be fine.
-
-		// Let's verify content is preserved if implementation says so.
-		// Actually implementation:
-		// _, err := os.Stat(path)
-		// backupExists := err == nil
-		// if err != nil && !os.IsNotExist(err) { return false, err }
-		// if err := os.WriteFile(path, data, perm); err != nil { ... }
-		// Wait! writeBackup calls os.WriteFile UNCONDITIONALLY?
-
-		/*
-			func writeBackup(path string, data []byte, perm os.FileMode) (bool, error) {
-				_, err := os.Stat(path)
-				backupExists := err == nil
-				if err != nil && !os.IsNotExist(err) {
-					return false, err
-				}
-				// It overwrites!
-				if err := os.WriteFile(path, data, perm); err != nil {
-					return false, err
-				}
-				return !backupExists, nil
-			}
-		*/
-
-		// So it DOES overwrite. It just returns whether it was a *new* backup.
-		// So I should expect overwrite.
-
+		// writeBackup always overwrites; it only returns whether the backup was new.
 		bakData, _ := os.ReadFile(configPath + ".bak")
 		assert.Equal(t, initialConfig, string(bakData))
 	})

@@ -18,7 +18,7 @@ func newSyncCmd() *cobra.Command {
 		Use:   "sync",
 		Short: "Regenerate client outputs from .agent-layer",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

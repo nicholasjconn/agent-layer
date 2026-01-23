@@ -15,7 +15,7 @@ if ([string]::IsNullOrWhiteSpace($InstallDir)) {
     }
 }
 
-$baseUrl = "https://github.com/nicholasjconn/agent-layer/releases"
+$baseUrl = "https://github.com/conn-castle/agent-layer/releases"
 $asset = "al-windows-amd64.exe"
 
 $tag = "latest"

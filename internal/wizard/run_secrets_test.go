@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/nicholasjconn/agent-layer/internal/warnings"
+	"github.com/conn-castle/agent-layer/internal/warnings"
 )
 
 func TestRun_WithSecrets(t *testing.T) {

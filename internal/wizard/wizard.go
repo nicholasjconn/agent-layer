@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/envfile"
-	"github.com/nicholasjconn/agent-layer/internal/install"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/envfile"
+	"github.com/conn-castle/agent-layer/internal/install"
 )
 
 var (

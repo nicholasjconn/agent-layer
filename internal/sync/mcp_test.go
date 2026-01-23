@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 func TestBuildMCPConfig(t *testing.T) {

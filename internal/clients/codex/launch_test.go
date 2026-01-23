@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/clients"
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/run"
+	"github.com/conn-castle/agent-layer/internal/clients"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/run"
 )
 
 func TestEnsureCodexHomeSetsDefault(t *testing.T) {

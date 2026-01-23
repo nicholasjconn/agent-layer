@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/fsutil"
-	"github.com/nicholasjconn/agent-layer/internal/projection"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/projection"
 )
 
 type vscodeSettings struct {

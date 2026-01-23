@@ -36,7 +36,7 @@ git push origin "$VERSION"
 VERSION="vX.Y.Z"
 tmp_dir="$(mktemp -d)"
 cd "$tmp_dir"
-curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.sh \
+curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh \
   | bash -s -- --version "$VERSION"
 ~/.local/bin/al --version
 ```

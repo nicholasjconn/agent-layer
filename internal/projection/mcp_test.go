@@ -3,7 +3,7 @@ package projection
 import (
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 func TestResolveMCPServers(t *testing.T) {

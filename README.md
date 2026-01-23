@@ -1,13 +1,8 @@
-# Agent Layer (Go edition)
+# Agent Layer
 
 Agent Layer keeps AI-assisted development consistent across tools by generating each client’s required config from **one repo-local source of truth**.
 
-In every repo where you install it:
-
-- `al` is a **globally installed CLI** on your `PATH`
-- `.agent-layer/` contains user-editable configuration plus repo-local launchers (use `.agent-layer/.gitignore` to keep non-config files out of commits)
-- `.agent-layer/al.version` pins the repo to a specific Agent Layer release when present
-- `docs/agent-layer/` contains **project memory** the agents rely on (teams can commit or ignore)
+Install once per machine. `al` is a globally installed CLI on your `PATH`. In each repo, run `al init` to seed `.agent-layer/` and `docs/agent-layer/`. You edit `.agent-layer/`; `al` regenerates the right files for each client and launches it.
 
 Running `al <client>` always:
 1) reads `.agent-layer/` config
@@ -16,21 +11,37 @@ Running `al <client>` always:
 
 ---
 
-## Quick start
+## Install
 
-Install the global CLI (macOS/Linux):
+Install once per machine; choose one:
+
+### Homebrew (macOS/Linux)
 
 ```bash
-curl -fsSL https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.sh | bash
+brew install conn-castle/tap/agent-layer
 ```
 
-Homebrew (macOS/Linux) is supported via a separate tap; see release notes for the current tap name.
+### Script (macOS/Linux)
 
-Windows (manual; **not tested / not guaranteed**):
+```bash
+curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash
+```
+
+### Windows (PowerShell)
 
 ```powershell
-iwr -useb https://github.com/nicholasjconn/agent-layer/releases/latest/download/al-install.ps1 | iex
+iwr -useb https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.ps1 | iex
 ```
+
+Verify:
+
+```bash
+al --version
+```
+
+---
+
+## Quick start
 
 Initialize a repo (run from any subdirectory):
 
@@ -48,14 +59,16 @@ al gemini
 Notes:
 - `al init` prompts to run `al wizard` after seeding files. Use `al init --no-wizard` to skip; non-interactive shells skip automatically.
 - To refresh template-managed files, use `al init --overwrite` to review each file or `al init --force` to overwrite without prompts.
-
-Note: you must have the target client installed and on your `PATH` (Gemini CLI, Claude Code CLI, Codex, VS Code, etc.).
+- Agent Layer does not install clients. Install the target client CLI and ensure it is on your `PATH` (Gemini CLI, Claude Code CLI, Codex, VS Code, etc.).
 
 ---
 
-## Version pinning (per repo)
+## Version pinning (per repo, optional)
+
+Version pinning keeps everyone on the same Agent Layer release and lets `al` download the right binary automatically.
 
 When a release version is available, `al init` writes `.agent-layer/al.version` (for example, `0.5.0`). You can also edit it manually or pass `--version` to pin a specific release.
+
 When you run `al` inside a repo, it locates `.agent-layer/`, reads the pinned version when present, and dispatches to that version automatically.
 
 Pin format:
@@ -71,9 +84,22 @@ Overrides:
 
 ---
 
-## Interactive Setup (`al wizard`)
+## Updating Agent Layer
 
-Run `al wizard` to interactively configure the most important settings:
+Update the global CLI:
+- Homebrew: `brew upgrade conn-castle/tap/agent-layer` (updates the installed formula)
+- Script (macOS/Linux): re-run the install script from Install (downloads and replaces `al`)
+- Windows: re-run the PowerShell install script (downloads and replaces `al`)
+
+If a repo is pinned, edit `.agent-layer/al.version` to the new release (`vX.Y.Z` or `X.Y.Z`) and run `al` to download it.
+
+`al doctor` always checks for newer releases and warns if you're behind. `al init` also warns when your installed CLI is out of date, unless you set `--version`, `AL_VERSION`, or `AL_NO_NETWORK`.
+
+---
+
+## Interactive setup (optional, `al wizard`)
+
+Run `al wizard` any time to interactively configure the most important settings:
 
 - **Approvals Mode** (all, mcp, commands, none)
 - **Agent Enablement** (Gemini, Claude, Codex, VS Code, Antigravity)
@@ -93,6 +119,8 @@ The wizard preserves your configuration’s table structure and key ordering and
 
 ## What gets created in your repo
 
+`al init` creates three buckets: user configuration, project memory, and generated client files.
+
 ### User configuration (gitignored by default, but can be committed)
 - `.agent-layer/`
   - `config.toml` (main configuration; human-editable)
@@ -109,13 +137,11 @@ Repo-local launchers and template copies live under `.agent-layer/` and are igno
 ### Project memory (required; teams can commit or ignore)
 Default instructions and slash commands rely on these files existing, along with any additional memory files your team adopts.
 
-- `docs/agent-layer/`
-  - `ISSUES.md`
-  - `FEATURES.md`
-  - `ROADMAP.md`
-  - `DECISIONS.md`
-
-Additional agent memory files may be added as needed by your team.
+Common memory files include:
+- `docs/agent-layer/ISSUES.md`
+- `docs/agent-layer/FEATURES.md`
+- `docs/agent-layer/ROADMAP.md`
+- `docs/agent-layer/DECISIONS.md`
 
 ### Generated client files (gitignored by default)
 Generated outputs are written to the repo root in client-specific formats (examples):
@@ -125,6 +151,8 @@ Generated outputs are written to the repo root in client-specific formats (examp
 ---
 
 ## Supported clients
+
+MCP = Model Context Protocol (tool/data servers).
 
 | Client | Instructions | Slash commands | MCP servers | Approved commands |
 |---|---:|---:|---:|---:|
@@ -139,14 +167,17 @@ Notes:
 - VS Code/Codex “slash commands” are generated in their native formats (prompt files / skills).
 - Antigravity slash commands are generated as skills in `.agent/skills/<command>/SKILL.md`.
 - Auto-approval capabilities vary by client; `approvals.mode` is applied on a best-effort basis.
+- Antigravity does not support MCP servers because it only reads from the home directory and does not load repo-local `.gemini/` or `.agent/` MCP configs.
 
 ---
 
 ## Configuration (human-editable)
 
+You can edit all configuration files by hand. `al wizard` updates `config.toml` (approvals, agents/models, MCP servers, warnings) and `.agent-layer/.env` (secrets); it does not touch instructions, slash commands, or `commands.allow`.
+
 ### `.agent-layer/config.toml`
 
-This is the **only** structured config file.
+Edit this file directly or use `al wizard` to update it. This is the **only** structured config file.
 
 Example:
 
@@ -207,13 +238,13 @@ mcp_schema_tokens_total_threshold = 10000
 mcp_schema_tokens_server_threshold = 7500
 ```
 
-### Warning thresholds (`[warnings]`)
+#### Warning thresholds (`[warnings]`)
 
 Warning thresholds are optional. When a threshold is omitted, its warning is disabled. Values must be positive integers (zero/negative are rejected by config validation). `al sync` uses `instruction_token_threshold`, while `al doctor` evaluates all configured MCP warning thresholds.
 
-### Approvals modes (`approvals.mode`)
+#### Approvals modes (`approvals.mode`)
 
-These modes control whether the agent is allowed to run shell commands and/or MCP tools without prompting:
+These modes control whether the agent is allowed to run shell commands and/or MCP tools without prompting. Edit them to match your team's preferences; `al wizard` can update `approvals.mode`.
 
 - `all`: auto-approve **both** shell commands and MCP tool calls (where supported)
 - `mcp`: auto-approve **only** MCP tool calls; shell commands still require approval (or are restricted)
@@ -234,10 +265,14 @@ When launching via `al`, your existing process environment takes precedence. `.a
 
 ### Instructions: `.agent-layer/instructions/`
 
+These files are user-editable; customize them for your team's preferences.
+
 - Files are concatenated in **lexicographic order**
 - Use numeric prefixes for stable priority (e.g., `00_core.md`, `10_style.md`, `20_repo.md`)
 
 ### Slash commands: `.agent-layer/slash-commands/`
+
+These files are user-editable; define the workflows you want your agents to run.
 
 - One Markdown file per command.
 - Filename (without `.md`) is the canonical command name.
@@ -257,6 +292,7 @@ Some clients discover slash commands via MCP prompts. Agent Layer provides an **
 - You do not configure this in `config.toml`.
 - It is generated and wired into client configs by `al sync`.
 - External MCP servers (tool/data servers) are configured under `[mcp]` in `config.toml`.
+- There is no config toggle to disable it; the server is always included for clients that support MCP prompts.
 
 ---
 
@@ -264,42 +300,16 @@ Some clients discover slash commands via MCP prompts. Agent Layer provides an **
 
 The Codex VS Code extension reads `CODEX_HOME` from the VS Code process environment at startup.
 
-Agent Layer provides repo-specific launchers that set `CODEX_HOME` correctly for this repo:
+Agent Layer provides repo-specific launchers in `.agent-layer/` that set `CODEX_HOME` correctly for this repo:
 
-### macOS Launchers
+Launchers:
+- macOS: `open-vscode.app` (recommended; VS Code in `/Applications` or `~/Applications`) or `open-vscode.command` (uses `code` CLI)
+- Windows: `open-vscode.bat` (uses `code` CLI)
+- Linux: `open-vscode.desktop` (uses `code` CLI; shows a dialog if missing)
 
-Agent Layer generates two launcher options in `.agent-layer/`:
-
-| Launcher | Terminal Window | Requirements |
-|----------|-----------------|--------------|
-| `open-vscode.app` | No | VS Code in standard location |
-| `open-vscode.command` | Yes | `code` CLI in PATH |
-
-**Using `open-vscode.app` (recommended):**
-- Double-click to open VS Code with `CODEX_HOME` set
-- No Terminal window opens
-- Requires VS Code installed in one of these locations:
-  - `/Applications/Visual Studio Code.app` (standard)
-  - `~/Applications/Visual Studio Code.app` (user install)
-- First launch may take up to 10 seconds (macOS verifies the app on first run)
-
-**Using `open-vscode.command` (fallback):**
-- Double-click to open VS Code via Terminal
-- Works with any VS Code installation location
-- Requires the `code` CLI to be installed and in your PATH
-  - To install: Open VS Code, press Cmd+Shift+P, type "Shell Command: Install code command in PATH", and run it
-
-### Windows Launcher
-
-- `open-vscode.bat` - Double-click to open VS Code with `CODEX_HOME` set
-- Requires `code` CLI in PATH
-
-### Linux Launcher
-
-- `open-vscode.desktop` - Double-click to open VS Code with `CODEX_HOME` set
-- Requires `code` CLI in PATH
-  - To install: Open VS Code, press Ctrl+Shift+P, type "Shell Command: Install code command in PATH", and run it
-- Shows a dialog when `code` is missing (falls back to notification or terminal)
+If you use the CLI-based launchers, install the `code` command from inside VS Code:
+- macOS: Cmd+Shift+P -> "Shell Command: Install 'code' command in PATH"
+- Linux: Ctrl+Shift+P -> "Shell Command: Install 'code' command in PATH"
 
 ---
 
@@ -333,20 +343,16 @@ Other commands:
 
 - `al init` — initialize `.agent-layer/`, `docs/agent-layer/`, and `.gitignore`
 - `al sync` — regenerate configs without launching a client
-- `al doctor` — check common setup issues (secrets missing, files not writable, etc.)
+- `al doctor` — check common setup issues and warn about available updates
 - `al wizard` — interactive setup wizard (configure agents, models, MCP secrets)
-- `al completion` — generate shell completion scripts (bash/zsh/fish)
-- `al mcp-prompts` — run the internal MCP prompt server (normally launched by the client)
+- `al completion` — generate shell completion scripts (bash/zsh/fish, macOS/Linux only)
+- `al mcp-prompts` — internal MCP prompt server (normally launched by the client)
 
 ---
 
-## Development
+## Shell completion (macOS/Linux)
 
-See `docs/DEVELOPMENT.md` for setup and troubleshooting.
-
----
-
-## Shell completion output (tab completion)
+*The completion command is available on macOS and Linux only; Windows completions are not supported.*
 
 “Shell completion output” is a snippet of shell script that enables tab-completion for `al` in your shell.
 
@@ -362,7 +368,6 @@ This enables:
 Notes:
 - Zsh may require adding the install directory to `$fpath` before `compinit` (the command prints a snippet when needed).
 - Bash completion requires bash-completion to be enabled in your shell.
-- Windows completions are not supported.
 
 ---
 
@@ -376,14 +381,34 @@ Installer adds a managed `.gitignore` block that typically ignores:
 
 If you choose to commit `.agent-layer/`, keep `.agent-layer/.gitignore` so repo-local launchers, template copies, and backups stay untracked.
 
+To commit `.agent-layer/`, remove the `/agent-layer/` line in `.agent-layer/gitignore.block` and re-run `al init`.
+
 To customize the managed block, edit `.agent-layer/gitignore.block` and re-run `al init`.
 
 `docs/agent-layer/` is created by default; teams may choose to commit it or ignore it.
 
 ---
 
-## Goal of the Go rewrite
+## Design goals
 
 - Make installation and day-to-day usage trivial
-- Preserve 100% feature parity with the current system (instructions, slash commands, config generation, sync-on-run)
+- Provide consistent core features across clients (instructions, slash commands, config generation, MCP servers, sync-on-run)
 - Reduce moving parts by shipping a single global CLI and keeping `.agent-layer/` config-first with minimal repo-local launchers
+
+## Changelog
+
+See `CHANGELOG.md` for release history.
+
+## Contributing
+
+Contributions are welcome. Please use the project's issue tracker and pull requests.
+
+Contributor workflows live in `docs/DEVELOPMENT.md`.
+
+## License
+
+See `LICENSE.md`.
+
+## Attributions
+
+- Nicholas Conn, PhD - Conn Castle Studios

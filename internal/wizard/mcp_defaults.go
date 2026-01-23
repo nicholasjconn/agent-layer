@@ -5,8 +5,8 @@ import (
 
 	toml "github.com/pelletier/go-toml"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/templates"
 )
 
 // DefaultMCPServer describes a default MCP server and its required env vars.

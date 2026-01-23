@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 // CheckStructure verifies that the required project directories exist.

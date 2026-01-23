@@ -3,7 +3,7 @@ package clients
 import (
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/run"
+	"github.com/conn-castle/agent-layer/internal/run"
 )
 
 func TestBuildEnv(t *testing.T) {

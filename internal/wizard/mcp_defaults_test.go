@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/templates"
 )
 
 func TestMissingDefaultMCPServers(t *testing.T) {

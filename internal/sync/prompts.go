@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/fsutil"
 )
 
 const promptHeaderTemplate = "<!--\n  GENERATED FILE\n  Source: .agent-layer/slash-commands/%s.md\n  Regenerate: al sync\n-->\n"

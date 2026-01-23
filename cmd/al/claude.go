@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/nicholasjconn/agent-layer/internal/clients"
-	"github.com/nicholasjconn/agent-layer/internal/clients/claude"
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/clients"
+	"github.com/conn-castle/agent-layer/internal/clients/claude"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 func newClaudeCmd() *cobra.Command {

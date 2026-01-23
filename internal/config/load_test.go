@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/templates"
 )
 
 func TestLoadProjectConfig(t *testing.T) {

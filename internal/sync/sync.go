@@ -3,8 +3,8 @@ package sync
 import (
 	"fmt"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/warnings"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/warnings"
 )
 
 // Run regenerates all configured outputs for the repo.

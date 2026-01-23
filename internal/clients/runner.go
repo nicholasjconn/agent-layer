@@ -5,9 +5,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/run"
-	"github.com/nicholasjconn/agent-layer/internal/sync"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/run"
+	"github.com/conn-castle/agent-layer/internal/sync"
 )
 
 // LaunchFunc launches a client after sync and run setup.

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/templates"
 )
 
 func TestLoadWarningDefaults(t *testing.T) {

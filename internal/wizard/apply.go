@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nicholasjconn/agent-layer/internal/envfile"
-	"github.com/nicholasjconn/agent-layer/internal/fsutil"
-	"github.com/nicholasjconn/agent-layer/internal/warnings"
+	"github.com/conn-castle/agent-layer/internal/envfile"
+	"github.com/conn-castle/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/warnings"
 )
 
 type syncer func(root string) ([]warnings.Warning, error)

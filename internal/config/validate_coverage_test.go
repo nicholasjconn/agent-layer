@@ -71,12 +71,7 @@ func TestValidate_TopLevelErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := valid // Copy
-			// Deep copy needed? Structs copy by value, but pointers shared.
-			// Enabled is pointer. modify changes pointer in cfg copy. Safe if we don't reuse 'valid' pointers?
-			// Actually we modify 'cfg' copy.
-			// But 'valid.Agents.Gemini.Enabled' points to 'enabled' var.
-			// 'modify' overwrites the pointer in 'cfg' struct. So 'valid' is untouched.
+			cfg := valid // Shallow copy; modify overwrites pointers in cfg, leaving valid untouched.
 			tt.modify(&cfg)
 			err := cfg.Validate("config.toml")
 			if err == nil {

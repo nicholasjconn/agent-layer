@@ -21,7 +21,7 @@ func CheckStructure(root string) []Result {
 				Status:         StatusFail,
 				CheckName:      "Structure",
 				Message:        fmt.Sprintf("Missing required directory: %s", p),
-				Recommendation: "Run './al install' to initialize the repository.",
+				Recommendation: "Run `al init` to initialize the repository.",
 			})
 			continue
 		}
@@ -30,7 +30,7 @@ func CheckStructure(root string) []Result {
 				Status:         StatusFail,
 				CheckName:      "Structure",
 				Message:        fmt.Sprintf("%s exists but is not a directory", p),
-				Recommendation: "Ensure the path is a directory or re-run './al install'.",
+				Recommendation: "Ensure the path is a directory or re-run `al init`.",
 			})
 			continue
 		}

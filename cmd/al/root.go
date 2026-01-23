@@ -27,7 +27,7 @@ func newRootCmd() *cobra.Command {
 	root.Flags().Bool("version", false, "Print version and exit")
 
 	root.AddCommand(
-		newInstallCmd(),
+		newInitCmd(),
 		newSyncCmd(),
 		newMcpPromptsCmd(),
 		newGeminiCmd(),
@@ -37,7 +37,7 @@ func newRootCmd() *cobra.Command {
 		newAntigravityCmd(),
 		newDoctorCmd(),
 		newWizardCmd(),
-		newStubCmd("completion"),
 	)
+	addPlatformCommands(root)
 	return root
 }

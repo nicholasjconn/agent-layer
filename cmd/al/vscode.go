@@ -13,7 +13,7 @@ func newVSCodeCmd() *cobra.Command {
 		Use:   "vscode",
 		Short: "Sync and launch VS Code with CODEX_HOME configured",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

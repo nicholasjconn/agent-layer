@@ -13,7 +13,7 @@ func newGeminiCmd() *cobra.Command {
 		Use:   "gemini",
 		Short: "Sync and launch Gemini CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

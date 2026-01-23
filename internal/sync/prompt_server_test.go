@@ -7,43 +7,38 @@ import (
 	"testing"
 )
 
-func TestResolvePromptServerCommandRootEmptyDefaultsToLocalBinary(t *testing.T) {
-	command, args, err := resolvePromptServerCommand("")
+func TestResolvePromptServerCommandUsesGlobalBinary(t *testing.T) {
+	originalLookPath := lookPath
+	t.Cleanup(func() { lookPath = originalLookPath })
+	lookPath = func(file string) (string, error) {
+		if file != "al" {
+			return "", errors.New("unexpected lookup")
+		}
+		return "/usr/local/bin/al", nil
+	}
+
+	command, args, err := resolvePromptServerCommand(t.TempDir())
 	if err != nil {
 		t.Fatalf("resolvePromptServerCommand error: %v", err)
 	}
-	if command != "./al" {
-		t.Fatalf("expected ./al, got %q", command)
+	if command != "al" {
+		t.Fatalf("expected al, got %q", command)
 	}
 	if len(args) != 1 || args[0] != "mcp-prompts" {
 		t.Fatalf("unexpected args: %#v", args)
 	}
 }
 
-func TestResolvePromptServerCommandUsesLocalBinary(t *testing.T) {
-	root := t.TempDir()
-	writePromptServerBinary(t, root)
-
+func TestResolvePromptServerCommandRootEmptyNoGlobalBinary(t *testing.T) {
 	originalLookPath := lookPath
 	t.Cleanup(func() { lookPath = originalLookPath })
-	called := false
 	lookPath = func(file string) (string, error) {
-		called = true
-		return "", errors.New("unexpected")
+		return "", errors.New("missing")
 	}
 
-	command, args, err := resolvePromptServerCommand(root)
-	if err != nil {
-		t.Fatalf("resolvePromptServerCommand error: %v", err)
-	}
-	if called {
-		t.Fatalf("expected lookPath not to be called")
-	}
-	if command != "./al" {
-		t.Fatalf("expected ./al, got %q", command)
-	}
-	if len(args) != 1 || args[0] != "mcp-prompts" {
-		t.Fatalf("unexpected args: %#v", args)
+	_, _, err := resolvePromptServerCommand("")
+	if err == nil {
+		t.Fatalf("expected error for missing al")
 	}
 }
 
@@ -56,6 +51,9 @@ func TestResolvePromptServerCommandFallsBackToGoRun(t *testing.T) {
 	originalLookPath := lookPath
 	t.Cleanup(func() { lookPath = originalLookPath })
 	lookPath = func(file string) (string, error) {
+		if file == "al" {
+			return "", errors.New("missing")
+		}
 		if file != "go" {
 			return "", errors.New("unexpected lookup")
 		}

@@ -13,7 +13,7 @@ func newClaudeCmd() *cobra.Command {
 		Use:   "claude",
 		Short: "Sync and launch Claude Code CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

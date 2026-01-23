@@ -21,7 +21,7 @@ func newDoctorCmd() *cobra.Command {
 		Use:   "doctor",
 		Short: "Report missing secrets, disabled servers, and common misconfigurations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := getwd()
+			root, err := resolveRepoRoot()
 			if err != nil {
 				return err
 			}

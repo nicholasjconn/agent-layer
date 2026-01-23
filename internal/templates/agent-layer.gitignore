@@ -1,0 +1,10 @@
+# Agent Layer repo-local ignores (non-user configuration).
+# Keep this file if you commit .agent-layer/; edit as needed.
+
+.env
+config.toml.bak
+.env.bak
+open-vscode.app/
+open-vscode.bat
+open-vscode.command
+open-vscode.desktop

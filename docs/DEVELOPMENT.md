@@ -29,7 +29,7 @@
 - Use the commands in `docs/agent-layer/COMMANDS.md` for format, lint, test, coverage, and release builds.
 - Prefer `make` targets (see `docs/agent-layer/COMMANDS.md`) instead of running `goimports` / `golangci-lint` directly; tools are installed repo-locally under `.tools/bin` so you do not need to edit your shell PATH.
 - Use `make dev` for a quick local pass (format + fmt-check + lint + coverage). Run `./scripts/setup.sh` or `make tools` first.
-- If you change installer templates (anything under `internal/templates/`), re-run `./al install` in a target repo to re-seed files. See the README Quick start for overwrite/force flag guidance.
+- If you change installer templates (anything under `internal/templates/`), re-run `go run ./cmd/al init` in a target repo to re-seed files. See the README Quick start for overwrite/force flag guidance.
 
 ## Go Tooling & Environment
 Agent Layer uses several light shell wrappers and `make` targets around standard Go commands (`go fmt`, `go test`, etc.). This is intentional to ensure consistent behavior across local development and CI (GitHub Actions).
@@ -45,12 +45,10 @@ Agent Layer uses several light shell wrappers and `make` targets around standard
 - **Tools not found**: If `make lint` fails because `golangci-lint` is missing, run `make tools` to install all pinned dependencies into `.tools/bin`.
 
 ## Run the CLI locally (always uses latest changes)
-There are two paths: run from source (`go run`) or build a local `./al` binary.
-
-### Option A: run from source (no local binary)
+Run from source (`go run`):
 ```bash
 # One-time init for a fresh repo (creates .agent-layer/ and docs/agent-layer/)
-go run ./cmd/al install
+go run ./cmd/al init
 
 # Generate outputs (optional; client commands already sync on run)
 go run ./cmd/al sync
@@ -59,27 +57,25 @@ go run ./cmd/al sync
 go run ./cmd/al gemini
 ```
 
-### Option B: build a local ./al binary
+Optional: build a local dev binary from the current source (no global install):
 ```bash
-go build -o ./al ./cmd/al
-./al install
-./al gemini
+go build -o ./tmp/al ./cmd/al
+./tmp/al init
+./tmp/al gemini
 ```
 
 ### Run against a scratch repo (recommended for install/sync testing)
 ```bash
 mkdir -p tmp/dev-repo
 cd tmp/dev-repo
-go run ../../cmd/al install
-go build -o ./al ../../cmd/al
-./al gemini
+go run ../../cmd/al init
+go run ../../cmd/al gemini
 ```
 
 Notes:
-- `install` is required once per repo to seed `.agent-layer/` and `docs/agent-layer/`.
-- `install` prompts to run the setup wizard by default; pass `--no-wizard` to skip (non-interactive shells skip automatically).
-- `sync` is optional because `./al <client>` always syncs before launch.
-- Build a local `./al` in scratch repos so the internal MCP prompt server can launch.
+- `init` is required once per repo to seed `.agent-layer/` and `docs/agent-layer/`.
+- `init` prompts to run the setup wizard by default; pass `--no-wizard` to skip (non-interactive shells skip automatically).
+- `sync` is optional because `al <client>` always syncs before launch.
 - `./scripts/setup.sh` is only for tool + hook setup, not required just to run the CLI.
 
 ## Run checks locally

@@ -46,7 +46,7 @@ func newDoctorCmd() *cobra.Command {
 				updateResult.Message = fmt.Sprintf("Update check skipped because %s is set", dispatch.EnvNoNetwork)
 				updateResult.Recommendation = fmt.Sprintf("Unset %s to check for updates.", dispatch.EnvNoNetwork)
 			} else {
-				result, err := checkForUpdate(context.Background(), Version)
+				result, err := checkForUpdate(cmd.Context(), Version)
 				if err != nil {
 					updateResult.Status = doctor.StatusWarn
 					updateResult.Message = fmt.Sprintf("Failed to check for updates: %v", err)

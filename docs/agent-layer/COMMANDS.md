@@ -98,7 +98,7 @@ make test-e2e
 ```
 Run from: repo root  
 Prerequisites: Go 1.25.6+, `curl`, `sha256sum` or `shasum`  
-Notes: Builds release artifacts and exercises `al-install.sh` against a local dist.
+Notes: Builds release artifacts and exercises `al-install.sh` against a local dist. Set `AL_E2E_VERSION` to override the test version.
 
 ### Modules
 

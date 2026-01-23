@@ -141,6 +141,7 @@ if [[ -n "$ASSET_ROOT" ]]; then
   if [[ "$ASSET_ROOT" == http://* || "$ASSET_ROOT" == https://* || "$ASSET_ROOT" == file://* ]]; then
     :
   elif [[ -d "$ASSET_ROOT" ]]; then
+    ASSET_ROOT="$(cd "$ASSET_ROOT" && pwd)"
     ASSET_ROOT="file://${ASSET_ROOT}"
   else
     fail "Asset root must be a URL or an existing directory: $ASSET_ROOT"

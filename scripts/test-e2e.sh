@@ -7,7 +7,11 @@ fail() {
 }
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version="${AL_E2E_VERSION:-0.5.0}"
+version="${AL_E2E_VERSION:-0.0.0}"
+normalized_version="${version#v}"
+if [[ -z "${AL_E2E_VERSION:-}" ]]; then
+  echo "Info: AL_E2E_VERSION not set; using ${version} for E2E build."
+fi
 
 tmp_root="$(mktemp -d)"
 cleanup() {
@@ -66,7 +70,7 @@ copy_prefix="$tmp_root/copy-prefix"
 mkdir -p "$copy_prefix/bin"
 cp "$bin_path" "$copy_prefix/bin/al"
 
-PATH="$copy_prefix/bin:$PATH" version_out="$(al --version)"
+version_out="$(PATH="$copy_prefix/bin:$PATH" al --version)"
 if [[ "$version_out" != "$version" ]]; then
   fail "expected copied install version $version, got $version_out"
 fi
@@ -78,7 +82,7 @@ if [[ ! -x "$install_prefix/bin/al" ]]; then
   fail "installed binary missing at $install_prefix/bin/al"
 fi
 
-PATH="$install_prefix/bin:$PATH" version_out="$(al --version)"
+version_out="$(PATH="$install_prefix/bin:$PATH" al --version)"
 if [[ "$version_out" != "$version" ]]; then
   fail "expected installer version $version, got $version_out"
 fi
@@ -99,11 +103,11 @@ mkdir -p "$repo_dir/.git"
   fi
 
   pinned="$(cat .agent-layer/al.version)"
-  if [[ "$pinned" != "$version" ]]; then
-    fail "expected pinned version $version, got $pinned"
+  if [[ "$pinned" != "$normalized_version" ]]; then
+    fail "expected pinned version $normalized_version, got $pinned"
   fi
 
-  AL_NO_NETWORK=1 "$install_prefix/bin/al" sync
+  AL_NO_NETWORK=1 PATH="$install_prefix/bin:$PATH" "$install_prefix/bin/al" sync
   CONTEXT7_API_KEY="e2e-test" GITHUB_PERSONAL_ACCESS_TOKEN="e2e-test" TAVILY_API_KEY="e2e-test" \
     AL_NO_NETWORK=1 "$install_prefix/bin/al" doctor
 )

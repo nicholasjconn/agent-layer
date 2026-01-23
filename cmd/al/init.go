@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -94,7 +93,7 @@ func warnInitUpdate(cmd *cobra.Command, flagVersion string) {
 	if strings.TrimSpace(os.Getenv(dispatch.EnvNoNetwork)) != "" {
 		return
 	}
-	result, err := checkForUpdate(context.Background(), Version)
+	result, err := checkForUpdate(cmd.Context(), Version)
 	if err != nil {
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to check for updates: %v\n", err)
 		return

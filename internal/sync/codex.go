@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/fsutil"
-	"github.com/nicholasjconn/agent-layer/internal/projection"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/projection"
 )
 
 const codexHeader = `# GENERATED FILE — MAY CONTAIN SECRETS

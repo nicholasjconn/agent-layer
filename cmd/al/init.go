@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/nicholasjconn/agent-layer/internal/install"
-	alsync "github.com/nicholasjconn/agent-layer/internal/sync"
-	"github.com/nicholasjconn/agent-layer/internal/version"
-	"github.com/nicholasjconn/agent-layer/internal/wizard"
+	"github.com/conn-castle/agent-layer/internal/install"
+	alsync "github.com/conn-castle/agent-layer/internal/sync"
+	"github.com/conn-castle/agent-layer/internal/version"
+	"github.com/conn-castle/agent-layer/internal/wizard"
 )
 
 var runWizard = func(root string, pinVersion string) error {

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/root"
-	"github.com/nicholasjconn/agent-layer/internal/version"
+	"github.com/conn-castle/agent-layer/internal/root"
+	"github.com/conn-castle/agent-layer/internal/version"
 )
 
 const (

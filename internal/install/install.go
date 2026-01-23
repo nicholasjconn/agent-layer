@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/fsutil"
-	"github.com/nicholasjconn/agent-layer/internal/templates"
-	"github.com/nicholasjconn/agent-layer/internal/version"
+	"github.com/conn-castle/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/version"
 )
 
 // PromptOverwriteFunc asks whether to overwrite a given path.

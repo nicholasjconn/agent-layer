@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 // CheckMCPServers performs discovery on enabled MCP servers and checks against warning thresholds.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/install"
+	"github.com/conn-castle/agent-layer/internal/install"
 )
 
 func TestInitCmd(t *testing.T) {

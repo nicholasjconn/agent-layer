@@ -3,7 +3,7 @@ package wizard
 import (
 	"fmt"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/config"
 )
 
 // WarningDefaults holds wizard defaults sourced from the template config.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/nicholasjconn/agent-layer/internal/sync"
+	"github.com/conn-castle/agent-layer/internal/sync"
 )
 
 // ErrSyncCompletedWithWarnings is returned when sync completes but warnings were generated.

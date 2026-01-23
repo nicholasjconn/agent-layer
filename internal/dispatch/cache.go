@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var releaseBaseURL = "https://github.com/nicholasjconn/agent-layer/releases"
+var releaseBaseURL = "https://github.com/conn-castle/agent-layer/releases"
 
 var (
 	platformStringsFunc = platformStrings

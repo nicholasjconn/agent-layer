@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nicholasjconn/agent-layer/internal/dispatch"
+	"github.com/conn-castle/agent-layer/internal/dispatch"
 )
 
 func TestMainVersion(t *testing.T) {

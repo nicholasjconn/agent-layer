@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/run"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/run"
 )
 
 // Launch starts the Claude Code CLI with the configured options.

@@ -6,8 +6,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/nicholasjconn/agent-layer/internal/envfile"
-	"github.com/nicholasjconn/agent-layer/internal/templates"
+	"github.com/conn-castle/agent-layer/internal/envfile"
+	"github.com/conn-castle/agent-layer/internal/templates"
 )
 
 // LoadProjectConfig reads and validates the full Agent Layer config from disk.

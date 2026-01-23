@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/nicholasjconn/agent-layer/internal/config"
-	"github.com/nicholasjconn/agent-layer/internal/doctor"
-	"github.com/nicholasjconn/agent-layer/internal/warnings"
+	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/doctor"
+	"github.com/conn-castle/agent-layer/internal/warnings"
 )
 
 func TestRootVersionFlag(t *testing.T) {

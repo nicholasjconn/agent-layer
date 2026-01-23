@@ -120,7 +120,7 @@ case "$ARCH" in
  esac
 
 ASSET="al-${OS}-${ARCH}"
-BASE_URL="https://github.com/nicholasjconn/agent-layer/releases"
+BASE_URL="https://github.com/conn-castle/agent-layer/releases"
 
 if [[ "$VERSION" == "latest" ]]; then
   TAG="latest"

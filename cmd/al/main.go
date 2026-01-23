@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nicholasjconn/agent-layer/internal/dispatch"
+	"github.com/conn-castle/agent-layer/internal/dispatch"
 )
 
 var maybeExecFunc = dispatch.MaybeExec

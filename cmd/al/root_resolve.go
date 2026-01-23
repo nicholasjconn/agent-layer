@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/nicholasjconn/agent-layer/internal/root"
+	"github.com/conn-castle/agent-layer/internal/root"
 )
 
 // resolveRepoRoot returns the repo root that contains .agent-layer or fails if missing.

@@ -20,11 +20,6 @@ Entry format:
 
 <!-- ENTRIES START -->
 
-- Issue 2026-01-21 b4e5w6: Revamp Homebrew installation instructions
-    Priority: Medium. Area: documentation.
-    Description: Current Homebrew installation instructions are unprofessional and lack detail, relying on users to find the tap name in release notes.
-    Next step: Once the final tap name is established, rewrite the README.md installation section with professional, comprehensive step-by-step instructions.
-
 - Issue 2026-01-18 e4f5g6: Memory file template structure investigation
     Priority: Medium. Area: templates.
     Description: Should templates in .agent-layer only contain headers, and how should generated content be handled when overwriting?

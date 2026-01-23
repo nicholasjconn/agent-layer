@@ -1,4 +1,4 @@
-module github.com/nicholasjconn/agent-layer
+module github.com/conn-castle/agent-layer
 
 go 1.25.6
 

@@ -7,8 +7,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/nicholasjconn/agent-layer/internal/doctor"
-	"github.com/nicholasjconn/agent-layer/internal/warnings"
+	"github.com/conn-castle/agent-layer/internal/doctor"
+	"github.com/conn-castle/agent-layer/internal/warnings"
 )
 
 var (

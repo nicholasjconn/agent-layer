@@ -1,6 +1,6 @@
 package projection
 
-import "github.com/nicholasjconn/agent-layer/internal/config"
+import "github.com/conn-castle/agent-layer/internal/config"
 
 // Approvals captures the resolved approvals policy and allowlist.
 type Approvals struct {

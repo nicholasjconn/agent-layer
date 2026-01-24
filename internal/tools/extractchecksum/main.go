@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/conn-castle/agent-layer/internal/messages"
 )
@@ -49,12 +50,16 @@ func run(args []string, out io.Writer, errOut io.Writer) int {
 		if line == "" {
 			continue
 		}
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		idx := strings.IndexFunc(line, unicode.IsSpace)
+		if idx <= 0 {
 			continue
 		}
-		checksum := parts[0]
-		filename := strings.TrimLeft(parts[len(parts)-1], "./")
+		checksum := line[:idx]
+		filename := strings.TrimSpace(line[idx:])
+		if strings.HasPrefix(filename, "*") {
+			filename = strings.TrimSpace(strings.TrimPrefix(filename, "*"))
+		}
+		filename = strings.TrimLeft(filename, "./")
 		if filename == target || filename == targetTrimmed {
 			checksum = strings.TrimPrefix(checksum, sha256Prefix)
 			fmt.Fprintln(out, checksum)

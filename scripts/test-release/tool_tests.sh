@@ -30,6 +30,7 @@ run_go_tool_tests_extractchecksum() {
 abc123def456abc123def456abc123def456abc123def456abc123def456abc12345  file1.tar.gz
 sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321  file2.tar.gz
 1111111111111111111111111111111111111111111111111111111111111111  ./path/to/file3.bin
+2222222222222222222222222222222222222222222222222222222222222222  *./path/with spaces/file 4.bin
 EOF
 
       # Test 1: Extract checksum for existing file (standard format)
@@ -56,21 +57,29 @@ EOF
         fail "extractchecksum: failed to handle ./ prefix (got: $result)"
       fi
 
-      # Test 4: Exit code 1 when file not found in checksums
+      # Test 4: Extract checksum for filename with spaces
+      result=$(run_extract_checksum "$test_checksums" "path/with spaces/file 4.bin" 2>/dev/null) || true
+      if [[ "$result" == "2222222222222222222222222222222222222222222222222222222222222222" ]]; then
+        pass "extractchecksum: handles filenames with spaces"
+      else
+        fail "extractchecksum: failed to handle filenames with spaces (got: $result)"
+      fi
+
+      # Test 5: Exit code 1 when file not found in checksums
       if run_extract_checksum "$test_checksums" "nonexistent.tar.gz" >/dev/null 2>&1; then
         fail "extractchecksum: should exit 1 when file not found"
       else
         pass "extractchecksum: exits 1 when file not found"
       fi
 
-      # Test 5: Exit code 1 when checksums file doesn't exist
+      # Test 6: Exit code 1 when checksums file doesn't exist
       if run_extract_checksum "$tmp_dir/no-such-file.txt" "file1.tar.gz" >/dev/null 2>&1; then
         fail "extractchecksum: should exit 1 when checksums file missing"
       else
         pass "extractchecksum: exits 1 when checksums file missing"
       fi
 
-      # Test 6: Exit code 1 when wrong number of arguments
+      # Test 7: Exit code 1 when wrong number of arguments
       if run_extract_checksum "$test_checksums" >/dev/null 2>&1; then
         fail "extractchecksum: should exit 1 with wrong argument count"
       else

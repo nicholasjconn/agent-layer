@@ -39,3 +39,13 @@ Entry format:
     Priority: Low. Area: maintainability.
     Description: Instruction templates and slash command definitions contain duplicate instructions (e.g., memory formatting rules appear multiple times). This creates maintenance burden and inconsistency risk.
     Next step: Identify duplicate content across instruction and slash command files; consolidate into canonical locations.
+
+- Issue 2026-01-24 6cdd8ad: Extract inline Python from release workflow
+    Priority: Low. Area: CI/CD.
+    Description: Release workflow contains inline Python scripts for checksum extraction and formula patching. Inline scripts are harder to test, lint, and debug than standalone files.
+    Next step: Extract to standalone scripts (e.g., `scripts/extract-checksum.py`, `scripts/update-formula.py`) and add CI tests to validate script behavior.
+
+- Issue 2026-01-24 6cdd8ae: Harden regex-based Homebrew formula patching
+    Priority: Low. Area: CI/CD.
+    Description: The release workflow patches `Formula/agent-layer.rb` using regex substitution, which is fragile if the formula format changes (multiline strings, comments near target lines).
+    Next step: Add CI test with a sample formula to validate the regex patching logic; document expected formula structure in the workflow.

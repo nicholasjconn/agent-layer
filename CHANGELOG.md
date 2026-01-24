@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.5.2 - 2026-01-24
+
+### Added
+- Automated Homebrew tap updates: release workflow now opens a PR against `conn-castle/homebrew-tap` to update the formula with the new tarball URL and SHA256.
+
 ## v0.5.1 - 2026-01-23
 
 ### Added

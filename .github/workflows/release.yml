@@ -21,6 +21,13 @@ jobs:
         run: |
           set -euo pipefail
           make release-dist AL_VERSION="${GITHUB_REF_NAME}" DIST_DIR=dist
+
+      - name: Upload dist artifacts for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
       - name: Extract changelog for this version
         id: changelog
         run: |
@@ -63,3 +70,99 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           files: |
             dist/*
+
+  update-homebrew-tap:
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout agent-layer (for scripts)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: agent-layer
+
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Create GitHub App token for tap repo
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_PRIVATE_KEY }}
+          owner: conn-castle
+          repositories: homebrew-tap
+
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: conn-castle/homebrew-tap
+          token: ${{ steps.app-token.outputs.token }}
+          path: homebrew-tap
+
+      - name: Verify release tarball is available
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          SEMVER="${TAG#v}"
+          TARBALL="agent-layer-${SEMVER}.tar.gz"
+          URL="https://github.com/conn-castle/agent-layer/releases/download/${TAG}/${TARBALL}"
+
+          # Retry a few times in case GitHub is briefly eventual-consistent
+          for i in 1 2 3 4 5; do
+            if curl -fsIL "$URL" >/dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+
+          echo "::error::Release asset not reachable: $URL"
+          exit 1
+
+      - name: Update formula url + sha256
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          SEMVER="${TAG#v}"
+          TARBALL="agent-layer-${SEMVER}.tar.gz"
+          URL="https://github.com/conn-castle/agent-layer/releases/download/${TAG}/${TARBALL}"
+
+          if [ ! -f "dist/checksums.txt" ]; then
+            echo "::error::dist/checksums.txt not found in workflow artifacts"
+            exit 1
+          fi
+
+          SHA="$(python3 agent-layer/scripts/extract-checksum.py dist/checksums.txt "${TARBALL}")"
+
+          if [ -z "${SHA}" ]; then
+            echo "::error::Failed to locate sha256 for ${TARBALL} in dist/checksums.txt"
+            exit 1
+          fi
+
+          FORMULA="homebrew-tap/Formula/agent-layer.rb"
+          if [ ! -f "${FORMULA}" ]; then
+            echo "::error::${FORMULA} not found in tap repo"
+            exit 1
+          fi
+
+          python3 agent-layer/scripts/update-formula.py "${FORMULA}" "${URL}" "${SHA}"
+
+          git -C homebrew-tap status --porcelain
+          git -C homebrew-tap diff -- Formula/agent-layer.rb
+
+      - name: Create PR in tap repo
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          path: homebrew-tap
+          branch: bump-agent-layer-${{ github.ref_name }}
+          commit-message: "agent-layer ${{ github.ref_name }}"
+          title: "agent-layer ${{ github.ref_name }}"
+          body: "Automated formula bump for ${{ github.ref_name }}."
+          base: main

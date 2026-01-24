@@ -26,7 +26,12 @@ git push origin "$VERSION"
 ## GitHub release (automatic)
 1. Tag push triggers the release workflow.
 2. The workflow publishes `al-install.sh`, `al-install.ps1`, platform binaries, `agent-layer-<version>.tar.gz` (source tarball; version without leading `v`), and `checksums.txt`.
-3. Release notes are automatically extracted from `CHANGELOG.md` by the workflow.
+3. The workflow opens a PR against `conn-castle/homebrew-tap` to update `Formula/agent-layer.rb` with the new tarball URL + SHA256.
+4. Release notes are automatically extracted from `CHANGELOG.md` by the workflow.
+
+Required secrets for the tap PR:
+- `HOMEBREW_TAP_APP_ID`
+- `HOMEBREW_TAP_PRIVATE_KEY`
 
 ## Post-release verification (fresh repo)
 ```bash

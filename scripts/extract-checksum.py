@@ -16,7 +16,8 @@ from pathlib import Path
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <checksums-file> <target-filename>", file=sys.stderr)
+        usage = f"Usage: {sys.argv[0]} <checksums-file> <target-filename>"
+        print(usage, file=sys.stderr)
         return 1
 
     checksums_path = Path(sys.argv[1])
@@ -34,8 +35,8 @@ def main() -> int:
         if len(parts) < 2:
             continue
         h = parts[0]
-        f = parts[-1]
-        if f == target:
+        f = parts[-1].lstrip("./")
+        if f == target or f == target.lstrip("./"):
             h = re.sub(r"^sha256:", "", h)
             print(h)
             return 0

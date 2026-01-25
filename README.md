@@ -160,7 +160,7 @@ Default instructions and slash commands rely on these files existing, along with
 
 Common memory files include:
 - `docs/agent-layer/ISSUES.md`
-- `docs/agent-layer/FEATURES.md`
+- `docs/agent-layer/BACKLOG.md`
 - `docs/agent-layer/ROADMAP.md`
 - `docs/agent-layer/DECISIONS.md`
 

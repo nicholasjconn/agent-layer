@@ -19,7 +19,7 @@ This is **not** a full codebase audit. Only document what you touched or passive
 ## Project memory files (authoritative)
 Canonical list:
 - `ISSUES.md`
-- `FEATURES.md`
+- `BACKLOG.md`
 - `ROADMAP.md`
 - `DECISIONS.md`
 
@@ -132,7 +132,7 @@ If missing:
 ## 2B) Decide where each finding belongs
 - Add to **`ISSUES.md`** if it is:
   - a bug, correctness defect, maintainability refactor, technical debt, reliability gap, security concern, test gap, performance concern, or engineering risk.
-- Add to **`FEATURES.md`** only if it is a **new user-visible capability** request.
+- Add to **`BACKLOG.md`** only if it is a **new user-visible capability** request.
 - Add to **`DECISIONS.md`** if the task required a significant decision:
   - record decision, reason, and tradeoffs
   - keep it brief and add new entries at the bottom so the oldest decisions remain at the top
@@ -150,8 +150,8 @@ Before adding a new entry:
 ## 2D) Remove resolved items
 - For each issue that is now fixed by the recent work:
   - remove it from `ISSUES.md` completely
-- For each feature that is now implemented:
-  - remove it from `FEATURES.md`
+- For each backlog item that is now implemented:
+  - remove it from `BACKLOG.md`
 
 ## 2E) Consolidate and keep files readable
 - Merge duplicates.
@@ -204,10 +204,10 @@ Provide a structured summary:
 ## Summary
 - Files reviewed (count + list or top-level directories)
 - Plan alignment (if applicable): omissions/deviations
-- Memory updates:
-  - issues added (titles only)
-  - issues removed (titles only)
-  - features added/removed (titles only)
+  - Memory updates:
+    - issues added (titles only)
+    - issues removed (titles only)
+    - backlog items added/removed (titles only)
   - decisions logged (titles only)
   - roadmap updates (if any)
 - Verification:
@@ -216,7 +216,7 @@ Provide a structured summary:
   - limitations (if any)
 
 ## Out-of-scope discoveries
-List any out-of-scope items that were observed and where they were logged (ISSUES/FEATURES), or note if they were not logged due to the entry cap.
+List any out-of-scope items that were observed and where they were logged (ISSUES/BACKLOG), or note if they were not logged due to the entry cap.
 
 ---
 

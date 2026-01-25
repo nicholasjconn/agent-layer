@@ -20,16 +20,6 @@ Entry format:
 
 <!-- ENTRIES START -->
 
-- Issue 2026-01-18 e4f5g6: Memory file template structure investigation
-    Priority: Medium. Area: templates.
-    Description: Should templates in .agent-layer only contain headers, and how should generated content be handled when overwriting?
-    Next step: Review existing template synchronization logic and define the intended behavior for content preservation.
-
-- Issue 2026-01-18 l8m9n0: Limit exposed commands for GitHub MCP
-    Priority: Low. Area: mcp configuration.
-    Description: The GitHub MCP server (HTTP transport) exposes many tools. HTTP-based MCP servers do not support client-side tool filtering; the MCP protocol has no standard mechanism for this.
-    Next step: Evaluate alternatives: (1) request upstream tool filtering support, (2) implement an MCP proxy that filters tools, or (3) accept current behavior and document the limitation.
-
 - Issue 2026-01-24 a1b2c3: VS Code slow first launch in agent-layer folder
     Priority: Low. Area: developer experience.
     Description: Launching VS Code in the agent-layer folder takes a very long time on first use, likely due to extension initialization, indexing, or MCP server startup.

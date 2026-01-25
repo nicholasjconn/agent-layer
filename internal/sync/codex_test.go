@@ -191,6 +191,7 @@ func TestBuildCodexRules(t *testing.T) {
 }
 
 func TestWriteCodexConfig(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -198,7 +199,7 @@ func TestWriteCodexConfig(t *testing.T) {
 		},
 		Env: map[string]string{},
 	}
-	if err := WriteCodexConfig(root, project); err != nil {
+	if err := WriteCodexConfig(RealSystem{}, root, project); err != nil {
 		t.Fatalf("WriteCodexConfig error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".codex", "config.toml")); err != nil {
@@ -207,18 +208,20 @@ func TestWriteCodexConfig(t *testing.T) {
 }
 
 func TestWriteCodexConfigError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{}
-	if err := WriteCodexConfig(file, project); err == nil {
+	if err := WriteCodexConfig(RealSystem{}, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteCodexConfigWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	codexDir := filepath.Join(root, ".codex")
 	if err := os.MkdirAll(codexDir, 0o755); err != nil {
@@ -232,24 +235,26 @@ func TestWriteCodexConfigWriteError(t *testing.T) {
 			Approvals: config.ApprovalsConfig{Mode: "none"},
 		},
 	}
-	if err := WriteCodexConfig(root, project); err == nil {
+	if err := WriteCodexConfig(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteCodexRulesError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{}
-	if err := WriteCodexRules(file, project); err == nil {
+	if err := WriteCodexRules(RealSystem{}, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteCodexRulesWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	rulesDir := filepath.Join(root, ".codex", "rules")
 	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
@@ -263,7 +268,7 @@ func TestWriteCodexRulesWriteError(t *testing.T) {
 			Approvals: config.ApprovalsConfig{Mode: "none"},
 		},
 	}
-	if err := WriteCodexRules(root, project); err == nil {
+	if err := WriteCodexRules(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }

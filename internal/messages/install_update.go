@@ -19,6 +19,10 @@ const (
 	InstallDiffHeader                  = "Found existing files that differ from the templates:"
 	InstallDiffLineFmt                 = "  - %s\n"
 	InstallDiffFooter                  = "Re-run `al init --overwrite` to review each file, or `al init --force` to replace them without prompts."
+	InstallUnknownHeader               = "Found files in .agent-layer not tracked by Agent Layer:"
+	InstallUnknownFooter               = "Re-run `al init --overwrite` to review deleting them, or `al init --force` to delete them without prompts."
+	InstallDeleteUnknownPromptRequired = "delete prompts require a prompt handler; re-run with --force to delete unknown files without prompts"
+	InstallDeleteUnknownFailedFmt      = "failed to delete %s: %w"
 
 	// UpdateCreateRequestErrFmt formats request creation errors.
 	UpdateCreateRequestErrFmt         = "create latest release request: %w"

@@ -24,6 +24,7 @@ func TestRunCreatesStructure(t *testing.T) {
 		filepath.Join(root, ".agent-layer", ".env"),
 		filepath.Join(root, ".agent-layer", ".gitignore"),
 		filepath.Join(root, ".agent-layer", "gitignore.block"),
+		filepath.Join(root, "docs", "agent-layer", "BACKLOG.md"),
 		filepath.Join(root, "docs", "agent-layer", "ISSUES.md"),
 	}
 	for _, path := range expectFiles {
@@ -570,11 +571,86 @@ func TestRunWithOverwrite(t *testing.T) {
 	}
 }
 
+func TestRunWithOverwriteForceDeletesUnknowns(t *testing.T) {
+	root := t.TempDir()
+
+	if err := Run(root, Options{}); err != nil {
+		t.Fatalf("first Run error: %v", err)
+	}
+
+	unknownPath := filepath.Join(root, ".agent-layer", "custom.txt")
+	if err := os.WriteFile(unknownPath, []byte("custom"), 0o644); err != nil {
+		t.Fatalf("write unknown: %v", err)
+	}
+
+	if err := Run(root, Options{Overwrite: true, Force: true}); err != nil {
+		t.Fatalf("overwrite Run error: %v", err)
+	}
+
+	if _, err := os.Stat(unknownPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected unknown file to be deleted, got %v", err)
+	}
+}
+
+func TestRunWithOverwritePromptsUnknownDeletion(t *testing.T) {
+	root := t.TempDir()
+
+	if err := Run(root, Options{}); err != nil {
+		t.Fatalf("first Run error: %v", err)
+	}
+
+	unknownPath := filepath.Join(root, ".agent-layer", "custom.txt")
+	if err := os.WriteFile(unknownPath, []byte("custom"), 0o644); err != nil {
+		t.Fatalf("write unknown: %v", err)
+	}
+
+	var deleteAllPaths []string
+	var deletePrompted []string
+	promptDeleteAll := func(paths []string) (bool, error) {
+		deleteAllPaths = append([]string(nil), paths...)
+		return false, nil
+	}
+	promptDelete := func(path string) (bool, error) {
+		deletePrompted = append(deletePrompted, path)
+		return true, nil
+	}
+
+	if err := Run(root, Options{
+		Overwrite:              true,
+		PromptOverwriteAll:     func() (bool, error) { return true, nil },
+		PromptDeleteUnknownAll: promptDeleteAll,
+		PromptDeleteUnknown:    promptDelete,
+	}); err != nil {
+		t.Fatalf("overwrite Run error: %v", err)
+	}
+
+	if _, err := os.Stat(unknownPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected unknown file to be deleted, got %v", err)
+	}
+	if len(deleteAllPaths) != 1 || deleteAllPaths[0] != filepath.Join(".agent-layer", "custom.txt") {
+		t.Fatalf("unexpected delete-all paths: %v", deleteAllPaths)
+	}
+	if len(deletePrompted) != 1 || deletePrompted[0] != filepath.Join(".agent-layer", "custom.txt") {
+		t.Fatalf("unexpected delete prompt paths: %v", deletePrompted)
+	}
+}
+
 func TestRunWithOverwriteMissingPrompt(t *testing.T) {
 	root := t.TempDir()
 
 	if err := Run(root, Options{Overwrite: true}); err == nil {
 		t.Fatalf("expected error when overwrite prompt handler is missing")
+	}
+}
+
+func TestRunWithOverwriteMissingDeletePrompt(t *testing.T) {
+	root := t.TempDir()
+
+	if err := Run(root, Options{
+		Overwrite:          true,
+		PromptOverwriteAll: func() (bool, error) { return true, nil },
+	}); err == nil {
+		t.Fatalf("expected error when delete prompt handler is missing")
 	}
 }
 
@@ -598,7 +674,12 @@ func TestRunWithOverwritePromptDecline(t *testing.T) {
 		return false, nil
 	}
 
-	if err := Run(root, Options{Overwrite: true, PromptOverwrite: prompt}); err != nil {
+	if err := Run(root, Options{
+		Overwrite:              true,
+		PromptOverwriteAll:     func() (bool, error) { return false, nil },
+		PromptOverwrite:        prompt,
+		PromptDeleteUnknownAll: func([]string) (bool, error) { return true, nil },
+	}); err != nil {
 		t.Fatalf("overwrite Run error: %v", err)
 	}
 

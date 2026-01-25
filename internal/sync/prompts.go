@@ -8,16 +8,15 @@ import (
 	"strings"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
 	"github.com/conn-castle/agent-layer/internal/messages"
 )
 
 const promptHeaderTemplate = "<!--\n  GENERATED FILE\n  Source: .agent-layer/slash-commands/%s.md\n  Regenerate: al sync\n-->\n"
 
 // WriteVSCodePrompts generates VS Code prompt files for slash commands.
-func WriteVSCodePrompts(root string, commands []config.SlashCommand) error {
+func WriteVSCodePrompts(sys System, root string, commands []config.SlashCommand) error {
 	promptDir := filepath.Join(root, ".vscode", "prompts")
-	if err := os.MkdirAll(promptDir, 0o755); err != nil {
+	if err := sys.MkdirAll(promptDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, promptDir, err)
 	}
 
@@ -26,12 +25,12 @@ func WriteVSCodePrompts(root string, commands []config.SlashCommand) error {
 		wanted[cmd.Name] = struct{}{}
 		content := buildVSCodePrompt(cmd)
 		path := filepath.Join(promptDir, fmt.Sprintf("%s.prompt.md", cmd.Name))
-		if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+		if err := sys.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 		}
 	}
 
-	return removeStalePromptFiles(promptDir, wanted)
+	return removeStalePromptFiles(sys, promptDir, wanted)
 }
 
 func buildVSCodePrompt(cmd config.SlashCommand) string {
@@ -50,7 +49,7 @@ func buildVSCodePrompt(cmd config.SlashCommand) string {
 	return builder.String()
 }
 
-func removeStalePromptFiles(promptDir string, wanted map[string]struct{}) error {
+func removeStalePromptFiles(sys System, promptDir string, wanted map[string]struct{}) error {
 	entries, err := os.ReadDir(promptDir)
 	if err != nil {
 		return fmt.Errorf(messages.SyncReadFailedFmt, promptDir, err)
@@ -69,7 +68,7 @@ func removeStalePromptFiles(promptDir string, wanted map[string]struct{}) error 
 			continue
 		}
 		path := filepath.Join(promptDir, name)
-		isGenerated, err := hasGeneratedMarker(path)
+		isGenerated, err := hasGeneratedMarker(sys, path)
 		if err != nil {
 			return err
 		}
@@ -84,9 +83,9 @@ func removeStalePromptFiles(promptDir string, wanted map[string]struct{}) error 
 }
 
 // WriteCodexSkills generates Codex skill files for slash commands.
-func WriteCodexSkills(root string, commands []config.SlashCommand) error {
+func WriteCodexSkills(sys System, root string, commands []config.SlashCommand) error {
 	skillsDir := filepath.Join(root, ".codex", "skills")
-	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+	if err := sys.MkdirAll(skillsDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, skillsDir, err)
 	}
 
@@ -94,23 +93,23 @@ func WriteCodexSkills(root string, commands []config.SlashCommand) error {
 	for _, cmd := range commands {
 		wanted[cmd.Name] = struct{}{}
 		skillDir := filepath.Join(skillsDir, cmd.Name)
-		if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		if err := sys.MkdirAll(skillDir, 0o755); err != nil {
 			return fmt.Errorf(messages.SyncCreateDirFailedFmt, skillDir, err)
 		}
 		path := filepath.Join(skillDir, "SKILL.md")
 		content := buildCodexSkill(cmd)
-		if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+		if err := sys.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 		}
 	}
 
-	return removeStaleSkillDirs(skillsDir, wanted)
+	return removeStaleSkillDirs(sys, skillsDir, wanted)
 }
 
 // WriteAntigravitySkills generates Antigravity skill files for slash commands.
-func WriteAntigravitySkills(root string, commands []config.SlashCommand) error {
+func WriteAntigravitySkills(sys System, root string, commands []config.SlashCommand) error {
 	skillsDir := filepath.Join(root, ".agent", "skills")
-	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+	if err := sys.MkdirAll(skillsDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, skillsDir, err)
 	}
 
@@ -118,17 +117,17 @@ func WriteAntigravitySkills(root string, commands []config.SlashCommand) error {
 	for _, cmd := range commands {
 		wanted[cmd.Name] = struct{}{}
 		skillDir := filepath.Join(skillsDir, cmd.Name)
-		if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		if err := sys.MkdirAll(skillDir, 0o755); err != nil {
 			return fmt.Errorf(messages.SyncCreateDirFailedFmt, skillDir, err)
 		}
 		path := filepath.Join(skillDir, "SKILL.md")
 		content := buildAntigravitySkill(cmd)
-		if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+		if err := sys.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 			return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 		}
 	}
 
-	return removeStaleSkillDirs(skillsDir, wanted)
+	return removeStaleSkillDirs(sys, skillsDir, wanted)
 }
 
 func buildCodexSkill(cmd config.SlashCommand) string {
@@ -214,7 +213,7 @@ func wrapDescription(text string, width int) []string {
 	return lines
 }
 
-func removeStaleSkillDirs(skillsDir string, wanted map[string]struct{}) error {
+func removeStaleSkillDirs(sys System, skillsDir string, wanted map[string]struct{}) error {
 	entries, err := os.ReadDir(skillsDir)
 	if err != nil {
 		return fmt.Errorf(messages.SyncReadFailedFmt, skillsDir, err)
@@ -230,7 +229,7 @@ func removeStaleSkillDirs(skillsDir string, wanted map[string]struct{}) error {
 			continue
 		}
 		skillPath := filepath.Join(skillsDir, name, "SKILL.md")
-		isGenerated, err := hasGeneratedMarker(skillPath)
+		isGenerated, err := hasGeneratedMarker(sys, skillPath)
 		if err != nil {
 			return err
 		}
@@ -249,8 +248,8 @@ func removeStaleSkillDirs(skillsDir string, wanted map[string]struct{}) error {
 	return nil
 }
 
-func hasGeneratedMarker(path string) (bool, error) {
-	data, err := os.ReadFile(path)
+func hasGeneratedMarker(sys System, path string) (bool, error) {
+	data, err := sys.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil

@@ -72,10 +72,11 @@ func TestWriteVersionFile_MkdirError(t *testing.T) {
 func TestWriteVersionFile_PromptError(t *testing.T) {
 	root := t.TempDir()
 	inst := &installer{
-		root:       root,
-		overwrite:  true, // Must be true to trigger prompt
-		pinVersion: "1.0.0",
-		prompt: func(path string) (bool, error) {
+		root:               root,
+		overwrite:          true, // Must be true to trigger prompt
+		pinVersion:         "1.0.0",
+		promptOverwriteAll: func() (bool, error) { return false, nil },
+		promptOverwrite: func(path string) (bool, error) {
 			return false, fmt.Errorf("prompt failed")
 		},
 	}
@@ -97,10 +98,11 @@ func TestWriteVersionFile_PromptError(t *testing.T) {
 func TestWriteVersionFile_NoOverwrite(t *testing.T) {
 	root := t.TempDir()
 	inst := &installer{
-		root:       root,
-		overwrite:  true, // Must be true to trigger prompt
-		pinVersion: "1.0.0",
-		prompt: func(path string) (bool, error) {
+		root:               root,
+		overwrite:          true, // Must be true to trigger prompt
+		pinVersion:         "1.0.0",
+		promptOverwriteAll: func() (bool, error) { return false, nil },
+		promptOverwrite: func(path string) (bool, error) {
 			return false, nil
 		},
 	}
@@ -124,8 +126,9 @@ func TestWriteVersionFile_NoOverwrite(t *testing.T) {
 
 func TestShouldOverwrite_PromptError(t *testing.T) {
 	inst := &installer{
-		overwrite: true,
-		prompt: func(path string) (bool, error) {
+		overwrite:          true,
+		promptOverwriteAll: func() (bool, error) { return false, nil },
+		promptOverwrite: func(path string) (bool, error) {
 			return false, fmt.Errorf("prompt error")
 		},
 	}
@@ -147,7 +150,11 @@ func TestShouldOverwrite_Force(t *testing.T) {
 }
 
 func TestShouldOverwrite_MissingPrompt(t *testing.T) {
-	inst := &installer{overwrite: true, prompt: nil}
+	inst := &installer{
+		overwrite:          true,
+		promptOverwriteAll: func() (bool, error) { return false, nil },
+		promptOverwrite:    nil,
+	}
 	_, err := inst.shouldOverwrite("path")
 	if err == nil {
 		t.Fatal("expected error when prompt handler is missing")

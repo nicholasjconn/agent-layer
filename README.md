@@ -79,7 +79,7 @@ al gemini
 
 Notes:
 - `al init` prompts to run `al wizard` after seeding files. Use `al init --no-wizard` to skip; non-interactive shells skip automatically.
-- To refresh template-managed files, use `al init --overwrite` to review each file or `al init --force` to overwrite without prompts.
+- To refresh template-managed files, use `al init --overwrite` to review each file or `al init --force` to **overwrite and delete** unknown files under `.agent-layer` without prompts.
 - Agent Layer does not install clients. Install the target client CLI and ensure it is on your `PATH` (Gemini CLI, Claude Code CLI, Codex, VS Code, etc.).
 
 ---
@@ -160,7 +160,7 @@ Default instructions and slash commands rely on these files existing, along with
 
 Common memory files include:
 - `docs/agent-layer/ISSUES.md`
-- `docs/agent-layer/FEATURES.md`
+- `docs/agent-layer/BACKLOG.md`
 - `docs/agent-layer/ROADMAP.md`
 - `docs/agent-layer/DECISIONS.md`
 

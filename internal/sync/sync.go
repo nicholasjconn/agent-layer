@@ -16,53 +16,53 @@ func Run(root string) ([]warnings.Warning, error) {
 		return nil, err
 	}
 
-	return RunWithProject(root, project)
+	return RunWithProject(RealSystem{}, root, project)
 }
 
 // RunWithProject regenerates outputs using an already loaded project config.
 // Returns any sync-time warnings and an error if sync failed.
-func RunWithProject(root string, project *config.ProjectConfig) ([]warnings.Warning, error) {
+func RunWithProject(sys System, root string, project *config.ProjectConfig) ([]warnings.Warning, error) {
 	steps := []func() error{
 		func() error {
-			return WriteInstructionShims(root, project.Instructions)
+			return WriteInstructionShims(sys, root, project.Instructions)
 		},
 	}
 
 	if project.Config.Agents.Codex.Enabled != nil && *project.Config.Agents.Codex.Enabled {
 		steps = append(steps,
-			func() error { return WriteCodexInstructions(root, project.Instructions) },
-			func() error { return WriteCodexSkills(root, project.SlashCommands) },
+			func() error { return WriteCodexInstructions(sys, root, project.Instructions) },
+			func() error { return WriteCodexSkills(sys, root, project.SlashCommands) },
 		)
 	}
 
 	if project.Config.Agents.VSCode.Enabled != nil && *project.Config.Agents.VSCode.Enabled {
 		steps = append(steps,
-			func() error { return WriteVSCodePrompts(root, project.SlashCommands) },
-			func() error { return WriteVSCodeSettings(root, project) },
-			func() error { return WriteVSCodeMCPConfig(root, project) },
-			func() error { return WriteVSCodeLaunchers(root) },
+			func() error { return WriteVSCodePrompts(sys, root, project.SlashCommands) },
+			func() error { return WriteVSCodeSettings(sys, root, project) },
+			func() error { return WriteVSCodeMCPConfig(sys, root, project) },
+			func() error { return WriteVSCodeLaunchers(sys, root) },
 		)
 	}
 
 	if project.Config.Agents.Antigravity.Enabled != nil && *project.Config.Agents.Antigravity.Enabled {
-		steps = append(steps, func() error { return WriteAntigravitySkills(root, project.SlashCommands) })
+		steps = append(steps, func() error { return WriteAntigravitySkills(sys, root, project.SlashCommands) })
 	}
 
 	if project.Config.Agents.Gemini.Enabled != nil && *project.Config.Agents.Gemini.Enabled {
-		steps = append(steps, func() error { return WriteGeminiSettings(root, project) })
+		steps = append(steps, func() error { return WriteGeminiSettings(sys, root, project) })
 	}
 
 	if project.Config.Agents.Claude.Enabled != nil && *project.Config.Agents.Claude.Enabled {
 		steps = append(steps,
-			func() error { return WriteClaudeSettings(root, project) },
-			func() error { return WriteMCPConfig(root, project) },
+			func() error { return WriteClaudeSettings(sys, root, project) },
+			func() error { return WriteMCPConfig(sys, root, project) },
 		)
 	}
 
 	if project.Config.Agents.Codex.Enabled != nil && *project.Config.Agents.Codex.Enabled {
 		steps = append(steps,
-			func() error { return WriteCodexConfig(root, project) },
-			func() error { return WriteCodexRules(root, project) },
+			func() error { return WriteCodexConfig(sys, root, project) },
+			func() error { return WriteCodexRules(sys, root, project) },
 		)
 	}
 

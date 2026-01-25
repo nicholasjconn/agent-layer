@@ -1,38 +1,6 @@
 # Roadmap
 
-Purpose: Phased plan of work; guides architecture decisions and sequencing.
-
-Update rules:
-- The roadmap is a single list of numbered phases.
-- Do not renumber completed phases (phases marked with ✅).
-- You may renumber incomplete phases when updating the roadmap (for example, to insert a new phase).
-- Incomplete phases include Goal, Tasks (checkbox list), and Exit criteria.
-- When a phase is complete:
-  - Add a green check emoji to the phase heading: `## Phase N ✅ — <name>`
-  - Replace the phase content with a single bullet list summarizing what was accomplished (no checkbox list).
-- There is no separate "current" or "upcoming" section. The phase list itself shows what is done vs not done.
-
-
-Phase template (completed):
-## Phase N ✅ — <phase name>
-- <Accomplishment summary bullet>
-- <Accomplishment summary bullet>
-
-
-Phase template (incomplete):
-## Phase N — <phase name>
-
-### Goal
-- <What success looks like for this phase, in 1 to 3 bullet points.>
-
-### Tasks
-- [ ] <Concrete deliverable-oriented task>
-- [ ] <Concrete deliverable-oriented task>
-
-### Exit criteria
-- <Objective condition that must be true to call the phase complete.>
-- <Prefer testable statements: “X exists”, “Y passes”, “Z is documented”.>
-
+Note: This is an agent-layer memory file. It is primarily for agent use.
 
 ## Phases
 
@@ -71,30 +39,15 @@ Phase template (incomplete):
 - Added Windows VS Code launcher (`.bat` script with `CODEX_HOME` support).
 - Added configurable sync warnings for oversized instructions (token count threshold) and excessive MCP servers (per-client server count threshold).
 
-## Phase 7 — v0.5.0 Global CLI and install improvements
+## Phase 7 ✅ — v0.5.0 Global CLI and install improvements
+- Transitioned from repo-local binary to globally installed `al` CLI with per-repo version pinning via `.agent-layer/al.version`.
+- Published Homebrew tap (`conn-castle/tap/agent-layer`) with automated formula updates on release.
+- Added shell completion for bash, zsh, and fish (`al completion <shell>`).
+- Added manual installers (`al-install.sh`, `al-install.ps1`) with SHA-256 checksum verification.
+- Added Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
+- Added per-file overwrite prompts during `al init --overwrite` with `--force` flag to skip prompts.
 
-### Goal
-- Transition from repo-local binary to a single globally installed `al` CLI with per-repo pinning and improved installers.
-
-### Tasks
-- [x] Move to a single globally installed `al` CLI (remove repo-local CLI binary pattern).
-- [ ] Publish Homebrew tap for `al` installation (tap managed separately).
-- [x] Implement `al completion bash|zsh|fish`.
-- [x] Add per-repo version pinning via `.agent-layer/al.version` with cache dispatch and checksum verification.
-- [x] Add manual installers (`al-install.sh`, `al-install.ps1`) and `checksums.txt` artifacts.
-- [x] Add Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
-- [x] Add commented-out gitignore entry for `docs/agent-layer/` with explanatory note.
-- [x] Add per-file overwrite prompts during `al init --overwrite`; add `--force` flag to skip prompts. Update user facing language to make this clear.
-
-### Exit criteria
-- `al` is installable globally via Homebrew and works from any directory.
-- Shell completion works for bash, zsh, and fish.
-- Per-repo pinning resolves versions and verifies cached binaries.
-- Linux launcher ships with `CODEX_HOME` support.
-- Install flow offers an optional `docs/agent-layer/` gitignore entry.
-- Install overwrite prompts allow per-file decisions or force override.
-
-## Phase 8 — v0.6.0 Workflows and instructions
+## Phase 8 — v0.5.4 Workflows and instructions
 
 ### Goal
 - Improve agent effectiveness through better workflows and instruction quality.
@@ -102,18 +55,18 @@ Phase template (incomplete):
 ### Tasks
 - [ ] Add tool instruction file that guides models to use search or Context7 for time-sensitive information.
 - [ ] Implement `fix-tests` workflow that runs all checks (lint, pre-commit, tests) and iteratively fixes failures until passing.
-- [ ] Update finish-task and cleanup-code to ensure commit-ready state (tests pass, lint passes, precommit hooks pass).
+- [ ] Update finish-task and cleanup-code to ensure commit-ready state (tests pass, lint passes, precommit hooks pass). Ideally, when completed, they would just call `fix-tests` workflow.
 - [ ] Remove the quality audit report file from `find-issues` outputs and switch to a report path that supports concurrent agents.
 - [ ] Move `fix-issues` plans into `tmp`, add a "what the human needs to know" section, and relax approval keyword requirements.
-- [ ] Rename `FEATURES.md` to a backlog name and update references in docs and prompts.
-- [ ] Enforce a single blank line between entries in all memory files.
+- [x] Rename `FEATURES.md` to a backlog name and update references in docs and prompts.
+- [x] Enforce a single blank line between entries in all memory files.
 - [ ] Improve `.agent-layer/config.toml` usability (comments, structure, and editing aids).
 
 ### Exit criteria
 - Workflows reliably produce commit-ready code.
 - `find-issues` and `fix-issues` outputs are concurrency-safe and documented.
 
-## Phase 9 — v0.7.0 Advanced automation
+## Phase 9 — v0.6.0 Advanced automation
 
 ### Goal
 - Enable sophisticated automation and integration patterns.

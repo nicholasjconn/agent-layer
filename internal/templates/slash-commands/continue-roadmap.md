@@ -12,7 +12,7 @@ Pick up where the project left off by:
 4) implementing + verifying, and  
 5) updating `ROADMAP.md` and project memory files.
 
-This workflow is **roadmap-driven**. It should not “freestyle” features from `FEATURES.md` unless they are already scheduled into the roadmap.
+This workflow is **roadmap-driven**. It should not “freestyle” backlog items from `BACKLOG.md` unless they are already scheduled into the roadmap.
 
 ---
 
@@ -63,7 +63,7 @@ If only one agent is available, execute phases in this order with explicit headi
    - `DECISIONS.md` (if present)
    - `README.md`
    - `ISSUES.md`
-   - `FEATURES.md` (for awareness only; do not schedule from it here)
+   - `BACKLOG.md` (for awareness only; do not schedule from it here)
 
 ---
 
@@ -122,9 +122,9 @@ Rules:
 - If an issue is a prerequisite and is small, include it in plan scope.
 - If it is large, document it as a prerequisite and ask the user whether to expand scope.
 
-## 2D) Feature intersection (awareness only)
-- Do not pull new work from `FEATURES.md`.
-- If you notice a feature that is already effectively scheduled in the roadmap (duplicated wording), note it for cleanup (FEATURES should remain unscheduled only).
+## 2D) Backlog intersection (awareness only)
+- Do not pull new work from `BACKLOG.md`.
+- If you notice a backlog item that is already effectively scheduled in the roadmap (duplicated wording), note it for cleanup (BACKLOG should remain unscheduled only).
 
 ## 2E) Ambiguity gate
 If anything is ambiguous or contradictory (task definition, acceptance criteria, dependency behavior):
@@ -243,9 +243,9 @@ Do not renumber completed phases. Only renumber incomplete phases if necessary f
 ## 7C) Update `DECISIONS.md` (if needed)
 If a significant decision was made, log it (briefly).
 
-## 7D) Update `FEATURES.md` (if needed)
-If a feature was implemented as part of roadmap work and it still exists in FEATURES:
-- remove it (FEATURES should only contain unscheduled/unfinished user-visible requests)
+## 7D) Update `BACKLOG.md` (if needed)
+If a backlog item was implemented as part of roadmap work and it still exists in BACKLOG:
+- remove it (BACKLOG should only contain unscheduled/unfinished user-visible requests)
 
 ---
 

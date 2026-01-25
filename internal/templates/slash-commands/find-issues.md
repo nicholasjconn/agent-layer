@@ -22,7 +22,7 @@ This workflow is **report-first**:
 Canonical list (read order for this workflow):
 1. `ROADMAP.md`
 2. `DECISIONS.md`
-3. `FEATURES.md`
+3. `BACKLOG.md`
 4. `ISSUES.md`
 
 Formatting: follow the entry formats defined in each file. If any required files are missing, ask the user before creating them.
@@ -237,7 +237,7 @@ Proceed only if the user explicitly asked to apply changes.
 1. Ensure all memory files exist (ask the user before creating any missing files; if approved, copy `.agent-layer/templates/docs/<NAME>.md` into `<NAME>.md`).
 2. For each approved finding:
    - Add to `ISSUES.md` if it is a defect, refactor, technical debt, reliability/security/performance risk, or test gap.
-   - Add to `FEATURES.md` only if it is a user-visible capability request.
+   - Add to `BACKLOG.md` only if it is a user-visible capability request.
    - Add to `DECISIONS.md` only if it is a significant decision and the user wants it logged.
    - Consider `ROADMAP.md` updates only if the user explicitly wants roadmap edits.
 3. Deduplicate by merging into existing entries; keep entries compact.
@@ -246,7 +246,7 @@ Proceed only if the user explicitly asked to apply changes.
 
 ## In-chat review step (mandatory)
 Present the top findings (High + Medium) to the user and ask which items should be:
-- logged to ISSUES, FEATURES, DECISIONS
+- logged to ISSUES, BACKLOG, DECISIONS
 - scheduled into ROADMAP
 - turned into a fix plan
 - deprioritized/ignored

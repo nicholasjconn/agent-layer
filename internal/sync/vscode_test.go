@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/launchers"
 )
 
 func TestBuildVSCodeSettings(t *testing.T) {
+	t.Parallel()
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "commands"},
@@ -28,6 +30,7 @@ func TestBuildVSCodeSettings(t *testing.T) {
 }
 
 func TestWriteVSCodeSettings(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -36,7 +39,7 @@ func TestWriteVSCodeSettings(t *testing.T) {
 		CommandsAllow: []string{"git status"},
 	}
 
-	if err := WriteVSCodeSettings(root, project); err != nil {
+	if err := WriteVSCodeSettings(RealSystem{}, root, project); err != nil {
 		t.Fatalf("WriteVSCodeSettings error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".vscode", "settings.json")); err != nil {
@@ -45,18 +48,20 @@ func TestWriteVSCodeSettings(t *testing.T) {
 }
 
 func TestWriteVSCodeSettingsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{}
-	if err := WriteVSCodeSettings(file, project); err == nil {
+	if err := WriteVSCodeSettings(RealSystem{}, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteVSCodeSettingsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	vscodeDir := filepath.Join(root, ".vscode")
 	if err := os.MkdirAll(vscodeDir, 0o500); err != nil {
@@ -67,12 +72,13 @@ func TestWriteVSCodeSettingsWriteError(t *testing.T) {
 			Approvals: config.ApprovalsConfig{Mode: "none"},
 		},
 	}
-	if err := WriteVSCodeSettings(root, project); err == nil {
+	if err := WriteVSCodeSettings(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildVSCodeMCPConfig(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -108,6 +114,7 @@ func TestBuildVSCodeMCPConfig(t *testing.T) {
 }
 
 func TestBuildVSCodeMCPConfigHeadersAndEnv(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -166,6 +173,7 @@ func TestBuildVSCodeMCPConfigHeadersAndEnv(t *testing.T) {
 }
 
 func TestWriteVSCodeMCPConfig(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	enabled := true
 	project := &config.ProjectConfig{
@@ -184,7 +192,7 @@ func TestWriteVSCodeMCPConfig(t *testing.T) {
 		Env: map[string]string{"TOKEN": "abc"},
 	}
 
-	if err := WriteVSCodeMCPConfig(root, project); err != nil {
+	if err := WriteVSCodeMCPConfig(RealSystem{}, root, project); err != nil {
 		t.Fatalf("WriteVSCodeMCPConfig error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".vscode", "mcp.json")); err != nil {
@@ -193,18 +201,20 @@ func TestWriteVSCodeMCPConfig(t *testing.T) {
 }
 
 func TestWriteVSCodeMCPConfigError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{}
-	if err := WriteVSCodeMCPConfig(file, project); err == nil {
+	if err := WriteVSCodeMCPConfig(RealSystem{}, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteVSCodeMCPConfigMissingEnv(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	enabled := true
 	project := &config.ProjectConfig{
@@ -223,12 +233,13 @@ func TestWriteVSCodeMCPConfigMissingEnv(t *testing.T) {
 		Env: map[string]string{},
 	}
 
-	if err := WriteVSCodeMCPConfig(root, project); err == nil {
+	if err := WriteVSCodeMCPConfig(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildVSCodeMCPConfigMissingEnv(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -253,9 +264,10 @@ func TestBuildVSCodeMCPConfigMissingEnv(t *testing.T) {
 }
 
 func TestWriteVSCodeLaunchers(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 
-	if err := WriteVSCodeLaunchers(root); err != nil {
+	if err := WriteVSCodeLaunchers(RealSystem{}, root); err != nil {
 		t.Fatalf("WriteVSCodeLaunchers error: %v", err)
 	}
 
@@ -311,9 +323,10 @@ func TestWriteVSCodeLaunchers(t *testing.T) {
 }
 
 func TestWriteVSCodeLaunchersContent(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 
-	if err := WriteVSCodeLaunchers(root); err != nil {
+	if err := WriteVSCodeLaunchers(RealSystem{}, root); err != nil {
 		t.Fatalf("WriteVSCodeLaunchers error: %v", err)
 	}
 
@@ -444,6 +457,7 @@ func TestWriteVSCodeLaunchersContent(t *testing.T) {
 }
 
 func TestWriteVSCodeLaunchersDirectoryError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	// Create a file where the directory should be
 	file := filepath.Join(root, ".agent-layer")
@@ -451,193 +465,195 @@ func TestWriteVSCodeLaunchersDirectoryError(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	if err := WriteVSCodeLaunchers(root); err == nil {
+	if err := WriteVSCodeLaunchers(RealSystem{}, root); err == nil {
 		t.Fatalf("expected error when .agent-layer is a file")
 	}
 }
 
 func TestWriteVSCodeLaunchersWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	agentLayerDir := filepath.Join(root, ".agent-layer")
 	if err := os.MkdirAll(agentLayerDir, 0o500); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	if err := WriteVSCodeLaunchers(root); err == nil {
+	if err := WriteVSCodeLaunchers(RealSystem{}, root); err == nil {
 		t.Fatalf("expected error when directory is read-only")
 	}
 }
 
 func TestWriteVSCodeAppBundle(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	agentLayerDir := filepath.Join(root, ".agent-layer")
-	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
+	paths := launchers.VSCodePaths(root)
+	if err := os.MkdirAll(paths.AgentLayerDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	if err := writeVSCodeAppBundle(agentLayerDir); err != nil {
+	if err := writeVSCodeAppBundle(RealSystem{}, paths); err != nil {
 		t.Fatalf("writeVSCodeAppBundle error: %v", err)
 	}
 
 	// Verify structure
-	appDir := filepath.Join(agentLayerDir, "open-vscode.app")
-	if _, err := os.Stat(filepath.Join(appDir, "Contents", "Info.plist")); err != nil {
+	if _, err := os.Stat(paths.AppInfoPlist); err != nil {
 		t.Fatalf("missing Info.plist: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(appDir, "Contents", "MacOS", "open-vscode")); err != nil {
+	if _, err := os.Stat(paths.AppExec); err != nil {
 		t.Fatalf("missing executable: %v", err)
 	}
 }
 
 func TestWriteVSCodeAppBundleMkdirError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	agentLayerDir := filepath.Join(root, ".agent-layer")
-	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
+	paths := launchers.VSCodePaths(root)
+	if err := os.MkdirAll(paths.AgentLayerDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
 	// Create a file where the .app directory should be
-	appPath := filepath.Join(agentLayerDir, "open-vscode.app")
-	if err := os.WriteFile(appPath, []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(paths.AppDir, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
-	if err := writeVSCodeAppBundle(agentLayerDir); err == nil {
+	if err := writeVSCodeAppBundle(RealSystem{}, paths); err == nil {
 		t.Fatalf("expected error when .app path is a file")
 	}
 }
 
 func TestWriteVSCodeSettingsBuildError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	buildVSCodeSettingsFunc = func(*config.ProjectConfig) (*vscodeSettings, error) {
+	t.Parallel()
+	sys := &MockSystem{}
+	err := writeVSCodeSettings(sys, t.TempDir(), &config.ProjectConfig{}, func(*config.ProjectConfig) (*vscodeSettings, error) {
 		return nil, errors.New("build fail")
-	}
-
-	if err := WriteVSCodeSettings(t.TempDir(), &config.ProjectConfig{}); err == nil {
+	})
+	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeSettingsMarshalError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	vscodeMarshalIndent = func(_ any, _, _ string) ([]byte, error) {
-		return nil, errors.New("marshal fail")
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		MarshalIndentFunc: func(v any, prefix, indent string) ([]byte, error) {
+			return nil, errors.New("marshal fail")
+		},
 	}
-
-	if err := WriteVSCodeSettings(t.TempDir(), &config.ProjectConfig{}); err == nil {
+	if err := WriteVSCodeSettings(sys, t.TempDir(), &config.ProjectConfig{}); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeMCPConfigMarshalError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	vscodeMarshalIndent = func(_ any, _, _ string) ([]byte, error) {
-		return nil, errors.New("marshal fail")
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		MarshalIndentFunc: func(v any, prefix, indent string) ([]byte, error) {
+			return nil, errors.New("marshal fail")
+		},
 	}
-
-	if err := WriteVSCodeMCPConfig(t.TempDir(), &config.ProjectConfig{}); err == nil {
+	if err := WriteVSCodeMCPConfig(sys, t.TempDir(), &config.ProjectConfig{}); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeMCPConfigWriteError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	origWrite := vscodeWriteFileAtomic
-	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "mcp.json" {
-			return errors.New("write fail")
-		}
-		return origWrite(path, data, perm)
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		MarshalIndentFunc: func(v any, prefix, indent string) ([]byte, error) {
+			return []byte("{}"), nil
+		},
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "mcp.json" {
+				return errors.New("write fail")
+			}
+			return nil
+		},
 	}
-
-	if err := WriteVSCodeMCPConfig(t.TempDir(), &config.ProjectConfig{}); err == nil {
+	if err := WriteVSCodeMCPConfig(sys, t.TempDir(), &config.ProjectConfig{}); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeLaunchersAppBundleError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	writeVSCodeAppBundleFunc = func(string) error {
-		return errors.New("bundle fail")
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "Info.plist" {
+				return errors.New("bundle fail")
+			}
+			return nil
+		},
 	}
-
-	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+	if err := WriteVSCodeLaunchers(sys, t.TempDir()); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeLaunchersBatWriteError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	origWrite := vscodeWriteFileAtomic
-	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "open-vscode.bat" {
-			return errors.New("write fail")
-		}
-		return origWrite(path, data, perm)
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "open-vscode.bat" {
+				return errors.New("write fail")
+			}
+			return nil
+		},
 	}
-
-	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+	if err := WriteVSCodeLaunchers(sys, t.TempDir()); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeLaunchersDesktopWriteError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	origWrite := vscodeWriteFileAtomic
-	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "open-vscode.desktop" {
-			return errors.New("write fail")
-		}
-		return origWrite(path, data, perm)
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "open-vscode.desktop" {
+				return errors.New("write fail")
+			}
+			return nil
+		},
 	}
-
-	if err := WriteVSCodeLaunchers(t.TempDir()); err == nil {
+	if err := WriteVSCodeLaunchers(sys, t.TempDir()); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeAppBundleInfoPlistWriteError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	origWrite := vscodeWriteFileAtomic
-	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "Info.plist" {
-			return errors.New("write fail")
-		}
-		return origWrite(path, data, perm)
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "Info.plist" {
+				return errors.New("write fail")
+			}
+			return nil
+		},
 	}
-
-	if err := writeVSCodeAppBundle(t.TempDir()); err == nil {
+	if err := writeVSCodeAppBundle(sys, launchers.VSCodePaths(t.TempDir())); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestWriteVSCodeAppBundleExecWriteError(t *testing.T) {
-	t.Cleanup(captureVSCodeDeps())
-	origWrite := vscodeWriteFileAtomic
-	vscodeWriteFileAtomic = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "open-vscode" {
-			return errors.New("write fail")
-		}
-		return origWrite(path, data, perm)
+	t.Parallel()
+	sys := &MockSystem{
+		MkdirAllFunc: func(path string, perm os.FileMode) error { return nil },
+		WriteFileAtomicFunc: func(path string, data []byte, perm os.FileMode) error {
+			if filepath.Base(path) == "open-vscode" {
+				return errors.New("write fail")
+			}
+			return nil
+		},
 	}
-
-	if err := writeVSCodeAppBundle(t.TempDir()); err == nil {
+	if err := writeVSCodeAppBundle(sys, launchers.VSCodePaths(t.TempDir())); err == nil {
 		t.Fatal("expected error")
-	}
-}
-
-func captureVSCodeDeps() func() {
-	origBuildSettings := buildVSCodeSettingsFunc
-	origBuildMCP := buildVSCodeMCPConfigFunc
-	origMarshal := vscodeMarshalIndent
-	origWrite := vscodeWriteFileAtomic
-	origWriteBundle := writeVSCodeAppBundleFunc
-
-	return func() {
-		buildVSCodeSettingsFunc = origBuildSettings
-		buildVSCodeMCPConfigFunc = origBuildMCP
-		vscodeMarshalIndent = origMarshal
-		vscodeWriteFileAtomic = origWrite
-		writeVSCodeAppBundleFunc = origWriteBundle
 	}
 }

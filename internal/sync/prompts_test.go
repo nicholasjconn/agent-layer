@@ -21,18 +21,20 @@ func TestBuildVSCodePrompt(t *testing.T) {
 }
 
 func TestWriteVSCodePromptsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	err := WriteVSCodePrompts(file, nil)
+	err := WriteVSCodePrompts(RealSystem{}, file, nil)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteVSCodePromptsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	promptDir := filepath.Join(root, ".vscode", "prompts")
 	if err := os.MkdirAll(promptDir, 0o755); err != nil {
@@ -42,19 +44,21 @@ func TestWriteVSCodePromptsWriteError(t *testing.T) {
 		t.Fatalf("mkdir prompt: %v", err)
 	}
 	cmds := []config.SlashCommand{{Name: "alpha", Body: "Body"}}
-	if err := WriteVSCodePrompts(root, cmds); err == nil {
+	if err := WriteVSCodePrompts(RealSystem{}, root, cmds); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestRemoveStalePromptFilesMissingDir(t *testing.T) {
-	err := removeStalePromptFiles(filepath.Join(t.TempDir(), "missing"), map[string]struct{}{})
+	t.Parallel()
+	err := removeStalePromptFiles(RealSystem{}, filepath.Join(t.TempDir(), "missing"), map[string]struct{}{})
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestRemoveStalePromptFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	wanted := map[string]struct{}{
 		"keep": {},
@@ -81,7 +85,7 @@ func TestRemoveStalePromptFiles(t *testing.T) {
 		t.Fatalf("mkdir subdir: %v", err)
 	}
 
-	if err := removeStalePromptFiles(dir, wanted); err != nil {
+	if err := removeStalePromptFiles(RealSystem{}, dir, wanted); err != nil {
 		t.Fatalf("removeStalePromptFiles error: %v", err)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
@@ -124,18 +128,20 @@ func TestBuildAntigravitySkill(t *testing.T) {
 }
 
 func TestWriteCodexSkillsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	err := WriteCodexSkills(file, nil)
+	err := WriteCodexSkills(RealSystem{}, file, nil)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteCodexSkillsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	skillDir := filepath.Join(root, ".codex", "skills", "alpha")
 	if err := os.MkdirAll(skillDir, 0o755); err != nil {
@@ -145,24 +151,26 @@ func TestWriteCodexSkillsWriteError(t *testing.T) {
 		t.Fatalf("mkdir SKILL.md: %v", err)
 	}
 	cmds := []config.SlashCommand{{Name: "alpha", Description: "desc", Body: "Body"}}
-	if err := WriteCodexSkills(root, cmds); err == nil {
+	if err := WriteCodexSkills(RealSystem{}, root, cmds); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteAntigravitySkillsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	err := WriteAntigravitySkills(file, nil)
+	err := WriteAntigravitySkills(RealSystem{}, file, nil)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteAntigravitySkillsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	skillDir := filepath.Join(root, ".agent", "skills", "alpha")
 	if err := os.MkdirAll(skillDir, 0o755); err != nil {
@@ -172,12 +180,13 @@ func TestWriteAntigravitySkillsWriteError(t *testing.T) {
 		t.Fatalf("mkdir SKILL.md: %v", err)
 	}
 	cmds := []config.SlashCommand{{Name: "alpha", Description: "desc", Body: "Body"}}
-	if err := WriteAntigravitySkills(root, cmds); err == nil {
+	if err := WriteAntigravitySkills(RealSystem{}, root, cmds); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteAntigravitySkillsMkdirSkillDirError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	skillsDir := filepath.Join(root, ".agent", "skills")
 	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
@@ -187,7 +196,7 @@ func TestWriteAntigravitySkillsMkdirSkillDirError(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 	cmds := []config.SlashCommand{{Name: "alpha", Description: "desc", Body: "Body"}}
-	err := WriteAntigravitySkills(root, cmds)
+	err := WriteAntigravitySkills(RealSystem{}, root, cmds)
 	if err == nil {
 		t.Fatalf("expected error for skill dir creation failure")
 	}
@@ -197,6 +206,7 @@ func TestWriteAntigravitySkillsMkdirSkillDirError(t *testing.T) {
 }
 
 func TestWriteCodexSkillsMkdirSkillDirError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	skillsDir := filepath.Join(root, ".codex", "skills")
 	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
@@ -207,7 +217,7 @@ func TestWriteCodexSkillsMkdirSkillDirError(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 	cmds := []config.SlashCommand{{Name: "alpha", Description: "desc", Body: "Body"}}
-	err := WriteCodexSkills(root, cmds)
+	err := WriteCodexSkills(RealSystem{}, root, cmds)
 	if err == nil {
 		t.Fatalf("expected error for skill dir creation failure")
 	}
@@ -232,6 +242,7 @@ func TestWrapDescription(t *testing.T) {
 }
 
 func TestRemoveStaleSkillDirs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	wanted := map[string]struct{}{
 		"keep": {},
@@ -259,7 +270,7 @@ func TestRemoveStaleSkillDirs(t *testing.T) {
 		t.Fatalf("write manual: %v", err)
 	}
 
-	if err := removeStaleSkillDirs(dir, wanted); err != nil {
+	if err := removeStaleSkillDirs(RealSystem{}, dir, wanted); err != nil {
 		t.Fatalf("removeStaleSkillDirs error: %v", err)
 	}
 	if _, err := os.Stat(staleDir); !os.IsNotExist(err) {
@@ -271,30 +282,32 @@ func TestRemoveStaleSkillDirs(t *testing.T) {
 }
 
 func TestRemoveStaleSkillDirsMissingDir(t *testing.T) {
-	err := removeStaleSkillDirs(filepath.Join(t.TempDir(), "missing"), map[string]struct{}{})
+	t.Parallel()
+	err := removeStaleSkillDirs(RealSystem{}, filepath.Join(t.TempDir(), "missing"), map[string]struct{}{})
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestHasGeneratedMarker(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "file.md")
 	if err := os.WriteFile(path, []byte("GENERATED FILE"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	ok, err := hasGeneratedMarker(path)
+	ok, err := hasGeneratedMarker(RealSystem{}, path)
 	if err != nil || !ok {
 		t.Fatalf("expected generated marker, got %v %v", ok, err)
 	}
-	missing, err := hasGeneratedMarker(filepath.Join(dir, "missing.md"))
+	missing, err := hasGeneratedMarker(RealSystem{}, filepath.Join(dir, "missing.md"))
 	if err != nil || missing {
 		t.Fatalf("expected missing to return false, got %v %v", missing, err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, "dir"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	_, err = hasGeneratedMarker(filepath.Join(dir, "dir"))
+	_, err = hasGeneratedMarker(RealSystem{}, filepath.Join(dir, "dir"))
 	if err == nil {
 		t.Fatalf("expected error for directory path")
 	}

@@ -34,6 +34,7 @@ func TestRunMissingConfig(t *testing.T) {
 }
 
 func TestRunWithProjectError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
@@ -53,7 +54,7 @@ func TestRunWithProjectError(t *testing.T) {
 		Root: file,
 	}
 
-	_, err := RunWithProject(file, project)
+	_, err := RunWithProject(RealSystem{}, file, project)
 	if err == nil {
 		t.Fatalf("expected error")
 	}

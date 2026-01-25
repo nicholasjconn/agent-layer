@@ -10,6 +10,7 @@ import (
 )
 
 func TestBuildInstructionShim(t *testing.T) {
+	t.Parallel()
 	instructions := []config.InstructionFile{
 		{Name: "00_base.md", Content: "base\n"},
 		{Name: "10_extra.md", Content: "extra"},
@@ -24,9 +25,10 @@ func TestBuildInstructionShim(t *testing.T) {
 }
 
 func TestWriteInstructionShims(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	instructions := []config.InstructionFile{{Name: "00_base.md", Content: "base\n"}}
-	if err := WriteInstructionShims(root, instructions); err != nil {
+	if err := WriteInstructionShims(RealSystem{}, root, instructions); err != nil {
 		t.Fatalf("WriteInstructionShims error: %v", err)
 	}
 
@@ -44,9 +46,10 @@ func TestWriteInstructionShims(t *testing.T) {
 }
 
 func TestWriteCodexInstructions(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	instructions := []config.InstructionFile{{Name: "00_base.md", Content: "base\n"}}
-	if err := WriteCodexInstructions(root, instructions); err != nil {
+	if err := WriteCodexInstructions(RealSystem{}, root, instructions); err != nil {
 		t.Fatalf("WriteCodexInstructions error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".codex", "AGENTS.md")); err != nil {
@@ -55,30 +58,33 @@ func TestWriteCodexInstructions(t *testing.T) {
 }
 
 func TestWriteInstructionShimsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	instructions := []config.InstructionFile{{Name: "00_base.md", Content: "base\n"}}
-	if err := WriteInstructionShims(file, instructions); err == nil {
+	if err := WriteInstructionShims(RealSystem{}, file, instructions); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteCodexInstructionsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	instructions := []config.InstructionFile{{Name: "00_base.md", Content: "base\n"}}
-	if err := WriteCodexInstructions(file, instructions); err == nil {
+	if err := WriteCodexInstructions(RealSystem{}, file, instructions); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteInstructionShimsErrorPaths(t *testing.T) {
+	t.Parallel()
 	instructions := []config.InstructionFile{{Name: "00_base.md", Content: "base\n"}}
 	cases := []struct {
 		name  string
@@ -127,7 +133,7 @@ func TestWriteInstructionShimsErrorPaths(t *testing.T) {
 			if err := tc.setup(root); err != nil {
 				t.Fatalf("setup: %v", err)
 			}
-			if err := WriteInstructionShims(root, instructions); err == nil {
+			if err := WriteInstructionShims(RealSystem{}, root, instructions); err == nil {
 				t.Fatalf("expected error")
 			}
 		})

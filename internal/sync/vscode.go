@@ -1,14 +1,12 @@
 package sync
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
+	"github.com/conn-castle/agent-layer/internal/launchers"
 	"github.com/conn-castle/agent-layer/internal/messages"
 	"github.com/conn-castle/agent-layer/internal/projection"
 )
@@ -30,34 +28,33 @@ type vscodeMCPServer struct {
 	Env     OrderedMap[string] `json:"env,omitempty"`
 }
 
-var (
-	buildVSCodeSettingsFunc  = buildVSCodeSettings
-	buildVSCodeMCPConfigFunc = buildVSCodeMCPConfig
-	vscodeMarshalIndent      = json.MarshalIndent
-	vscodeWriteFileAtomic    = fsutil.WriteFileAtomic
-	writeVSCodeAppBundleFunc = writeVSCodeAppBundle
-)
-
 // WriteVSCodeSettings generates .vscode/settings.json.
-func WriteVSCodeSettings(root string, project *config.ProjectConfig) error {
-	settings, err := buildVSCodeSettingsFunc(project)
+func WriteVSCodeSettings(sys System, root string, project *config.ProjectConfig) error {
+	return writeVSCodeSettings(sys, root, project, buildVSCodeSettings)
+}
+
+// writeVSCodeSettings builds settings and writes them to disk.
+// Args: sys provides system calls, root is the repo root, project holds config, build constructs settings.
+// Returns: an error if build or any filesystem operation fails.
+func writeVSCodeSettings(sys System, root string, project *config.ProjectConfig, build func(*config.ProjectConfig) (*vscodeSettings, error)) error {
+	settings, err := build(project)
 	if err != nil {
 		return err
 	}
 
 	vscodeDir := filepath.Join(root, ".vscode")
-	if err := os.MkdirAll(vscodeDir, 0o755); err != nil {
+	if err := sys.MkdirAll(vscodeDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, vscodeDir, err)
 	}
 
-	data, err := vscodeMarshalIndent(settings, "", "  ")
+	data, err := sys.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf(messages.SyncMarshalVSCodeSettingsFailedFmt, err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(vscodeDir, "settings.json")
-	if err := vscodeWriteFileAtomic(path, data, 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 
@@ -65,25 +62,25 @@ func WriteVSCodeSettings(root string, project *config.ProjectConfig) error {
 }
 
 // WriteVSCodeMCPConfig generates .vscode/mcp.json.
-func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
-	cfg, err := buildVSCodeMCPConfigFunc(project)
+func WriteVSCodeMCPConfig(sys System, root string, project *config.ProjectConfig) error {
+	cfg, err := buildVSCodeMCPConfig(project)
 	if err != nil {
 		return err
 	}
 
 	vscodeDir := filepath.Join(root, ".vscode")
-	if err := os.MkdirAll(vscodeDir, 0o755); err != nil {
+	if err := sys.MkdirAll(vscodeDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, vscodeDir, err)
 	}
 
-	data, err := vscodeMarshalIndent(cfg, "", "  ")
+	data, err := sys.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf(messages.SyncMarshalVSCodeMCPConfigFailedFmt, err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(vscodeDir, "mcp.json")
-	if err := vscodeWriteFileAtomic(path, data, 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 
@@ -95,10 +92,10 @@ func WriteVSCodeMCPConfig(root string, project *config.ProjectConfig) error {
 // - .agent-layer/open-vscode.app (macOS app bundle - no Terminal window)
 // - .agent-layer/open-vscode.bat (Windows batch file)
 // - .agent-layer/open-vscode.desktop (Linux desktop entry)
-func WriteVSCodeLaunchers(root string) error {
-	agentLayerDir := filepath.Join(root, ".agent-layer")
-	if err := os.MkdirAll(agentLayerDir, 0o755); err != nil {
-		return fmt.Errorf(messages.SyncCreateDirFailedFmt, agentLayerDir, err)
+func WriteVSCodeLaunchers(sys System, root string) error {
+	paths := launchers.VSCodePaths(root)
+	if err := sys.MkdirAll(paths.AgentLayerDir, 0o755); err != nil {
+		return fmt.Errorf(messages.SyncCreateDirFailedFmt, paths.AgentLayerDir, err)
 	}
 
 	// macOS .command launcher (opens Terminal)
@@ -116,13 +113,13 @@ else
   exit 1
 fi
 `
-	shPath := filepath.Join(agentLayerDir, "open-vscode.command")
-	if err := vscodeWriteFileAtomic(shPath, []byte(shContent), 0o755); err != nil {
+	shPath := paths.Command
+	if err := sys.WriteFileAtomic(shPath, []byte(shContent), 0o755); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, shPath, err)
 	}
 
 	// macOS .app bundle (no Terminal window)
-	if err := writeVSCodeAppBundleFunc(agentLayerDir); err != nil {
+	if err := writeVSCodeAppBundle(sys, paths); err != nil {
 		return err
 	}
 
@@ -140,8 +137,8 @@ if %ERRORLEVEL% equ 0 (
   pause
 )
 `
-	batPath := filepath.Join(agentLayerDir, "open-vscode.bat")
-	if err := vscodeWriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
+	batPath := paths.Bat
+	if err := sys.WriteFileAtomic(batPath, []byte(batContent), 0o755); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, batPath, err)
 	}
 
@@ -154,8 +151,8 @@ Exec=sh -c "PARENT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd -P)\"; export COD
 Terminal=false
 Categories=Development;IDE;
 `
-	desktopPath := filepath.Join(agentLayerDir, "open-vscode.desktop")
-	if err := vscodeWriteFileAtomic(desktopPath, []byte(desktopContent), 0o755); err != nil {
+	desktopPath := paths.Desktop
+	if err := sys.WriteFileAtomic(desktopPath, []byte(desktopContent), 0o755); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, desktopPath, err)
 	}
 
@@ -163,13 +160,9 @@ Categories=Development;IDE;
 }
 
 // writeVSCodeAppBundle creates a macOS .app bundle that launches VS Code without opening Terminal.
-func writeVSCodeAppBundle(agentLayerDir string) error {
-	appDir := filepath.Join(agentLayerDir, "open-vscode.app")
-	contentsDir := filepath.Join(appDir, "Contents")
-	macOSDir := filepath.Join(contentsDir, "MacOS")
-
-	if err := os.MkdirAll(macOSDir, 0o755); err != nil {
-		return fmt.Errorf(messages.SyncCreateDirFailedFmt, macOSDir, err)
+func writeVSCodeAppBundle(sys System, paths launchers.VSCodeLauncherPaths) error {
+	if err := sys.MkdirAll(paths.AppMacOS, 0o755); err != nil {
+		return fmt.Errorf(messages.SyncCreateDirFailedFmt, paths.AppMacOS, err)
 	}
 
 	// Info.plist - macOS app metadata
@@ -194,9 +187,8 @@ func writeVSCodeAppBundle(agentLayerDir string) error {
 </dict>
 </plist>
 `
-	infoPlistPath := filepath.Join(contentsDir, "Info.plist")
-	if err := vscodeWriteFileAtomic(infoPlistPath, []byte(infoPlist), 0o644); err != nil {
-		return fmt.Errorf(messages.SyncWriteFileFailedFmt, infoPlistPath, err)
+	if err := sys.WriteFileAtomic(paths.AppInfoPlist, []byte(infoPlist), 0o644); err != nil {
+		return fmt.Errorf(messages.SyncWriteFileFailedFmt, paths.AppInfoPlist, err)
 	}
 
 	// Executable script - navigates up from .app/Contents/MacOS/ to .agent-layer/ then to parent root
@@ -219,9 +211,8 @@ else
   osascript -e 'display alert "VS Code not found" message "Please install Visual Studio Code from https://code.visualstudio.com" as critical'
 fi
 `
-	execPath := filepath.Join(macOSDir, "open-vscode")
-	if err := vscodeWriteFileAtomic(execPath, []byte(execContent), 0o755); err != nil {
-		return fmt.Errorf(messages.SyncWriteFileFailedFmt, execPath, err)
+	if err := sys.WriteFileAtomic(paths.AppExec, []byte(execContent), 0o755); err != nil {
+		return fmt.Errorf(messages.SyncWriteFileFailedFmt, paths.AppExec, err)
 	}
 
 	return nil

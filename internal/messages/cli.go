@@ -23,10 +23,13 @@ const (
 
 	InitOverwriteRequiresTerminal = "init overwrite prompts require an interactive terminal; re-run with --force to overwrite without prompts"
 	InitOverwritePromptFmt        = "Overwrite %s with the template version?"
+	InitOverwriteAllPrompt        = "Overwrite all existing managed files with template versions?"
+	InitDeleteUnknownAllPrompt    = "Delete all unknown files under .agent-layer?"
+	InitDeleteUnknownPromptFmt    = "Delete %s?"
 	InitRunWizardPrompt           = "Run the setup wizard now? (recommended)"
 
 	InitFlagOverwrite = "Prompt before overwriting existing template files"
-	InitFlagForce     = "Overwrite existing template files without prompting (implies --overwrite)"
+	InitFlagForce     = "Overwrite existing template files and delete unknown files under .agent-layer without prompting (implies --overwrite)"
 	InitFlagNoWizard  = "Skip prompting to run the setup wizard after init"
 	InitFlagVersion   = "Pin the repo to a specific Agent Layer version (vX.Y.Z or X.Y.Z)"
 

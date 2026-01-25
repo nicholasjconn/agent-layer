@@ -1,19 +1,6 @@
 # Decisions
 
-Purpose: Rolling log of important decisions (brief).
-
-Notes for updates:
-- Add an entry when making a significant decision (architecture, storage, data model, interface boundaries, dependency choice).
-- Keep entries brief.
-- Do not log decisions that have no future ramifications or simply restate best practices or existing instructions.
-- Keep the oldest decisions near the top and add new entries at the bottom.
-- Lines below the first line must be indented by 4 spaces so they stay associated with the entry.
-
-Entry format:
-- Decision YYYY-MM-DD abcdef: Short title
-    Decision: <what was chosen>
-    Reason: <why it was chosen>
-    Tradeoffs: <what is gained and what is lost>
+Note: This is an agent-layer memory file. It is primarily for agent use.
 
 ## Decision Log
 
@@ -42,3 +29,13 @@ Entry format:
 - Decision 2026-01-18 e1f2a3b: Secret handling (Codex exception)
     Decision: Generated configs use client-specific placeholder syntax so secrets are never embedded. Exception: Codex embeds secrets in URLs/env and uses `bearer_token_env_var` for headers. Shell environment takes precedence over `.agent-layer/.env`.
     Reason: Prevents accidental secret exposure; Codex limitations require an exception.
+
+- Decision 2026-01-25 edefea6: Sync dependency injection for system calls
+    Decision: Added a `System` interface with a `RealSystem` implementation and threaded it through `internal/sync` writers and prompt resolution instead of patching globals.
+    Reason: Removes test-only global state and enables parallel-safe unit tests.
+    Tradeoffs: Adds `sys System` parameters and test stubs for filesystem/process operations.
+
+- Decision 2026-01-25 b4c5d6e: Centralize VS Code launcher paths
+    Decision: Centralize VS Code launcher paths in `internal/launchers` and consume them from sync and install.
+    Reason: Single source of truth prevents drift and accidental deletion of generated artifacts.
+    Tradeoffs: Adds a small shared package dependency for sync and install.

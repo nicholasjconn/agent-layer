@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,17 @@ import (
 	"github.com/conn-castle/agent-layer/internal/install"
 	"github.com/conn-castle/agent-layer/internal/update"
 )
+
+type slowReader struct {
+	r io.Reader
+}
+
+func (sr *slowReader) Read(p []byte) (int, error) {
+	if len(p) > 1 {
+		p = p[:1]
+	}
+	return sr.r.Read(p)
+}
 
 func TestInitCmd(t *testing.T) {
 	// Capture original globals and restore them after the test.
@@ -36,18 +48,22 @@ func TestInitCmd(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		args           []string
-		isTerminal     bool
-		mockInstallErr error
-		mockWizardErr  error
-		userInput      string // for stdin
-		wantErr        bool
-		wantInstall    bool
-		wantWizard     bool
-		wantOverwrite  bool // Expect install options overwrite
-		wantForce      bool // Expect install options force
-		checkErr       func(error) bool
+		name                   string
+		args                   []string
+		isTerminal             bool
+		mockInstallErr         error
+		mockWizardErr          error
+		userInput              string // for stdin
+		wantErr                bool
+		wantInstall            bool
+		wantWizard             bool
+		wantOverwrite          bool // Expect install options overwrite
+		wantForce              bool // Expect install options force
+		wantPromptOverwriteAll bool
+		wantPromptOverwrite    bool
+		wantPromptDeleteAll    bool
+		wantPromptDelete       bool
+		checkErr               func(error) bool
 	}{
 		{
 			name:        "Happy path non-interactive",
@@ -90,14 +106,18 @@ func TestInitCmd(t *testing.T) {
 			wantForce:     true,
 		},
 		{
-			name:          "Overwrite interactive",
-			args:          []string{"--overwrite"},
-			isTerminal:    true,
-			userInput:     "y\nn\n", // PromptOverwrite (y), Wizard (n)
-			wantInstall:   true,
-			wantOverwrite: true,
-			wantForce:     false,
-			wantWizard:    false,
+			name:                   "Overwrite interactive",
+			args:                   []string{"--overwrite"},
+			isTerminal:             true,
+			userInput:              "y\ny\nn\n", // OverwriteAll (y), DeleteAll (y), Wizard (n)
+			wantInstall:            true,
+			wantOverwrite:          true,
+			wantForce:              false,
+			wantWizard:             false,
+			wantPromptOverwriteAll: true,
+			wantPromptOverwrite:    true,
+			wantPromptDeleteAll:    true,
+			wantPromptDelete:       true,
 		},
 		{
 			name:           "Install fails",
@@ -131,14 +151,18 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name:          "Prompt Overwrite Callback Yes",
-			args:          []string{"--overwrite"},
-			isTerminal:    true,
-			userInput:     "y\nn\n", // PromptOverwrite (y), Wizard (n)
-			wantInstall:   true,
-			wantOverwrite: true,
-			wantForce:     false,
-			wantWizard:    false,
+			name:                   "Prompt Overwrite Callback Yes",
+			args:                   []string{"--overwrite"},
+			isTerminal:             true,
+			userInput:              "n\ny\ny\nn\n", // OverwriteAll (n), Overwrite (y), DeleteAll (y), Wizard (n)
+			wantInstall:            true,
+			wantOverwrite:          true,
+			wantForce:              false,
+			wantWizard:             false,
+			wantPromptOverwriteAll: false,
+			wantPromptOverwrite:    true,
+			wantPromptDeleteAll:    true,
+			wantPromptDelete:       true,
 		}}
 
 	for _, tt := range tests {
@@ -181,17 +205,55 @@ func TestInitCmd(t *testing.T) {
 					t.Errorf("installRun opts.Force = %v, want %v", opts.Force, tt.wantForce)
 				}
 
-				// Test PromptOverwrite if expected
-				if tt.wantOverwrite && !tt.wantForce && opts.PromptOverwrite != nil {
-					yes, err := opts.PromptOverwrite("testfile")
-					if err != nil {
-						t.Errorf("PromptOverwrite error: %v", err)
+				if tt.wantOverwrite && !tt.wantForce {
+					if opts.PromptOverwriteAll == nil {
+						t.Error("Expected PromptOverwriteAll to be set")
+					} else {
+						yes, err := opts.PromptOverwriteAll()
+						if err != nil {
+							t.Errorf("PromptOverwriteAll error: %v", err)
+						}
+						if yes != tt.wantPromptOverwriteAll {
+							t.Errorf("PromptOverwriteAll returned %v, want %v", yes, tt.wantPromptOverwriteAll)
+						}
+						if !yes {
+							if opts.PromptOverwrite == nil {
+								t.Error("Expected PromptOverwrite to be set")
+							} else {
+								overwrite, err := opts.PromptOverwrite("testfile")
+								if err != nil {
+									t.Errorf("PromptOverwrite error: %v", err)
+								}
+								if overwrite != tt.wantPromptOverwrite {
+									t.Errorf("PromptOverwrite returned %v, want %v", overwrite, tt.wantPromptOverwrite)
+								}
+							}
+						}
 					}
-					if !yes {
-						t.Errorf("PromptOverwrite returned false, want true (from input y)")
+					if opts.PromptDeleteUnknownAll == nil {
+						t.Error("Expected PromptDeleteUnknownAll to be set")
+					} else {
+						deleteAll, err := opts.PromptDeleteUnknownAll([]string{"unknown"})
+						if err != nil {
+							t.Errorf("PromptDeleteUnknownAll error: %v", err)
+						}
+						if deleteAll != tt.wantPromptDeleteAll {
+							t.Errorf("PromptDeleteUnknownAll returned %v, want %v", deleteAll, tt.wantPromptDeleteAll)
+						}
+						if !deleteAll {
+							if opts.PromptDeleteUnknown == nil {
+								t.Error("Expected PromptDeleteUnknown to be set")
+							} else {
+								deletePath, err := opts.PromptDeleteUnknown("unknown")
+								if err != nil {
+									t.Errorf("PromptDeleteUnknown error: %v", err)
+								}
+								if deletePath != tt.wantPromptDelete {
+									t.Errorf("PromptDeleteUnknown returned %v, want %v", deletePath, tt.wantPromptDelete)
+								}
+							}
+						}
 					}
-				} else if tt.wantOverwrite && !tt.wantForce && opts.PromptOverwrite == nil {
-					t.Error("Expected PromptOverwrite to be set")
 				}
 
 				return tt.mockInstallErr
@@ -212,7 +274,7 @@ func TestInitCmd(t *testing.T) {
 			if tt.userInput != "" {
 				stdin.WriteString(tt.userInput)
 			}
-			cmd.SetIn(&stdin)
+			cmd.SetIn(&slowReader{r: &stdin})
 			var stdout bytes.Buffer
 			cmd.SetOut(&stdout)
 			var stderr bytes.Buffer

@@ -18,21 +18,39 @@ import (
 // PromptOverwriteFunc asks whether to overwrite a given path.
 type PromptOverwriteFunc func(path string) (bool, error)
 
+// PromptOverwriteAllFunc asks whether to overwrite all managed files.
+type PromptOverwriteAllFunc func() (bool, error)
+
+// PromptDeleteUnknownAllFunc asks whether to delete all unknown paths.
+type PromptDeleteUnknownAllFunc func(paths []string) (bool, error)
+
+// PromptDeleteUnknownFunc asks whether to delete a specific unknown path.
+type PromptDeleteUnknownFunc func(path string) (bool, error)
+
 // Options controls installer behavior.
 type Options struct {
-	Overwrite       bool
-	Force           bool
-	PromptOverwrite PromptOverwriteFunc
-	PinVersion      string
+	Overwrite              bool
+	Force                  bool
+	PromptOverwriteAll     PromptOverwriteAllFunc
+	PromptOverwrite        PromptOverwriteFunc
+	PromptDeleteUnknownAll PromptDeleteUnknownAllFunc
+	PromptDeleteUnknown    PromptDeleteUnknownFunc
+	PinVersion             string
 }
 
 type installer struct {
-	root       string
-	overwrite  bool
-	force      bool
-	prompt     PromptOverwriteFunc
-	diffs      []string
-	pinVersion string
+	root                   string
+	overwrite              bool
+	overwriteAll           bool
+	overwriteAllDecided    bool
+	force                  bool
+	promptOverwriteAll     PromptOverwriteAllFunc
+	promptOverwrite        PromptOverwriteFunc
+	promptDeleteUnknownAll PromptDeleteUnknownAllFunc
+	promptDeleteUnknown    PromptDeleteUnknownFunc
+	diffs                  []string
+	unknowns               []string
+	pinVersion             string
 }
 
 // Run initializes the repository with the required Agent Layer structure.
@@ -42,15 +60,21 @@ func Run(root string, opts Options) error {
 	}
 
 	overwrite := opts.Overwrite || opts.Force
-	if overwrite && !opts.Force && opts.PromptOverwrite == nil {
+	if overwrite && !opts.Force && opts.PromptOverwriteAll == nil {
 		return fmt.Errorf(messages.InstallOverwritePromptRequired)
+	}
+	if overwrite && !opts.Force && opts.PromptDeleteUnknownAll == nil {
+		return fmt.Errorf(messages.InstallDeleteUnknownPromptRequired)
 	}
 
 	inst := &installer{
-		root:      root,
-		overwrite: overwrite,
-		force:     opts.Force,
-		prompt:    opts.PromptOverwrite,
+		root:                   root,
+		overwrite:              overwrite,
+		force:                  opts.Force,
+		promptOverwriteAll:     opts.PromptOverwriteAll,
+		promptOverwrite:        opts.PromptOverwrite,
+		promptDeleteUnknownAll: opts.PromptDeleteUnknownAll,
+		promptDeleteUnknown:    opts.PromptDeleteUnknown,
 	}
 	if strings.TrimSpace(opts.PinVersion) != "" {
 		normalized, err := version.Normalize(opts.PinVersion)
@@ -65,6 +89,8 @@ func Run(root string, opts Options) error {
 		inst.writeTemplateFiles,
 		inst.writeTemplateDirs,
 		inst.updateGitignore,
+		inst.scanUnknowns,
+		inst.handleUnknowns,
 	}
 
 	if err := runSteps(steps); err != nil {
@@ -72,6 +98,7 @@ func Run(root string, opts Options) error {
 	}
 
 	inst.warnDifferences()
+	inst.warnUnknowns()
 	return nil
 }
 
@@ -202,6 +229,10 @@ func (inst *installer) recordDiff(path string) {
 	inst.diffs = append(inst.diffs, path)
 }
 
+func (inst *installer) recordUnknown(path string) {
+	inst.unknowns = append(inst.unknowns, path)
+}
+
 // shouldOverwrite decides whether to overwrite the given path.
 // It returns true to overwrite, false to keep existing content, or an error.
 func (inst *installer) shouldOverwrite(path string) (bool, error) {
@@ -211,7 +242,21 @@ func (inst *installer) shouldOverwrite(path string) (bool, error) {
 	if inst.force {
 		return true, nil
 	}
-	if inst.prompt == nil {
+	if !inst.overwriteAllDecided {
+		if inst.promptOverwriteAll == nil {
+			return false, fmt.Errorf(messages.InstallOverwritePromptRequired)
+		}
+		overwriteAll, err := inst.promptOverwriteAll()
+		if err != nil {
+			return false, err
+		}
+		inst.overwriteAll = overwriteAll
+		inst.overwriteAllDecided = true
+	}
+	if inst.overwriteAll {
+		return true, nil
+	}
+	if inst.promptOverwrite == nil {
 		return false, fmt.Errorf(messages.InstallOverwritePromptRequired)
 	}
 	rel := path
@@ -220,7 +265,7 @@ func (inst *installer) shouldOverwrite(path string) (bool, error) {
 			rel = candidate
 		}
 	}
-	return inst.prompt(rel)
+	return inst.promptOverwrite(rel)
 }
 
 func (inst *installer) warnDifferences() {
@@ -238,6 +283,195 @@ func (inst *installer) warnDifferences() {
 		_, _ = fmt.Fprintf(os.Stderr, messages.InstallDiffLineFmt, rel)
 	}
 	_, _ = fmt.Fprintln(os.Stderr, messages.InstallDiffFooter)
+}
+
+func (inst *installer) warnUnknowns() {
+	if inst.overwrite || len(inst.unknowns) == 0 {
+		return
+	}
+
+	inst.sortUnknowns()
+	_, _ = fmt.Fprintln(os.Stderr, messages.InstallUnknownHeader)
+	for _, path := range inst.unknowns {
+		rel := inst.relativePath(path)
+		_, _ = fmt.Fprintf(os.Stderr, messages.InstallDiffLineFmt, rel)
+	}
+	_, _ = fmt.Fprintln(os.Stderr, messages.InstallUnknownFooter)
+}
+
+func (inst *installer) scanUnknowns() error {
+	known, err := inst.buildKnownPaths()
+	if err != nil {
+		return err
+	}
+
+	root := filepath.Join(inst.root, ".agent-layer")
+	if err := inst.scanUnknownRoot(root, known); err != nil {
+		return err
+	}
+	inst.sortUnknowns()
+	return nil
+}
+
+func (inst *installer) scanUnknownRoot(root string, known map[string]struct{}) error {
+	if _, err := os.Stat(root); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf(messages.InstallFailedStatFmt, root, err)
+	}
+	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		clean := filepath.Clean(path)
+		if clean == filepath.Clean(root) {
+			return nil
+		}
+		if _, ok := known[clean]; ok {
+			return nil
+		}
+		inst.recordUnknown(clean)
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+}
+
+func (inst *installer) handleUnknowns() error {
+	if len(inst.unknowns) == 0 || !inst.overwrite {
+		return nil
+	}
+	if inst.force {
+		return inst.deleteUnknowns(inst.unknowns)
+	}
+	if inst.promptDeleteUnknownAll == nil {
+		return fmt.Errorf(messages.InstallDeleteUnknownPromptRequired)
+	}
+	rel := inst.relativeUnknowns()
+	deleteAll, err := inst.promptDeleteUnknownAll(rel)
+	if err != nil {
+		return err
+	}
+	if deleteAll {
+		return inst.deleteUnknowns(inst.unknowns)
+	}
+	if inst.promptDeleteUnknown == nil {
+		return fmt.Errorf(messages.InstallDeleteUnknownPromptRequired)
+	}
+	for _, path := range inst.unknowns {
+		relPath := inst.relativePath(path)
+		deletePath, err := inst.promptDeleteUnknown(relPath)
+		if err != nil {
+			return err
+		}
+		if deletePath {
+			if err := os.RemoveAll(path); err != nil {
+				return fmt.Errorf(messages.InstallDeleteUnknownFailedFmt, relPath, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (inst *installer) deleteUnknowns(paths []string) error {
+	for _, path := range paths {
+		rel := inst.relativePath(path)
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf(messages.InstallDeleteUnknownFailedFmt, rel, err)
+		}
+	}
+	return nil
+}
+
+func (inst *installer) sortUnknowns() {
+	sort.Slice(inst.unknowns, func(i, j int) bool {
+		return inst.relativePath(inst.unknowns[i]) < inst.relativePath(inst.unknowns[j])
+	})
+}
+
+func (inst *installer) relativeUnknowns() []string {
+	if len(inst.unknowns) == 0 {
+		return nil
+	}
+	rel := make([]string, 0, len(inst.unknowns))
+	for _, path := range inst.unknowns {
+		rel = append(rel, inst.relativePath(path))
+	}
+	sort.Strings(rel)
+	return rel
+}
+
+func (inst *installer) relativePath(path string) string {
+	rel := path
+	if inst.root != "" {
+		if candidate, err := filepath.Rel(inst.root, path); err == nil {
+			rel = candidate
+		}
+	}
+	return rel
+}
+
+func (inst *installer) buildKnownPaths() (map[string]struct{}, error) {
+	known := make(map[string]struct{})
+	add := func(path string) {
+		known[filepath.Clean(path)] = struct{}{}
+	}
+
+	root := inst.root
+	add(filepath.Join(root, ".agent-layer"))
+	add(filepath.Join(root, ".agent-layer", "instructions"))
+	add(filepath.Join(root, ".agent-layer", "slash-commands"))
+	add(filepath.Join(root, ".agent-layer", "templates"))
+	add(filepath.Join(root, ".agent-layer", "templates", "docs"))
+
+	// Root-level managed files.
+	add(filepath.Join(root, ".agent-layer", "config.toml"))
+	add(filepath.Join(root, ".agent-layer", "commands.allow"))
+	add(filepath.Join(root, ".agent-layer", ".env"))
+	add(filepath.Join(root, ".agent-layer", ".gitignore"))
+	add(filepath.Join(root, ".agent-layer", "gitignore.block"))
+	add(filepath.Join(root, ".agent-layer", "al.version"))
+
+	// VS Code launchers generated by sync.
+	add(filepath.Join(root, ".agent-layer", "open-vscode.command"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.bat"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.desktop"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.app"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.app", "Contents"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.app", "Contents", "MacOS"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.app", "Contents", "Info.plist"))
+	add(filepath.Join(root, ".agent-layer", "open-vscode.app", "Contents", "MacOS", "open-vscode"))
+
+	addTemplatePaths := func(templateRoot string, destRoot string) error {
+		return templates.Walk(templateRoot, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			rel := strings.TrimPrefix(path, templateRoot+"/")
+			if rel == path {
+				return fmt.Errorf(messages.InstallUnexpectedTemplatePathFmt, path)
+			}
+			add(filepath.Join(destRoot, rel))
+			return nil
+		})
+	}
+
+	if err := addTemplatePaths("instructions", filepath.Join(root, ".agent-layer", "instructions")); err != nil {
+		return nil, err
+	}
+	if err := addTemplatePaths("slash-commands", filepath.Join(root, ".agent-layer", "slash-commands")); err != nil {
+		return nil, err
+	}
+	if err := addTemplatePaths("docs/agent-layer", filepath.Join(root, ".agent-layer", "templates", "docs")); err != nil {
+		return nil, err
+	}
+
+	return known, nil
 }
 
 func writeTemplateIfMissing(path string, templatePath string, perm fs.FileMode) error {

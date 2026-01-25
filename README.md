@@ -322,7 +322,7 @@ Some workflows write **agent-only** artifacts (plans, task lists, reports). Thes
 Artifacts always live under `.agent-layer/tmp/` and use a unique, concurrency-safe name:
 
 - `.agent-layer/tmp/<workflow>.<run-id>.<type>.md`
-- `run-id = YYYYMMDD-HHMMSS-<short-rand>`
+- `run-id = YYYYMMDD-HHMMSS-<short-rand>` (uses bash `$RANDOM`; bash is required)
 - Multi-file workflows reuse the same `run-id` for all files.
 - Common `type` values: `report`, `plan`, `task`.
 
@@ -380,7 +380,6 @@ Installer adds a managed `.gitignore` block that typically ignores:
 - `.agent-layer/` (except if teams choose to commit it)
 - `.agent-layer/.env`
 - generated client config directories/files (`.gemini/`, `.claude/`, `.vscode/`, `.codex/`, `.mcp.json`, etc.)
-- `tmp/agent-layer/`
 
 If you choose to commit `.agent-layer/`, keep `.agent-layer/.gitignore` so repo-local launchers, template copies, and backups stay untracked.
 

@@ -58,7 +58,7 @@ If only one agent is available, execute phases in this order with explicit headi
 3. If required checks are missing or unclear:
    - try discovery (Makefile/Taskfile/justfile/package scripts)
    - if still unclear, **stop and ask**
-4. If new repeatable commands are discovered, update `COMMANDS.md` based on  your memory instructions.
+4. If new repeatable commands are discovered, update `COMMANDS.md` based on your memory instructions.
 
 **Deliverable**
 - Selected checks and execution order

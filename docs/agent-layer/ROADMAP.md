@@ -47,45 +47,11 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
 - Added Linux VS Code launcher (desktop entry with `CODEX_HOME` support).
 - Added per-file overwrite prompts during `al init --overwrite` with `--force` flag to skip prompts.
 
-## Phase 8 — v0.5.4 Workflows and instructions
-
-### Goal
-- Improve agent effectiveness through better workflows and instruction quality.
-
-### Tasks
-- [x] Add tool instruction file that guides models to use search or Context7 for time-sensitive information.
-- [x] Implement `fix-tests` workflow that runs all checks (lint, pre-commit, tests) and iteratively fixes failures until passing.
-- [x] Update finish-task and cleanup-code to ensure commit-ready state (tests pass, lint passes, precommit hooks pass). Ideally, when completed, they would just call `fix-tests` workflow.
-- [x] Remove the quality audit report file from `find-issues` outputs and switch to a report path that supports concurrent agents.
-- [x] Move `fix-issues` plans into `tmp`, add a "what the human needs to know" section, and relax approval keyword requirements.
-- [x] Rename `FEATURES.md` to a backlog name and update references in docs and prompts.
-- [x] Enforce a single blank line between entries in all memory files.
-- [x] Add to README that when opening VS Code with a new `CODEX_HOME`, reauthentication is required and expected.
-
-### Exit criteria
-- Workflows reliably produce commit-ready code.
-- `find-issues` and `fix-issues` outputs are concurrency-safe and documented.
-
-## Phase 9 — Backlog Exploration
-
-### Goal
-- Explore longer-term ideas without blocking core delivery.
-
-### Tasks
-- [ ] Split this phase into smaller, more manageable sub-phases for focused exploration.
-- [ ] Add interaction monitoring to agent system instructions to self-improve all prompts, rules, and workflows.
-- [ ] Enable safe auto-approval for slash-command workflows invoked through the workflow system.
-- [ ] Auto-merge client-side approvals or MCP server edits back into agent-layer sources.
-- [ ] Add a queueing system to chain tasks without interrupting the current task.
-- [ ] Add a simple flowchart or rules-based guide for slash-command ordering.
-- [ ] Build a Ralph Wiggum-like tool where different agents can chat with each other.
-- [ ] Build a unified documentation repository with Model Context Protocol tool access for shared notes.
-- [ ] Add indexed chat history in the unified documentation repository for searchable context.
-- [ ] Persist conversation history in model-specific local folders (e.g., `.agent-layer/gemini/`, `.agent-layer/openai/`).
-- [ ] Implement "full access" mode for all agents with security warnings (similar to Codex full-auto).
-
-### Exit criteria
-- Long-term initiatives are scoped and ready for selection in a future roadmap cycle.
-- Workflows can run with minimal human intervention where safe.
-- Agent-layer sources stay in sync with client-side changes.
-- Instruction quality improves through monitoring feedback.
+## Phase 8 ✅ — v0.5.4 Workflows and instructions
+- Added tool instructions guiding models to use search or Context7 for time-sensitive information.
+- Implemented `fix-tests` workflow for iterative lint/pre-commit/test fixing until passing.
+- Updated `finish-task` and `cleanup-code` workflows to ensure commit-ready state via `fix-tests`.
+- Made `find-issues` and `fix-issues` outputs concurrency-safe with temp-directory report paths.
+- Renamed `FEATURES.md` to `BACKLOG.md` and updated all references.
+- Enforced single blank line between entries in all memory files.
+- Documented VS Code reauthentication requirement for new `CODEX_HOME` in README.

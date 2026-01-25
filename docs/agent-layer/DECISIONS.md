@@ -29,3 +29,8 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
 - Decision 2026-01-18 e1f2a3b: Secret handling (Codex exception)
     Decision: Generated configs use client-specific placeholder syntax so secrets are never embedded. Exception: Codex embeds secrets in URLs/env and uses `bearer_token_env_var` for headers. Shell environment takes precedence over `.agent-layer/.env`.
     Reason: Prevents accidental secret exposure; Codex limitations require an exception.
+
+- Decision 2026-01-25 edefea6: Sync dependency injection for system calls
+    Decision: Added a `System` interface with a `RealSystem` implementation and threaded it through `internal/sync` writers and prompt resolution instead of patching globals.
+    Reason: Removes test-only global state and enables parallel-safe unit tests.
+    Tradeoffs: Adds `sys System` parameters and test stubs for filesystem/process operations.

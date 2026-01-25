@@ -8,16 +8,17 @@ import (
 )
 
 func TestResolvePromptServerCommandUsesGlobalBinary(t *testing.T) {
-	originalLookPath := lookPath
-	t.Cleanup(func() { lookPath = originalLookPath })
-	lookPath = func(file string) (string, error) {
-		if file != "al" {
-			return "", errors.New("unexpected lookup")
-		}
-		return "/usr/local/bin/al", nil
+	t.Parallel()
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file != "al" {
+				return "", errors.New("unexpected lookup")
+			}
+			return "/usr/local/bin/al", nil
+		},
 	}
 
-	command, args, err := resolvePromptServerCommand(t.TempDir())
+	command, args, err := resolvePromptServerCommand(sys, t.TempDir())
 	if err != nil {
 		t.Fatalf("resolvePromptServerCommand error: %v", err)
 	}
@@ -30,37 +31,41 @@ func TestResolvePromptServerCommandUsesGlobalBinary(t *testing.T) {
 }
 
 func TestResolvePromptServerCommandRootEmptyNoGlobalBinary(t *testing.T) {
-	originalLookPath := lookPath
-	t.Cleanup(func() { lookPath = originalLookPath })
-	lookPath = func(file string) (string, error) {
-		return "", errors.New("missing")
+	t.Parallel()
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			return "", errors.New("missing")
+		},
 	}
 
-	_, _, err := resolvePromptServerCommand("")
+	_, _, err := resolvePromptServerCommand(sys, "")
 	if err == nil {
 		t.Fatalf("expected error for missing al")
 	}
 }
 
 func TestResolvePromptServerCommandFallsBackToGoRun(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "cmd", "al"), 0o755); err != nil {
-		t.Fatalf("mkdir cmd/al: %v", err)
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "", errors.New("missing")
+			}
+			if file != "go" {
+				return "", errors.New("unexpected lookup")
+			}
+			return "/usr/bin/go", nil
+		},
+		StatFunc: func(name string) (os.FileInfo, error) {
+			if name == filepath.Join(root, "cmd", "al") {
+				return &mockFileInfo{isDir: true}, nil
+			}
+			return nil, os.ErrNotExist
+		},
 	}
 
-	originalLookPath := lookPath
-	t.Cleanup(func() { lookPath = originalLookPath })
-	lookPath = func(file string) (string, error) {
-		if file == "al" {
-			return "", errors.New("missing")
-		}
-		if file != "go" {
-			return "", errors.New("unexpected lookup")
-		}
-		return "/usr/bin/go", nil
-	}
-
-	command, args, err := resolvePromptServerCommand(root)
+	command, args, err := resolvePromptServerCommand(sys, root)
 	if err != nil {
 		t.Fatalf("resolvePromptServerCommand error: %v", err)
 	}
@@ -74,18 +79,21 @@ func TestResolvePromptServerCommandFallsBackToGoRun(t *testing.T) {
 }
 
 func TestResolvePromptServerCommandMissingGo(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "cmd", "al"), 0o755); err != nil {
-		t.Fatalf("mkdir cmd/al: %v", err)
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			return "", errors.New("missing")
+		},
+		StatFunc: func(name string) (os.FileInfo, error) {
+			if name == filepath.Join(root, "cmd", "al") {
+				return &mockFileInfo{isDir: true}, nil
+			}
+			return nil, os.ErrNotExist
+		},
 	}
 
-	originalLookPath := lookPath
-	t.Cleanup(func() { lookPath = originalLookPath })
-	lookPath = func(file string) (string, error) {
-		return "", errors.New("missing")
-	}
-
-	_, _, err := resolvePromptServerCommand(root)
+	_, _, err := resolvePromptServerCommand(sys, root)
 	if err == nil {
 		t.Fatalf("expected error")
 	}

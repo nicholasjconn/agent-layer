@@ -9,9 +9,17 @@ import (
 )
 
 func TestBuildMCPConfig(t *testing.T) {
+	t.Parallel()
 	enabled := true
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			MCP: config.MCPConfig{
@@ -32,7 +40,7 @@ func TestBuildMCPConfig(t *testing.T) {
 		Root: root,
 	}
 
-	cfg, err := buildMCPConfig(project)
+	cfg, err := buildMCPConfig(sys, project)
 	if err != nil {
 		t.Fatalf("buildMCPConfig error: %v", err)
 	}
@@ -54,8 +62,17 @@ func TestBuildMCPConfig(t *testing.T) {
 }
 
 func TestWriteMCPConfig(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -74,7 +91,7 @@ func TestWriteMCPConfig(t *testing.T) {
 		Root: root,
 	}
 
-	if err := WriteMCPConfig(root, project); err != nil {
+	if err := WriteMCPConfig(sys, root, project); err != nil {
 		t.Fatalf("WriteMCPConfig error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".mcp.json")); err != nil {
@@ -83,21 +100,39 @@ func TestWriteMCPConfig(t *testing.T) {
 }
 
 func TestWriteMCPConfigError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{Root: root}
-	if err := WriteMCPConfig(file, project); err == nil {
+	if err := WriteMCPConfig(sys, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteMCPConfigWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	if err := os.Mkdir(filepath.Join(root, ".mcp.json"), 0o755); err != nil {
 		t.Fatalf("mkdir .mcp.json: %v", err)
 	}
@@ -107,15 +142,23 @@ func TestWriteMCPConfigWriteError(t *testing.T) {
 		},
 		Root: root,
 	}
-	if err := WriteMCPConfig(root, project); err == nil {
+	if err := WriteMCPConfig(sys, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildMCPConfigMissingEnv(t *testing.T) {
+	t.Parallel()
 	enabled := true
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			MCP: config.MCPConfig{
@@ -133,16 +176,24 @@ func TestBuildMCPConfigMissingEnv(t *testing.T) {
 		Root: root,
 	}
 
-	_, err := buildMCPConfig(project)
+	_, err := buildMCPConfig(sys, project)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildMCPConfigStdioServer(t *testing.T) {
+	t.Parallel()
 	enabled := true
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			MCP: config.MCPConfig{
@@ -164,7 +215,7 @@ func TestBuildMCPConfigStdioServer(t *testing.T) {
 		Root: root,
 	}
 
-	cfg, err := buildMCPConfig(project)
+	cfg, err := buildMCPConfig(sys, project)
 	if err != nil {
 		t.Fatalf("buildMCPConfig error: %v", err)
 	}

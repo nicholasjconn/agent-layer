@@ -1,14 +1,11 @@
 package sync
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
 	"github.com/conn-castle/agent-layer/internal/messages"
 	"github.com/conn-castle/agent-layer/internal/projection"
 )
@@ -22,25 +19,25 @@ type claudePermissions struct {
 }
 
 // WriteClaudeSettings generates .claude/settings.json.
-func WriteClaudeSettings(root string, project *config.ProjectConfig) error {
+func WriteClaudeSettings(sys System, root string, project *config.ProjectConfig) error {
 	settings, err := buildClaudeSettings(project)
 	if err != nil {
 		return err
 	}
 
 	claudeDir := filepath.Join(root, ".claude")
-	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+	if err := sys.MkdirAll(claudeDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, claudeDir, err)
 	}
 
-	data, err := json.MarshalIndent(settings, "", "  ")
+	data, err := sys.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf(messages.SyncMarshalClaudeSettingsFailedFmt, err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(claudeDir, "settings.json")
-	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 

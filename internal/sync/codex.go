@@ -2,13 +2,11 @@ package sync
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
 	"github.com/conn-castle/agent-layer/internal/messages"
 	"github.com/conn-castle/agent-layer/internal/projection"
 )
@@ -21,19 +19,19 @@ const codexHeader = `# GENERATED FILE — MAY CONTAIN SECRETS
 `
 
 // WriteCodexConfig generates .codex/config.toml.
-func WriteCodexConfig(root string, project *config.ProjectConfig) error {
+func WriteCodexConfig(sys System, root string, project *config.ProjectConfig) error {
 	content, err := buildCodexConfig(project)
 	if err != nil {
 		return err
 	}
 
 	codexDir := filepath.Join(root, ".codex")
-	if err := os.MkdirAll(codexDir, 0o755); err != nil {
+	if err := sys.MkdirAll(codexDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, codexDir, err)
 	}
 
 	path := filepath.Join(codexDir, "config.toml")
-	if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 
@@ -41,14 +39,14 @@ func WriteCodexConfig(root string, project *config.ProjectConfig) error {
 }
 
 // WriteCodexRules generates .codex/rules/default.rules.
-func WriteCodexRules(root string, project *config.ProjectConfig) error {
+func WriteCodexRules(sys System, root string, project *config.ProjectConfig) error {
 	content := buildCodexRules(project)
 	rulesDir := filepath.Join(root, ".codex", "rules")
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+	if err := sys.MkdirAll(rulesDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, rulesDir, err)
 	}
 	path := filepath.Join(rulesDir, "default.rules")
-	if err := fsutil.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 	return nil

@@ -59,7 +59,7 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
 ### Tasks
 - [ ] Add tool instruction file that guides models to use search or Context7 for time-sensitive information.
 - [ ] Implement `fix-tests` workflow that runs all checks (lint, pre-commit, tests) and iteratively fixes failures until passing.
-- [ ] Update finish-task and cleanup-code to ensure commit-ready state (tests pass, lint passes, precommit hooks pass).
+- [ ] Update finish-task and cleanup-code to ensure commit-ready state (tests pass, lint passes, precommit hooks pass). Ideally, when completed, they would just call `fix-tests` workflow.
 - [ ] Remove the quality audit report file from `find-issues` outputs and switch to a report path that supports concurrent agents.
 - [ ] Move `fix-issues` plans into `tmp`, add a "what the human needs to know" section, and relax approval keyword requirements.
 - [x] Rename `FEATURES.md` to a backlog name and update references in docs and prompts.

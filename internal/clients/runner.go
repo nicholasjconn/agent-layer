@@ -32,7 +32,7 @@ func RunWithStderr(root string, name string, enabled EnabledSelector, launch Lau
 		return err
 	}
 
-	warnings, err := sync.RunWithProject(root, project)
+	warnings, err := sync.RunWithProject(sync.RealSystem{}, root, project)
 	if err != nil {
 		return err
 	}

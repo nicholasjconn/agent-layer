@@ -1,13 +1,10 @@
 package sync
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
 	"github.com/conn-castle/agent-layer/internal/messages"
 	"github.com/conn-castle/agent-layer/internal/projection"
 )
@@ -31,32 +28,32 @@ type geminiMCPServer struct {
 }
 
 // WriteGeminiSettings generates .gemini/settings.json.
-func WriteGeminiSettings(root string, project *config.ProjectConfig) error {
-	settings, err := buildGeminiSettings(project)
+func WriteGeminiSettings(sys System, root string, project *config.ProjectConfig) error {
+	settings, err := buildGeminiSettings(sys, project)
 	if err != nil {
 		return err
 	}
 
 	geminiDir := filepath.Join(root, ".gemini")
-	if err := os.MkdirAll(geminiDir, 0o755); err != nil {
+	if err := sys.MkdirAll(geminiDir, 0o755); err != nil {
 		return fmt.Errorf(messages.SyncCreateDirFailedFmt, geminiDir, err)
 	}
 
-	data, err := json.MarshalIndent(settings, "", "  ")
+	data, err := sys.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf(messages.SyncMarshalGeminiSettingsFailedFmt, err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(geminiDir, "settings.json")
-	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 
 	return nil
 }
 
-func buildGeminiSettings(project *config.ProjectConfig) (*geminiSettings, error) {
+func buildGeminiSettings(sys System, project *config.ProjectConfig) (*geminiSettings, error) {
 	settings := &geminiSettings{
 		MCPServers: make(OrderedMap[geminiMCPServer]),
 	}
@@ -77,7 +74,7 @@ func buildGeminiSettings(project *config.ProjectConfig) (*geminiSettings, error)
 	trust := allowMCP
 
 	// Internal prompt server
-	promptCommand, promptArgs, err := resolvePromptServerCommand(project.Root)
+	promptCommand, promptArgs, err := resolvePromptServerCommand(sys, project.Root)
 	if err != nil {
 		return nil, err
 	}

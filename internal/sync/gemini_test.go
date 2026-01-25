@@ -9,17 +9,24 @@ import (
 )
 
 func TestBuildGeminiSettingsCommandsOnly(t *testing.T) {
-	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	t.Parallel()
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "commands"},
 		},
 		CommandsAllow: []string{"git status"},
-		Root:          root,
+		Root:          t.TempDir(),
 	}
 
-	settings, err := buildGeminiSettings(project)
+	settings, err := buildGeminiSettings(sys, project)
 	if err != nil {
 		t.Fatalf("buildGeminiSettings error: %v", err)
 	}
@@ -32,8 +39,17 @@ func TestBuildGeminiSettingsCommandsOnly(t *testing.T) {
 }
 
 func TestWriteGeminiSettings(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "none"},
@@ -41,7 +57,7 @@ func TestWriteGeminiSettings(t *testing.T) {
 		Root: root,
 	}
 
-	if err := WriteGeminiSettings(root, project); err != nil {
+	if err := WriteGeminiSettings(sys, root, project); err != nil {
 		t.Fatalf("WriteGeminiSettings error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".gemini", "settings.json")); err != nil {
@@ -50,21 +66,39 @@ func TestWriteGeminiSettings(t *testing.T) {
 }
 
 func TestWriteGeminiSettingsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{Root: root}
-	if err := WriteGeminiSettings(file, project); err == nil {
+	if err := WriteGeminiSettings(sys, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteGeminiSettingsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
+	sys := &MockSystem{
+		Fallback: RealSystem{},
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	geminiDir := filepath.Join(root, ".gemini")
 	if err := os.MkdirAll(geminiDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -78,15 +112,23 @@ func TestWriteGeminiSettingsWriteError(t *testing.T) {
 		},
 		Root: root,
 	}
-	if err := WriteGeminiSettings(root, project); err == nil {
+	if err := WriteGeminiSettings(sys, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildGeminiSettingsMCPServers(t *testing.T) {
+	t.Parallel()
 	enabled := true
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "all"},
@@ -115,7 +157,7 @@ func TestBuildGeminiSettingsMCPServers(t *testing.T) {
 		Root:          root,
 	}
 
-	settings, err := buildGeminiSettings(project)
+	settings, err := buildGeminiSettings(sys, project)
 	if err != nil {
 		t.Fatalf("buildGeminiSettings error: %v", err)
 	}
@@ -146,9 +188,17 @@ func TestBuildGeminiSettingsMCPServers(t *testing.T) {
 }
 
 func TestBuildGeminiSettingsMissingEnv(t *testing.T) {
+	t.Parallel()
 	enabled := true
+	sys := &MockSystem{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "al" {
+				return "/usr/local/bin/al", nil
+			}
+			return "", os.ErrNotExist
+		},
+	}
 	root := t.TempDir()
-	writePromptServerBinary(t, root)
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "all"},
@@ -162,7 +212,7 @@ func TestBuildGeminiSettingsMissingEnv(t *testing.T) {
 		Root: root,
 	}
 
-	_, err := buildGeminiSettings(project)
+	_, err := buildGeminiSettings(sys, project)
 	if err == nil {
 		t.Fatalf("expected error")
 	}

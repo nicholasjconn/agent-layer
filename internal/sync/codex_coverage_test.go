@@ -10,6 +10,7 @@ import (
 )
 
 func TestBuildCodexConfig_UnsupportedTransport(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -38,6 +39,7 @@ func TestBuildCodexConfig_UnsupportedTransport(t *testing.T) {
 }
 
 func TestTomlHelpers_Empty(t *testing.T) {
+	t.Parallel()
 	if s := tomlStringArray([]string{}); s != "[]" {
 		t.Fatalf("expected [], got %q", s)
 	}
@@ -47,6 +49,7 @@ func TestTomlHelpers_Empty(t *testing.T) {
 }
 
 func TestExtractBearerEnvVar_Empty(t *testing.T) {
+	t.Parallel()
 	// If no Authorization header, return empty string, nil error
 	val, err := extractBearerEnvVar(map[string]string{})
 	if err != nil {
@@ -58,6 +61,7 @@ func TestExtractBearerEnvVar_Empty(t *testing.T) {
 }
 
 func TestBuildCodexConfig_ModelSettings(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -85,6 +89,7 @@ func TestBuildCodexConfig_ModelSettings(t *testing.T) {
 }
 
 func TestWriteCodexConfig_MkdirError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	// Create .codex as a file to force MkdirAll to fail
 	if err := os.WriteFile(filepath.Join(root, ".codex"), []byte("file"), 0o644); err != nil {
@@ -92,12 +97,13 @@ func TestWriteCodexConfig_MkdirError(t *testing.T) {
 	}
 
 	project := &config.ProjectConfig{}
-	if err := WriteCodexConfig(root, project); err == nil {
+	if err := WriteCodexConfig(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error from MkdirAll")
 	}
 }
 
 func TestBuildCodexRules_EmptyCommand(t *testing.T) {
+	t.Parallel()
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "commands"},

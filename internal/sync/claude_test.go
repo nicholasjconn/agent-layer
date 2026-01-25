@@ -9,6 +9,7 @@ import (
 )
 
 func TestBuildClaudeSettings(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	project := &config.ProjectConfig{
 		Config: config.Config{
@@ -32,13 +33,14 @@ func TestBuildClaudeSettings(t *testing.T) {
 }
 
 func TestWriteClaudeSettings(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "none"},
 		},
 	}
-	if err := WriteClaudeSettings(root, project); err != nil {
+	if err := WriteClaudeSettings(RealSystem{}, root, project); err != nil {
 		t.Fatalf("WriteClaudeSettings error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".claude", "settings.json")); err != nil {
@@ -47,18 +49,20 @@ func TestWriteClaudeSettings(t *testing.T) {
 }
 
 func TestWriteClaudeSettingsError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
 	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	project := &config.ProjectConfig{}
-	if err := WriteClaudeSettings(file, project); err == nil {
+	if err := WriteClaudeSettings(RealSystem{}, file, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestWriteClaudeSettingsWriteError(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	claudeDir := filepath.Join(root, ".claude")
 	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
@@ -72,12 +76,13 @@ func TestWriteClaudeSettingsWriteError(t *testing.T) {
 			Approvals: config.ApprovalsConfig{Mode: "none"},
 		},
 	}
-	if err := WriteClaudeSettings(root, project); err == nil {
+	if err := WriteClaudeSettings(RealSystem{}, root, project); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestBuildClaudeSettingsNone(t *testing.T) {
+	t.Parallel()
 	project := &config.ProjectConfig{
 		Config: config.Config{
 			Approvals: config.ApprovalsConfig{Mode: "none"},

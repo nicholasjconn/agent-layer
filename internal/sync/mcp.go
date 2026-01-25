@@ -1,12 +1,10 @@
 package sync
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 
 	"github.com/conn-castle/agent-layer/internal/config"
-	"github.com/conn-castle/agent-layer/internal/fsutil"
 	"github.com/conn-castle/agent-layer/internal/messages"
 	"github.com/conn-castle/agent-layer/internal/projection"
 )
@@ -25,33 +23,33 @@ type mcpServer struct {
 }
 
 // WriteMCPConfig generates .mcp.json for Claude Code.
-func WriteMCPConfig(root string, project *config.ProjectConfig) error {
-	cfg, err := buildMCPConfig(project)
+func WriteMCPConfig(sys System, root string, project *config.ProjectConfig) error {
+	cfg, err := buildMCPConfig(sys, project)
 	if err != nil {
 		return err
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := sys.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf(messages.SyncMarshalMCPConfigFailedFmt, err)
 	}
 	data = append(data, '\n')
 
 	path := filepath.Join(root, ".mcp.json")
-	if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
+	if err := sys.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf(messages.SyncWriteFileFailedFmt, path, err)
 	}
 
 	return nil
 }
 
-func buildMCPConfig(project *config.ProjectConfig) (*mcpConfig, error) {
+func buildMCPConfig(sys System, project *config.ProjectConfig) (*mcpConfig, error) {
 	cfg := &mcpConfig{
 		Servers: make(OrderedMap[mcpServer]),
 	}
 
 	// Internal prompt server for Claude.
-	promptCommand, promptArgs, err := resolvePromptServerCommand(project.Root)
+	promptCommand, promptArgs, err := resolvePromptServerCommand(sys, project.Root)
 	if err != nil {
 		return nil, err
 	}

@@ -238,6 +238,31 @@ mcp_schema_tokens_total_threshold = 10000
 mcp_schema_tokens_server_threshold = 7500
 ```
 
+#### Built-in placeholders
+
+Agent Layer provides a built-in `${AL_REPO_ROOT}` placeholder for file paths in MCP server configs.
+It expands to the absolute repo root during `al sync` and `al doctor`, and it does **not** need to be in `.env`.
+Paths that start with `${AL_REPO_ROOT}` or `~` are expanded and normalized; other relative paths are passed through as-is.
+
+Example:
+
+```toml
+[[mcp.servers]]
+id = "filesystem"
+enabled = false
+transport = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "${AL_REPO_ROOT}/."]
+```
+
+#### Default MCP server client exclusions
+
+Some default MCP servers exclude VS Code via the `clients` field:
+
+- **ripgrep** and **filesystem**: Excluded from VS Code because VS Code/Copilot Chat has native file search and access capabilities. Adding these servers would duplicate functionality and increase context window usage.
+
+You can override these exclusions by editing `clients` in your `config.toml`.
+
 #### Warning thresholds (`[warnings]`)
 
 Warning thresholds are optional. When a threshold is omitted, its warning is disabled. Values must be positive integers (zero/negative are rejected by config validation). `al sync` uses `instruction_token_threshold`, while `al doctor` evaluates all configured MCP warning thresholds.

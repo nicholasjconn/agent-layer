@@ -63,9 +63,7 @@ func buildMCPConfig(sys System, project *config.ProjectConfig) (*mcpConfig, erro
 		project.Config.MCP.Servers,
 		project.Env,
 		"claude",
-		func(name string, _ string) string {
-			return fmt.Sprintf("${%s}", name)
-		},
+		projection.ClientPlaceholderResolver("${%s}"),
 	)
 	if err != nil {
 		return nil, err

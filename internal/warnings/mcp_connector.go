@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/conn-castle/agent-layer/internal/messages"
+	"github.com/conn-castle/agent-layer/internal/projection"
 )
 
 // mcpSessionInterface wraps the MCP session for testing.
@@ -64,7 +65,7 @@ const maxToolsToDiscover = 1000
 type RealConnector struct{}
 
 // ConnectAndDiscover connects to an MCP server and discovers its tools.
-func (r *RealConnector) ConnectAndDiscover(ctx context.Context, server ResolvedMCPServer) DiscoveryResult {
+func (r *RealConnector) ConnectAndDiscover(ctx context.Context, server projection.ResolvedMCPServer) DiscoveryResult {
 	res := DiscoveryResult{ServerID: server.ID}
 
 	// Create context with timeout for this server

@@ -28,6 +28,7 @@ const (
 	SyncCodexAuthorizationBearerRequired         = "authorization header must use Bearer token"
 	SyncCodexAuthorizationEnvPlaceholderRequired = "authorization header must use env var placeholder"
 
+	MCPServerResolveFmt              = "mcp server %s: %w"
 	MCPServerURLFmt                  = "mcp server %s url: %w"
 	MCPServerHeaderFmt               = "mcp server %s header %s: %w"
 	MCPServerCommandFmt              = "mcp server %s command: %w"

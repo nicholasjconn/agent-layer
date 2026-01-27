@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/conn-castle/agent-layer/internal/config"
+	"github.com/conn-castle/agent-layer/internal/projection"
 )
 
 // MockConnector implements Connector for testing.
@@ -20,7 +21,7 @@ type MockConnector struct {
 	Results map[string]DiscoveryResult
 }
 
-func (m *MockConnector) ConnectAndDiscover(ctx context.Context, server ResolvedMCPServer) DiscoveryResult {
+func (m *MockConnector) ConnectAndDiscover(ctx context.Context, server projection.ResolvedMCPServer) DiscoveryResult {
 	if res, ok := m.Results[server.ID]; ok {
 		return res
 	}
@@ -242,110 +243,8 @@ func TestCheckMCPServers_ResolveServerError(t *testing.T) {
 	assert.Contains(t, warnings[0].Message, "Failed to resolve configuration")
 }
 
-func TestResolveServer_HTTP(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "http-server",
-		Transport: "http",
-		URL:       "http://${HOST}:${PORT}/api",
-		Headers:   map[string]string{"Authorization": "Bearer ${TOKEN}"},
-	}
-	env := map[string]string{
-		"HOST":  "localhost",
-		"PORT":  "8080",
-		"TOKEN": "secret123",
-	}
-
-	resolved, err := resolveServer(server, env)
-	require.NoError(t, err)
-	assert.Equal(t, "http-server", resolved.ID)
-	assert.Equal(t, "http", resolved.Transport)
-	assert.Equal(t, "http://localhost:8080/api", resolved.URL)
-	assert.Equal(t, "Bearer secret123", resolved.Headers["Authorization"])
-}
-
-func TestResolveServer_Stdio(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "stdio-server",
-		Transport: "stdio",
-		Command:   "${BINARY_PATH}",
-		Args:      []string{"--config", "${CONFIG_FILE}"},
-		Env:       map[string]string{"DEBUG": "${DEBUG_MODE}"},
-	}
-	env := map[string]string{
-		"BINARY_PATH": "/usr/bin/server",
-		"CONFIG_FILE": "/etc/config.json",
-		"DEBUG_MODE":  "true",
-	}
-
-	resolved, err := resolveServer(server, env)
-	require.NoError(t, err)
-	assert.Equal(t, "stdio-server", resolved.ID)
-	assert.Equal(t, "stdio", resolved.Transport)
-	assert.Equal(t, "/usr/bin/server", resolved.Command)
-	assert.Equal(t, []string{"--config", "/etc/config.json"}, resolved.Args)
-	assert.Equal(t, "true", resolved.Env["DEBUG"])
-}
-
-func TestResolveServer_HeaderError(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "http-server",
-		Transport: "http",
-		URL:       "http://localhost",
-		Headers:   map[string]string{"Authorization": "${XYZZY_NONEXISTENT_VAR_HEADER}"},
-	}
-
-	_, err := resolveServer(server, map[string]string{})
-	require.Error(t, err)
-}
-
-func TestResolveServer_CommandError(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "stdio-server",
-		Transport: "stdio",
-		Command:   "${XYZZY_NONEXISTENT_VAR_CMD}",
-	}
-
-	_, err := resolveServer(server, map[string]string{})
-	require.Error(t, err)
-}
-
-func TestResolveServer_ArgError(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "stdio-server",
-		Transport: "stdio",
-		Command:   "echo",
-		Args:      []string{"${XYZZY_NONEXISTENT_VAR_ARG}"},
-	}
-
-	_, err := resolveServer(server, map[string]string{})
-	require.Error(t, err)
-}
-
-func TestResolveServer_EnvError(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "stdio-server",
-		Transport: "stdio",
-		Command:   "echo",
-		Env:       map[string]string{"KEY": "${XYZZY_NONEXISTENT_VAR_ENV}"},
-	}
-
-	_, err := resolveServer(server, map[string]string{})
-	require.Error(t, err)
-}
-
-func TestResolveServer_URLError(t *testing.T) {
-	server := config.MCPServer{
-		ID:        "http-server",
-		Transport: "http",
-		URL:       "${XYZZY_NONEXISTENT_VAR_URL}",
-	}
-
-	_, err := resolveServer(server, map[string]string{})
-	require.Error(t, err)
-}
-
 func TestDiscoverTools(t *testing.T) {
-	servers := []ResolvedMCPServer{
+	servers := []projection.ResolvedMCPServer{
 		{ID: "s1"},
 		{ID: "s2"},
 		{ID: "s3"},
@@ -431,7 +330,7 @@ func TestHeaderTransport_NilBase(t *testing.T) {
 
 func TestRealConnector_UnsupportedTransport(t *testing.T) {
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-server",
 		Transport: "unsupported",
 	}
@@ -474,7 +373,7 @@ func TestWarningString_WithDetails(t *testing.T) {
 
 func TestRealConnector_StdioConnectionError(t *testing.T) {
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-stdio",
 		Transport: "stdio",
 		Command:   "nonexistent-command-xyzzy-12345",
@@ -490,7 +389,7 @@ func TestRealConnector_StdioConnectionError(t *testing.T) {
 
 func TestRealConnector_StdioWithEnv(t *testing.T) {
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-stdio-env",
 		Transport: "stdio",
 		Command:   "nonexistent-command-xyzzy-env",
@@ -507,7 +406,7 @@ func TestRealConnector_StdioWithEnv(t *testing.T) {
 
 func TestRealConnector_HTTPConnectionError(t *testing.T) {
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-http",
 		Transport: "http",
 		URL:       "http://127.0.0.1:59999/nonexistent", // Port unlikely to be listening
@@ -525,7 +424,7 @@ func TestRealConnector_HTTPConnectionError(t *testing.T) {
 
 func TestRealConnector_HTTPWithHeaders(t *testing.T) {
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-http-headers",
 		Transport: "http",
 		URL:       "http://127.0.0.1:59998/nonexistent",
@@ -600,7 +499,7 @@ func TestRealConnector_SuccessfulConnection(t *testing.T) {
 	t.Cleanup(func() { NewMCPClientFunc = original })
 
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-server",
 		Transport: "stdio",
 		Command:   "echo",
@@ -633,7 +532,7 @@ func TestRealConnector_SuccessfulConnectionPaginated(t *testing.T) {
 	t.Cleanup(func() { NewMCPClientFunc = original })
 
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-paginated",
 		Transport: "stdio",
 		Command:   "echo",
@@ -657,7 +556,7 @@ func TestRealConnector_ListToolsError(t *testing.T) {
 	t.Cleanup(func() { NewMCPClientFunc = original })
 
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-list-error",
 		Transport: "stdio",
 		Command:   "echo",
@@ -682,7 +581,7 @@ func TestRealConnector_EmptyTools(t *testing.T) {
 	t.Cleanup(func() { NewMCPClientFunc = original })
 
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-empty",
 		Transport: "stdio",
 		Command:   "echo",
@@ -730,7 +629,7 @@ func TestRealConnector_TooManyToolsGuard(t *testing.T) {
 	t.Cleanup(func() { NewMCPClientFunc = original })
 
 	connector := &RealConnector{}
-	server := ResolvedMCPServer{
+	server := projection.ResolvedMCPServer{
 		ID:        "test-infinite",
 		Transport: "stdio",
 		Command:   "echo",

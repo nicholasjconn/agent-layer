@@ -54,3 +54,8 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
     Decision: Workflow artifacts are written to `.agent-layer/tmp` using a unique per-invocation filename: `.agent-layer/tmp/<workflow>.<run-id>.<type>.md` with `run-id = YYYYMMDD-HHMMSS-<short-rand>`; no path overrides.
     Reason: Keeps artifacts invisible to humans while avoiding collisions for concurrent agents without relying on env vars or per-chat IDs.
     Tradeoffs: Files can accumulate until manually cleaned; agents must echo paths in chat to retain context.
+
+- Decision 2026-01-26 999bc79: Centralize MCP server resolution in projection package
+    Decision: MCP server resolution logic and the `ResolvedMCPServer` type now live in `internal/projection`. The warnings package imports projection for MCP resolution instead of maintaining duplicate code.
+    Reason: Eliminates DRY violation where identical resolution logic existed in both projection and warnings packages.
+    Tradeoffs: Warnings package now depends on projection; acceptable since projection is a lower-level utility.

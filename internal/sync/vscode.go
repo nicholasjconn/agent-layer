@@ -246,9 +246,7 @@ func buildVSCodeMCPConfig(project *config.ProjectConfig) (*vscodeMCPConfig, erro
 		project.Config.MCP.Servers,
 		project.Env,
 		"vscode",
-		func(name string, _ string) string {
-			return fmt.Sprintf("${env:%s}", name)
-		},
+		projection.ClientPlaceholderResolver("${env:%s}"),
 	)
 	if err != nil {
 		return nil, err

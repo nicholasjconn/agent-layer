@@ -55,3 +55,25 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
 - Renamed `FEATURES.md` to `BACKLOG.md` and updated all references.
 - Enforced single blank line between entries in all memory files.
 - Documented VS Code reauthentication requirement for new `CODEX_HOME` in README.
+
+## Phase 9 — MCP defaults + CLI output polish
+
+### Goal
+- Ship a higher-value default MCP catalog and clearer update guidance.
+- Improve CLI output readability for the most common commands.
+
+### Tasks
+- [x] Add default MCP entry for the Ripgrep server (fast regex search) in `config.toml` template (commented or enabled).
+- [x] Add default MCP entry for the official Fetch server in `config.toml` template (commented or enabled).
+- [x] Add default MCP entry for the filesystem server with repo path restriction via CLI args; verify the correct restriction argument before shipping.
+- [ ] Update the “update available” warning to include concrete upgrade commands (brew/curl/PowerShell as applicable) and explicit safety notes about backups and `--force` overwrite risks.
+- [ ] Improve CLI output readability (wizard/init/doctor) with semantic coloring and spacing; ensure errors/warnings/successes are visually distinct.
+- [ ] Address Issue 2026-01-25 f1e2d3: documentation-first search fallback strategy for agents.
+- [ ] Address Issue 2026-01-25 c4d5e6: Codex ignores unexpected repository changes instruction.
+- [ ] Address Issue 2026-01-25 d7e8f9: decision consolidation in documentation workflows.
+
+### Exit criteria
+- Default MCP server entries exist in templates and are documented (Ripgrep, Fetch, filesystem with path restriction).
+- Update warning includes concrete upgrade commands and explicit safety notes.
+- CLI output uses consistent, readable formatting and semantic emphasis across core commands.
+- Issue items above are resolved or explicitly deferred with rationale.

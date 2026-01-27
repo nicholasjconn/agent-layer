@@ -12,12 +12,6 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
     Acceptance criteria: A clear design/decision is documented for how to detect and clean up obsolete template files during upgrades.
     Notes: Currently, al init only adds/updates; it does not remove files that vanished from the binary.
 
-- Backlog 2026-01-25 9e3f1a2: Improve CLI output readability and formatting
-    Priority: Medium. Area: developer experience
-    Description: Enhance the human readability of CLI outputs (wizard, init, doctor, etc.) by adding colors, improved formatting, and better use of whitespace.
-    Acceptance criteria: CLI commands consistently use semantic coloring and spacing to make reports and interactive prompts easier to interpret.
-    Notes: Focus on making high-impact messages (errors, warnings, successes) visually distinct.
-
 - Backlog 2026-01-25 a1b2c3d: Add interaction monitoring for prompt self-improvement
     Priority: Low. Area: agent intelligence
     Description: Add interaction monitoring to agent system instructions to self-improve all prompts, rules, and workflows based on usage patterns.
@@ -77,3 +71,21 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
     Description: Implement "full access" mode for all agents with security warnings (similar to Codex full-auto).
     Acceptance criteria: Users can opt-in to full access mode with clear warnings about security implications.
     Notes: Requires prominent warnings and easy way to revert to restricted mode.
+
+- Backlog 2026-01-25 0a1b2c3: Add Git MCP server with tool filtering
+    Priority: Medium. Area: MCP ecosystem
+    Description: Add the Git MCP server to defaults with mandatory tool filtering. This correctly requires an additional MCP server to act as a filtering proxy to restrict which tools are exposed (allowlist/blocklist).
+    Acceptance criteria: Users can configure `[mcp.servers.tools]` to include or exclude specific tools from the Git server. Specifically block `git add`, `git commit`, `git reset`, `git init`, `git checkout`, and `git create branch`.
+    Notes: Essential for safety; raw Git access is powerful and risky without restrictions. Correct implementation necessitates a secondary MCP server for tool-level filtering.
+
+- Backlog 2026-01-25 1b2c3d4: Investigate support for Claude Code Desktop (GUI)
+    Priority: Low. Area: client integration
+    Description: Investigate adding support for launching and configuring Claude Code Desktop (GUI version) if/when available.
+    Acceptance criteria: Feasibility study completed; if viable, `al claude-desktop` command or similar is spec'd out.
+    Notes: Currently `al claude` supports the CLI; need to check if a GUI variant exists or is planned and how it integrates.
+
+- Backlog 2026-01-25 1a2b3c4: Evaluate unified shell/command MCP for centralized allowlisting
+    Priority: Low. Area: MCP / security
+    Description: Evaluate using a generic shell/command MCP server to enforce a unified allowlist for shell commands across all agents, rather than relying on agent-specific implementations.
+    Acceptance criteria: Feasibility study and prototype of a unified shell MCP with granular allowlisting.
+    Notes: Deep backlog item. Consider only after high-priority improvements are complete. Goal is centralized control.

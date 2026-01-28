@@ -2,6 +2,43 @@
 
 Note: This is an agent-layer memory file. It is primarily for agent use.
 
+## Purpose
+A phased plan of work that guides architecture decisions and sequencing. The roadmap is the “what next” reference; the backlog holds unscheduled items.
+
+## Format
+- The roadmap is a single list of numbered phases under `<!-- PHASES START -->`.
+- Do not renumber completed phases (phases marked with ✅).
+- You may renumber incomplete phases when updating the roadmap (e.g., to insert a new phase).
+- Incomplete phases include **Goal**, **Tasks** (checkbox list), and **Exit criteria** sections.
+- When a phase is complete:
+  - update the heading to: `## Phase N ✅ — <phase name>`
+  - replace the phase content with a short bullet summary of what was accomplished (no checkbox list).
+
+### Phase templates
+
+Completed:
+```markdown
+## Phase N ✅ — <phase name>
+- <Accomplishment summary bullet>
+- <Accomplishment summary bullet>
+```
+
+Incomplete:
+```markdown
+## Phase N — <phase name>
+
+### Goal
+- <What success looks like for this phase, in 1–3 bullet points.>
+
+### Tasks
+- [ ] <Concrete deliverable-oriented task>
+- [ ] <Concrete deliverable-oriented task>
+
+### Exit criteria
+- <Objective condition that must be true to call the phase complete.>
+- <Prefer testable statements: “X exists”, “Y passes”, “Z is documented”.>
+```
+
 ## Phases
 
 <!-- PHASES START -->
@@ -56,24 +93,8 @@ Note: This is an agent-layer memory file. It is primarily for agent use.
 - Enforced single blank line between entries in all memory files.
 - Documented VS Code reauthentication requirement for new `CODEX_HOME` in README.
 
-## Phase 9 — MCP defaults + CLI output polish
-
-### Goal
-- Ship a higher-value default MCP catalog and clearer update guidance.
-- Improve CLI output readability for the most common commands.
-
-### Tasks
-- [x] Add default MCP entry for the Ripgrep server (fast regex search) in `config.toml` template (commented or enabled).
-- [x] Add default MCP entry for the official Fetch server in `config.toml` template (commented or enabled).
-- [x] Add default MCP entry for the filesystem server with repo path restriction via CLI args; verify the correct restriction argument before shipping.
-- [x] Update the “update available” warning to include concrete upgrade commands (brew/curl/PowerShell as applicable) and explicit safety notes about backups and `--force` overwrite risks.
-- [x] Improve CLI output readability (wizard/init/doctor) with semantic coloring and spacing; ensure errors/warnings/successes are visually distinct.
-- [x] Address Issue 2026-01-25 f1e2d3: documentation-first search fallback strategy for agents.
-- [x] Address Issue 2026-01-25 c4d5e6: Codex ignores unexpected repository changes instruction.
-- [x] Address Issue 2026-01-25 d7e8f9: decision consolidation in documentation workflows.
-
-### Exit criteria
-- Default MCP server entries exist in templates and are documented (Ripgrep, Fetch, filesystem with path restriction).
-- Update warning includes concrete upgrade commands and explicit safety notes.
-- CLI output uses consistent, readable formatting and semantic emphasis across core commands.
-- Issue items above are resolved or explicitly deferred with rationale.
+## Phase 9 ✅ — MCP defaults + CLI output polish
+- Added default MCP entries for Ripgrep, Fetch, and Filesystem (with path restriction) to config templates.
+- Enhanced CLI output readability with semantic coloring and distinct success/warning/error formatting.
+- Updated upgrade warnings to include concrete commands and safety notes about overwrites.
+- Resolved documentation/instruction issues regarding search fallback, uncommitted changes, and decision hygiene.

@@ -1,6 +1,25 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.5.6 - 2026-01-27
+
+### Added
+- `http_transport` config option for HTTP MCP servers to specify transport mode (`streamable` or `sse`).
+- Three new MCP server templates in default `config.toml`: `fetch` (mcp-server-fetch), `ripgrep` (mcp-ripgrep), and `filesystem` (server-filesystem with repo-scoped access).
+- `${AL_REPO_ROOT}` built-in variable for resolving repository root path in MCP server args.
+- VS Code settings sync now preserves existing user settings and comments using JSONC-aware block insertion instead of overwriting the entire file.
+- Memory file templates (`BACKLOG.md`, `COMMANDS.md`, `DECISIONS.md`, `ISSUES.md`, `ROADMAP.md`) now include detailed formatting guidelines and entry templates.
+
+### Changed
+- MCP projection refactored: new `internal/projection/resolvers.go` module centralizes server resolution logic, used by both sync and warning checks.
+- Update-available warning now includes full upgrade instructions for Homebrew, macOS/Linux shell script, and Windows PowerShell.
+- Instruction templates consolidated and shortened to reduce token count while preserving key guidelines.
+- Terminal detection moved to canonical `internal/terminal` package with `IsInteractive()` function.
+- Default MCP server templates no longer specify `clients` filter (servers are projected to all clients by default).
+
+### Fixed
+- MCP server health checks now properly handle HTTP transport timeout scenarios.
+
 ## v0.5.5 - 2026-01-25
 
 ### Added

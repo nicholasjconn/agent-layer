@@ -1,8 +1,8 @@
 # Agent Dispatch
 
-Agent Dispatch runs headless provider conversations. It has one read-only
-discovery operation plus one opaque conversation handle, four lifecycle
-operations, and four states.
+Agent Dispatch runs headless provider conversations. Each conversation has an
+opaque handle; each invocation has an immutable UUID. Discovery, lifecycle,
+inspection, and evidence retrieval use the same backend.
 
 It has two surfaces over one backend. The MCP tools are the canonical
 agent-facing path; the CLI is the human and scripting path. Both use the same
@@ -13,7 +13,7 @@ handles, states, result files, and cancellation semantics.
 Agent Layer projects a built-in MCP server, `agent-layer`, into the generated
 configuration of every enabled Codex, Claude, Antigravity, VS Code, Copilot
 CLI, and Grok caller. It is derived state, not a `[[mcp.servers]]` entry, and its
-reserved ID cannot be taken by a user-defined server. It exposes five tools:
+reserved ID cannot be taken by a user-defined server. It exposes seven tools:
 
 Agent-facing tool and parameter descriptions are maintained in
 `internal/agentdispatch/mcp_tool_descriptions.toml` and embedded at build time.
@@ -21,18 +21,22 @@ Agent-facing tool and parameter descriptions are maintained in
 | Tool | Purpose |
 | --- | --- |
 | `dispatch_options` | List dispatchable providers and their allowed overrides |
-| `dispatch_start` | Start a conversation and return its handle immediately |
+| `dispatch_start` | Start a conversation and return its handle and invocation_id |
 | `dispatch_wait` | Block for the configured wait, then report state |
 | `dispatch_continue` | Start the next invocation in a terminal conversation |
-| `dispatch_cancel` | Terminate a running conversation (destructive) |
+| `dispatch_cancel` | Request that provider work stop (destructive) |
+| `dispatch_inspect` | Prompt state and termination-confirmation observation |
+| `dispatch_output` | Bounded final-answer or event text retrieval |
 
 `dispatch_start` accepts `agent`, optional `model`, `reasoning_effort`, `role`,
 and `skill`, and exactly one of `prompt` or `prompt_file`. `dispatch_continue`
-accepts `handle` and exactly one prompt source. `dispatch_wait` and
-`dispatch_cancel` accept `handle`. Results carry the same `handle`, `state`,
-`result_path`, and `error` fields as the CLI. A wait that returns `running`
-also includes recorded `last_activity_at` and `last_output_at` timestamps when
-available.
+accepts `handle` and exactly one prompt source. `dispatch_wait`,
+`dispatch_cancel`, `dispatch_inspect`, and `dispatch_output` accept exactly one
+of `handle` or `invocation_id`. An explicit invocation ID never follows a later
+continuation. Results carry `handle`, `invocation_id`, `state`, `result_path`,
+`error`, and `termination_confirmed`. A wait that returns `running` also
+includes recorded `last_activity_at` and `last_output_at` timestamps when
+available. `dispatch_inspect` does not return or persist caller prompt text.
 
 Successful results are returned as `structuredContent`; the SDK also emits the
 serialized text fallback required for compatibility with older clients. The
@@ -50,11 +54,15 @@ mcp_tool_timeout_minutes = 40
 ```
 
 `mcp_wait_timeout_minutes` bounds one `dispatch_wait` call: a healthy wait
-blocks that long and then returns `running`. `mcp_tool_timeout_minutes` is a
+blocks at most that long and then returns the current state and `condition_met`.
+`mcp_tool_timeout_minutes` is a
 hard server-side bound applied to every Agent Dispatch tool call, so a wedged
 handler always releases the caller. Both are optional positive integers; when
 omitted they resolve to 30 and 40. The tool timeout must be greater than the
 wait timeout, and an invalid relationship fails configuration validation.
+Confirmed terminal evidence and inactive mappings are retained for 30 days.
+Unconfirmed execution evidence is never expired. Older binaries that strictly
+decode run records will fail to read records written by this version.
 
 Codex and Grok also receive the hard bound natively as `tool_timeout_sec`.
 Claude Code documents only a client-wide `MCP_TOOL_TIMEOUT`, which Agent Layer
@@ -78,8 +86,9 @@ is never inferred from elapsed time, silence, or a `running` result.
 An MCP `dispatch_start` or `dispatch_continue` is an RPC acknowledgement rather
 than a direct write to the caller's terminal. If the transport disconnects
 after the backend has started but before the client observes the response,
-provider work remains active while the caller never learns its handle. The
-evidence remains under `.agent-layer/tmp/runs/`.
+provider work remains active while the caller never learns its handle.
+`dispatch_inspect` and `dispatch_output` can read that invocation by ID when
+the ID is known; evidence remains under `.agent-layer/tmp/runs/`.
 
 ## Commands
 
@@ -90,12 +99,16 @@ al dispatch start --agent <agent> [--model <model>] \
   [--reasoning-effort <effort>] [--role <role>] [--skill <skill>] \
   (--prompt <text> | --prompt-file <path>)
 
-al dispatch wait <handle>
+al dispatch wait <handle-or-invocation-id> [--condition terminal|termination_confirmed]
+
+al dispatch inspect <handle-or-invocation-id>
+
+al dispatch output <handle-or-invocation-id> --artifact final_answer|events
 
 al dispatch continue <handle> \
   (--prompt <text> | --prompt-file <path>)
 
-al dispatch cancel <handle>
+al dispatch cancel <handle-or-invocation-id>
 ```
 
 `options` returns the known dispatch agents, their current availability, configured
@@ -132,12 +145,13 @@ invocation.
 | --- | --- | --- | --- | --- |
 | `wait` | Waits for the bounded interval, then returns `running` | Returns `result_path` | Returns the failure | Returns `cancelled` |
 | `continue` | Errors | Starts the next invocation | Starts the next invocation | Starts the next invocation |
-| `cancel` | Cancels the invocation | Errors: already completed | Errors: already failed | Returns `cancelled` successfully |
+| `cancel` | Requests cancellation | Errors: already completed | Retries stopping unconfirmed execution, preserving `failed` | Retries an unconfirmed stop; confirmed cancellation succeeds immediately |
 
 `failed` means the invocation could not complete, for example because of a
 provider, authentication, network, process, or response error. `cancelled`
-means a caller intentionally stopped it. Neither state invalidates the
-conversation, so either may be continued.
+means a caller requested cancellation. Neither state proves execution has
+stopped. Continuation requires termination confirmation and sufficient provider
+conversation or pre-start recovery evidence.
 
 Only one invocation may run for a conversation at a time. Concurrent
 `continue` calls cannot start duplicate work: one may succeed and the others
@@ -186,7 +200,9 @@ must omit those flags.
 ```json
 {
   "handle": "abc123",
-  "state": "running"
+  "invocation_id": "11111111-1111-4111-8111-111111111111",
+  "state": "running",
+  "termination_confirmed": false
 }
 ```
 
@@ -236,10 +252,18 @@ an error rather than as completed.
 
 `wait` is the agent synchronization operation. It blocks for its bounded
 interval — eight minutes on the CLI, `dispatch.mcp_wait_timeout_minutes` for
-`dispatch_wait` — then returns `running` if the invocation remains active.
-Repeating it after termination immediately returns the same state and, for a
-completed invocation, the same `result_path` until a successful `continue`
-starts the next invocation.
+`dispatch_wait`. Its default condition is a terminal outcome. Select
+`condition="termination_confirmed"` in MCP or `--condition termination_confirmed`
+on the CLI to wait for stop confirmation, including after cancellation. A timeout
+returns the current state with `condition_met=false`; it never establishes
+termination. A handle is resolved once per wait; an invocation UUID always
+addresses that invocation, even after a continuation.
+
+`termination_confirmed` becomes true only after submission is fenced (or legacy
+submitters are proven gone) and the owned provider process and group have stopped.
+The timestamp and proof are persisted. A crash between provider start and identity
+publication remains explicitly uncertain. Confirmation says nothing about reverting
+edits or finishing external jobs the provider started.
 
 Continuation requires the recorded provider conversation ID. If a failed or
 cancelled invocation may have reached the provider but no ID was captured,
@@ -281,9 +305,10 @@ control back for authorization or a blocker, and restarts it when monitoring
 resumes. Existing invocations retain their already-loaded instructions; updating
 the skill does not repair them in place.
 
-`cancel` is idempotent only after successful cancellation. Repeating it for a
-cancelled invocation succeeds. It cannot change a completed or failed
-invocation into `cancelled`.
+`cancel` succeeds immediately for confirmed cancellation. For unconfirmed
+cancelled or failed invocations it retries termination when process ownership
+can be verified. It preserves an existing failed outcome; detailed proof and
+attempt errors remain private run evidence.
 
 `start` and `continue` must durably reserve their work before contacting the
 provider. A new `start` invocation cannot become eligible to contact the
@@ -297,14 +322,14 @@ There is no public fanout resource. Parallel work consists of independent
 conversations, each with its own handle, state, result, cancellation, and
 resumability.
 
-There is no separate `read` command: `wait` returns the current or terminal
-state and the completed result path. There is no agent-facing `status` command:
-agents use the bounded `wait` operation for state changes.
+`inspect` returns promptly with state, activity timestamps, and termination
+confirmation. Process identities and proof details remain private. `output`
+retrieves bounded UTF-8 text for `final_answer` or `events`; events can contain
+partial output from failed or cancelled runs. Reads return at most 65,536 bytes
+and set `truncated` when more captured text exists. Missing, unreadable, invalid,
+or unavailable output fails explicitly.
 
-The public Agent Dispatch lifecycle contains only `start`, `wait`, `continue`,
-and `cancel`; `options` is read-only discovery. Inspection, history, listing,
-deletion, and internal recovery state are not part of the agent interface.
-
-The MCP surface exposes `options`, `start`, `wait`, `continue`, and `cancel`.
+The MCP surface exposes `options`, `start`, `wait`, `continue`, `cancel`, `inspect`,
+and `output` with the `dispatch_` prefix.
 `al dispatch mcp-server`, which serves those tools over stdio, is a hidden entry
 point for generated client configuration, not a public command.

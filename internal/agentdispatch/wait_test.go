@@ -44,9 +44,26 @@ func TestWaitReturnsDurableCompletedResult(t *testing.T) {
 }
 
 func TestCompletedResultPathRejectsEmptyAndNonFilePaths(t *testing.T) {
-	for _, answerPath := range []string{"", t.TempDir()} {
-		_, err := completedResultPath(RunRecord{AnswerPath: answerPath})
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	for _, answerPath := range []string{"", run.Dir, t.TempDir()} {
+		_, err := completedResultPath(root, RunRecord{ID: run.Record.ID, AnswerPath: answerPath})
 		requireDispatchExitCode(t, err, ExitConfig)
+	}
+}
+
+func TestCompletedResultPathResolvesRelativePathInsideRun(t *testing.T) {
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	if err := os.WriteFile(run.Record.AnswerPath, []byte("done"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path, err := completedResultPath(root, RunRecord{ID: run.Record.ID, AnswerPath: filepath.Base(run.Record.AnswerPath)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != run.Record.AnswerPath {
+		t.Fatalf("completed result path = %q, want %q", path, run.Record.AnswerPath)
 	}
 }
 
@@ -261,8 +278,24 @@ func TestWaitRetainsOrphanClaimWhileDescendantsSurvive(t *testing.T) {
 	if err := writeRunRecord(run.Dir, &run.Record); err != nil {
 		t.Fatal(err)
 	}
-	err := Wait(WaitRequest{Root: root, ID: session.Name, Timeout: time.Millisecond})
-	requireDispatchExitCode(t, err, ExitUnavailable)
+	var stdout bytes.Buffer
+	if err := Wait(WaitRequest{Root: root, ID: session.Name, Timeout: time.Millisecond, PollInterval: time.Millisecond, Stdout: &stdout}); err != nil {
+		t.Fatal(err)
+	}
+	var waited Result
+	if err := json.Unmarshal(stdout.Bytes(), &waited); err != nil {
+		t.Fatal(err)
+	}
+	if waited.TerminationConfirmed || (waited.ConditionMet != nil && *waited.ConditionMet) {
+		t.Fatalf("wait confirmed a live descendant group: %#v", waited)
+	}
+	observed, err := loadRunRecord(root, run.Record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observed.TerminationObservation != terminationObservationGroupLive || observed.TerminationAttemptError == "" {
+		t.Fatalf("live descendant evidence was not persisted: %#v", observed)
+	}
 	current, err := loadSession(root, session.Name)
 	if err != nil || current.ActiveRunID != run.Record.ID {
 		t.Fatalf("orphan recovery released a live descendant claim: %#v, %v", current, err)

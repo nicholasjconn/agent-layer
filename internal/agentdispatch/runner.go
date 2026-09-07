@@ -76,6 +76,84 @@ func newUnprovenProviderTerminationError(primary error, message string, proofErr
 	)}
 }
 
+func startFencedProvider(root string, run *dispatchRun, cmd *exec.Cmd, provider string) error {
+	return withRunLock(run.Dir, func() error {
+		current, err := loadRunRecord(root, run.Record.ID)
+		if err != nil {
+			return err
+		}
+		if current.EventsPath == "" && run.Record.EventsPath != "" {
+			current.EventsPath = run.Record.EventsPath
+		}
+		if current.LaunchFenced || current.State == dispatchStateCancelled {
+			run.Record = current
+			return startFencedProviderError(current, exitError(ExitTargetFailure, fmt.Sprintf("dispatch run %s was cancelled before provider launch", current.ID)))
+		}
+		if terminalDispatchState(current.State) {
+			run.Record = current
+			return exitError(ExitUnavailable, fmt.Sprintf("dispatch run %s is already %s", current.ID, current.State))
+		}
+		now := time.Now().UTC()
+		current.ProviderLaunchIntent = true
+		current.Revision++
+		current.UpdatedAt = now
+		if err := validateRunRecord(current); err != nil {
+			return err
+		}
+		path := filepath.Join(run.Dir, dispatchRunFile)
+		if err := writeJSONAtomic(path, current); err != nil {
+			return wrapExitError(ExitConfig, "write dispatch launch intent", err)
+		}
+		run.Record = current
+		if err := cmd.Start(); err != nil {
+			cleared := current
+			cleared.ProviderLaunchIntent = false
+			cleared.Revision++
+			cleared.UpdatedAt = time.Now().UTC()
+			if writeErr := writeJSONAtomic(path, cleared); writeErr != nil {
+				return errors.Join(&preStartFailure{err: providerStartError(provider, err)}, wrapExitError(ExitConfig, "clear dispatch launch intent after start failure", writeErr))
+			}
+			run.Record = cleared
+			return &preStartFailure{err: providerStartError(provider, err)}
+		}
+		started := current
+		started.PID = cmd.Process.Pid
+		started.ProcessGroupID = cmd.Process.Pid
+		started.ProcessStartIdentity = processStartIdentity(cmd.Process.Pid)
+		started.State = dispatchStateRunning
+		started.RecoveryState = recoveryAcceptanceUnknown
+		now = time.Now().UTC()
+		started.LastActivityAt = &now
+		started.Revision++
+		started.UpdatedAt = now
+		if err := validateRunRecord(started); err != nil {
+			run.Record.PID = started.PID
+			run.Record.ProcessGroupID = started.ProcessGroupID
+			run.Record.ProcessStartIdentity = started.ProcessStartIdentity
+			return stopUnpublishedProvider(cmd, started, err, "terminate dispatch provider process group after record validation failure")
+		}
+		if err := writeJSONAtomic(path, started); err != nil {
+			run.Record.PID = started.PID
+			run.Record.ProcessGroupID = started.ProcessGroupID
+			run.Record.ProcessStartIdentity = started.ProcessStartIdentity
+			return stopUnpublishedProvider(cmd, started,
+				wrapExitError(ExitConfig, "write dispatch provider identity", err),
+				"terminate dispatch provider process group after identity publication failure")
+		}
+		run.Record = started
+		return nil
+	})
+}
+
+func stopUnpublishedProvider(cmd *exec.Cmd, record RunRecord, primary error, proofMessage string) error {
+	killErr := cmd.Process.Kill()
+	waitErr := cmd.Wait()
+	if !providerProcessGroupDead(record.ProcessGroupID) {
+		return newUnprovenProviderTerminationError(primary, proofMessage, errors.Join(killErr, waitErr))
+	}
+	return primary
+}
+
 func executeProvider(
 	command providerCommand,
 	prompt []byte,
@@ -158,14 +236,11 @@ func executeProvider(
 	cmd.Stdout = stdoutWrite
 	cmd.Stderr = stderrWrite
 	prepareProviderProcessGroup(cmd)
-	if err := cmd.Start(); err != nil {
-		return executionResult{}, &preStartFailure{err: providerStartError(command.Provider, err)}
+	if err := startFencedProvider(root, run, cmd, command.Provider); err != nil {
+		return executionResult{}, err
 	}
 	_ = stdoutWrite.Close()
 	_ = stderrWrite.Close()
-	run.Record.PID = cmd.Process.Pid
-	run.Record.ProcessGroupID = cmd.Process.Pid
-	run.Record.ProcessStartIdentity = processStartIdentity(cmd.Process.Pid)
 	leaderPID := run.Record.PID
 	leaderGroupID := run.Record.ProcessGroupID
 	leaderStart := run.Record.ProcessStartIdentity
@@ -173,8 +248,8 @@ func executeProvider(
 	if err != nil {
 		// The exec.Cmd is direct proof that this leader is ours, but without a
 		// durable start identity Agent Layer must not signal its process group.
-		// Kill only the directly owned leader and fail before publishing running
-		// state or accepting provider output.
+		// Kill only the directly owned leader. Launch intent plus any published
+		// identity remain; absence of identity is uncertainty, not proof of no provider.
 		killErr := cmd.Process.Kill()
 		waitErr := cmd.Wait()
 		if !providerProcessGroupDead(run.Record.ProcessGroupID) {
@@ -185,40 +260,6 @@ func executeProvider(
 			)
 		}
 		return executionResult{}, wrapExitError(ExitTargetFailure, "verify dispatch provider process-group ownership", err)
-	}
-	run.Record.State = dispatchStateRunning
-	run.Record.RecoveryState = recoveryAcceptanceUnknown
-	started := time.Now().UTC()
-	run.Record.LastActivityAt = &started
-	if err := writeRunRecord(run.Dir, &run.Record); err != nil {
-		stdoutDrained := make(chan struct{})
-		stderrDrained := make(chan struct{})
-		go func() {
-			_, _ = io.Copy(io.Discard, stdoutPipe)
-			close(stdoutDrained)
-		}()
-		go func() {
-			_, _ = io.Copy(io.Discard, stderrPipe)
-			close(stderrDrained)
-		}()
-		termination.request()
-		_, _ = reapDuringTermination(cmd, leaderStart, termination)
-		_ = stdoutPipe.Close()
-		_ = stderrPipe.Close()
-		<-stdoutDrained
-		<-stderrDrained
-		terminationErr := termination.err
-		if terminationErr == nil {
-			terminationErr = termination.providerStopped()
-		}
-		if terminationErr != nil {
-			return executionResult{}, newUnprovenProviderTerminationError(
-				err,
-				"terminate dispatch provider process group after running-state publication failure",
-				terminationErr,
-			)
-		}
-		return executionResult{}, errors.Join(err, terminationErr)
 	}
 	caughtSignal, stopForwarder := installProviderSignalForwarder(termination.request)
 	defer stopForwarder()

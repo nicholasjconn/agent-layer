@@ -467,6 +467,8 @@ The command set is intentionally small. Most of the time you only need one rhyth
 | `al dispatch options` | List dispatchable agents and their allowed overrides. |
 | `al dispatch start` | Start a headless conversation asynchronously and return its handle. |
 | `al dispatch wait <handle>` | Wait up to eight minutes; return `running` if work continues, otherwise return the terminal result. |
+| `al dispatch inspect <handle-or-invocation-id>` | Observe one invocation without waiting. |
+| `al dispatch output <handle-or-invocation-id>` | Read bounded final or partial output. |
 | `al dispatch continue <handle>` | Start another invocation in a terminal conversation. |
 | `al dispatch cancel <handle>` | Cancel a running invocation. |
 | `al skills add <repository> <selector>... [--yes]` | Import skills from a Git repository and project them. |

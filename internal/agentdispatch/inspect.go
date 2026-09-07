@@ -83,11 +83,15 @@ func inspectResultFromRecord(record RunRecord) InspectResult {
 	if state == dispatchStateInterrupted {
 		state = dispatchStateFailed
 	}
+	reason := strings.TrimSpace(record.TerminalReason)
+	if state == dispatchStateCancelled {
+		reason = ""
+	}
 	return InspectResult{
 		Handle:                 record.Name,
 		InvocationID:           record.ID,
 		State:                  state,
-		Error:                  strings.TrimSpace(record.TerminalReason),
+		Error:                  reason,
 		LastActivityAt:         record.LastActivityAt,
 		LastOutputAt:           record.LastOutputAt,
 		TerminationConfirmed:   record.TerminationConfirmed,
@@ -98,25 +102,25 @@ func inspectResultFromRecord(record RunRecord) InspectResult {
 // Output returns bounded text for a completed final answer or the captured
 // event stream that may contain partial output from any invocation state.
 func Output(request OutputRequest) error {
+	artifact := strings.TrimSpace(request.Artifact)
+	if artifact != artifactFinalAnswer && artifact != artifactEvents {
+		return exitError(ExitUsage, fmt.Sprintf("dispatch output %q is invalid; use final_answer or events", artifact))
+	}
 	record, err := resolveInvocationSelector(request.Root, request.ID, request.Handle, request.InvocationID)
 	if err != nil {
 		return err
 	}
-	artifact := strings.TrimSpace(request.Artifact)
 	var path string
-	switch artifact {
-	case artifactFinalAnswer:
+	if artifact == artifactFinalAnswer {
 		if record.State != dispatchStateCompleted {
 			return exitError(ExitUnavailable, fmt.Sprintf("dispatch invocation %s did not produce a final answer", record.ID))
 		}
 		path = record.AnswerPath
-	case artifactEvents:
-		if !record.ProviderLaunchIntent {
+	} else {
+		path = record.EventsPath
+		if !record.ProviderLaunchIntent && !readableOwnedOutput(filepathForRun(request.Root, record.ID), path) {
 			return exitError(ExitUnavailable, fmt.Sprintf("dispatch invocation %s has not produced partial output", record.ID))
 		}
-		path = record.EventsPath
-	default:
-		return exitError(ExitUsage, fmt.Sprintf("dispatch output %q is invalid; use final_answer or events", artifact))
 	}
 	content, truncated, err := readBoundedOutput(filepathForRun(request.Root, record.ID), path)
 	if err != nil {
@@ -185,6 +189,15 @@ func openOwnedRegularFile(runDir string, path string) (*os.File, error) {
 		return nil, errors.New("output is not a regular file")
 	}
 	return file, nil
+}
+
+func readableOwnedOutput(runDir string, path string) bool {
+	file, err := openOwnedRegularFile(runDir, path)
+	if err != nil {
+		return false
+	}
+	_ = file.Close()
+	return true
 }
 
 func ownedRunPath(runDir string, path string) bool {

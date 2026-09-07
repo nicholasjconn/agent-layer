@@ -200,6 +200,7 @@ func newDispatchOutputCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&artifact, "artifact", "", "Output name (final_answer or events)")
+	_ = cmd.MarkFlagRequired("artifact")
 	return cmd
 }
 

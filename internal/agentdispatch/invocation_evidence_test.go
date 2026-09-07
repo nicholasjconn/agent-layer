@@ -107,6 +107,23 @@ func TestExactInvocationSelectorDoesNotFollowContinuation(t *testing.T) {
 	requireDispatchExitCode(t, err, ExitUsage)
 }
 
+func TestInvocationSelectorErrorIsSharedAcrossIDHandleAndInvocationID(t *testing.T) {
+	cases := []InspectRequest{
+		{},
+		{ID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", Handle: "tiny-round-capacitor"},
+		{ID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", InvocationID: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"},
+		{Handle: "tiny-round-capacitor", InvocationID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"},
+		{ID: "id", Handle: "handle", InvocationID: "invocation"},
+	}
+	for _, request := range cases {
+		err := Inspect(request)
+		exitErr := requireDispatchExitError(t, err, ExitUsage)
+		if !strings.Contains(exitErr.Error(), "exactly one invocation selector") {
+			t.Fatalf("selector %#v error %q does not match every call site", request, exitErr)
+		}
+	}
+}
+
 func TestCancelledUnconfirmedDoesNotReleaseClaim(t *testing.T) {
 	root := writeDispatchRepo(t, dispatchRepoConfig{})
 	run, session := newWaitTestRun(t, root)
@@ -163,6 +180,54 @@ func TestLegacyRecordWithoutLaunchProtocolStaysUnconfirmed(t *testing.T) {
 	}
 	if updated.TerminationConfirmed {
 		t.Fatalf("legacy record gained prelaunch proof: %#v", updated)
+	}
+}
+
+func TestInspectOmitsErrorForCancelledInvocation(t *testing.T) {
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	now := time.Now().UTC()
+	run.Record.State = dispatchStateCancelled
+	run.Record.RecoveryState = recoveryAcceptanceUnknown
+	run.Record.CompletedAt = &now
+	run.Record.TerminalReason = terminalReasonCancelledByCaller
+	if err := writeRunRecord(run.Dir, &run.Record); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Inspect(InspectRequest{Root: root, ID: run.Record.ID, Stdout: &stdout}); err != nil {
+		t.Fatal(err)
+	}
+	var result InspectResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.State != dispatchStateCancelled || result.Error != "" {
+		t.Fatalf("cancelled inspect = %#v", result)
+	}
+}
+
+func TestInspectReportsErrorForFailedInvocation(t *testing.T) {
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	now := time.Now().UTC()
+	run.Record.State = dispatchStateFailed
+	run.Record.RecoveryState = recoveryAcceptanceUnknown
+	run.Record.CompletedAt = &now
+	run.Record.TerminalReason = "provider failed"
+	if err := writeRunRecord(run.Dir, &run.Record); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Inspect(InspectRequest{Root: root, ID: run.Record.ID, Stdout: &stdout}); err != nil {
+		t.Fatal(err)
+	}
+	var result InspectResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.State != dispatchStateFailed || result.Error != "provider failed" {
+		t.Fatalf("failed inspect = %#v", result)
 	}
 }
 
@@ -228,6 +293,48 @@ func TestOutputReturnsPartialEventsOnFailedRun(t *testing.T) {
 	stdout.Reset()
 	if err := Output(OutputRequest{Root: root, ID: run.Record.ID, Artifact: artifactFinalAnswer, Stdout: &stdout}); err == nil {
 		t.Fatal("failed run returned a final answer")
+	}
+}
+
+func TestOutputReadsLegacyEventsWithoutLaunchIntent(t *testing.T) {
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	if run.Record.ProviderLaunchIntent {
+		t.Fatal("legacy fixture already had launch intent")
+	}
+	if err := os.WriteFile(run.Record.EventsPath, []byte(`{"kind":"answer","answer":"legacy"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Output(OutputRequest{Root: root, ID: run.Record.ID, Artifact: artifactEvents, Stdout: &stdout}); err != nil {
+		t.Fatal(err)
+	}
+	var result OutputResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(result.Content, "legacy") {
+		t.Fatalf("legacy events = %#v", result)
+	}
+}
+
+func TestOutputRejectsMissingEventsWithoutLaunchIntent(t *testing.T) {
+	root := writeDispatchRepo(t, dispatchRepoConfig{})
+	run, _ := newWaitTestRun(t, root)
+	err := Output(OutputRequest{Root: root, ID: run.Record.ID, Artifact: artifactEvents, Stdout: bytes.NewBuffer(nil)})
+	requireDispatchExitCode(t, err, ExitUnavailable)
+}
+
+func TestOutputRejectsInvalidArtifactBeforeSelectorLookup(t *testing.T) {
+	for _, artifact := range []string{"", "stdout", "FINAL_ANSWER"} {
+		err := Output(OutputRequest{ID: "missing-handle", Artifact: artifact, Stdout: bytes.NewBuffer(nil)})
+		exitErr := requireDispatchExitError(t, err, ExitUsage)
+		if !strings.Contains(exitErr.Error(), "final_answer or events") {
+			t.Fatalf("artifact %q error = %v", artifact, err)
+		}
+		if strings.Contains(exitErr.Error(), "was not found") {
+			t.Fatalf("artifact %q looked up the selector: %v", artifact, err)
+		}
 	}
 }
 

@@ -17,7 +17,7 @@ func selectorCount(values ...string) int {
 
 func requireOneSelector(values ...string) error {
 	if selectorCount(values...) != 1 {
-		return exitError(ExitUsage, "dispatch requires exactly one of handle or invocation_id")
+		return exitError(ExitUsage, "dispatch requires exactly one invocation selector")
 	}
 	return nil
 }

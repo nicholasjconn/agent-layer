@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -87,5 +89,19 @@ func TestDispatchInspectAndOutputCLIAddressInvocationID(t *testing.T) {
 	}
 	if retrieved.Content != "cli-bytes" {
 		t.Fatalf("output CLI = %#v", retrieved)
+	}
+}
+
+func TestDispatchOutputRequiresArtifactFlag(t *testing.T) {
+	output := newDispatchOutputCmd()
+	output.SetOut(io.Discard)
+	output.SetErr(io.Discard)
+	output.SetArgs([]string{"tiny-round-capacitor"})
+	err := output.Execute()
+	if err == nil {
+		t.Fatal("output accepted a missing --artifact flag")
+	}
+	if !strings.Contains(err.Error(), `required flag(s) "artifact" not set`) {
+		t.Fatalf("output missing artifact error = %v", err)
 	}
 }

@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.19.0 - 2026-09-07
+
+### Added
+- CLI commands `al dispatch inspect` and `al dispatch output` for observing running or terminal dispatches and reading final answers or captured events.
+- MCP tools `dispatch_inspect` and `dispatch_output`.
+- Dispatches support selector targeting by conversation `handle` or exact `invocation_id`, with bounded provider process-group termination confirmation.
+
+### Changed
+- Provider cancellation requests now verify process-group termination before considering work stopped.
+
 ## v0.18.6 - 2026-09-05
 
 ### Added

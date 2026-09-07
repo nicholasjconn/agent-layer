@@ -467,6 +467,8 @@ The command set is intentionally small. Most of the time you only need one rhyth
 | `al dispatch options` | List dispatchable agents and their allowed overrides. |
 | `al dispatch start` | Start a headless conversation asynchronously and return its handle. |
 | `al dispatch wait <handle>` | Wait up to eight minutes; return `running` if work continues, otherwise return the terminal result. |
+| `al dispatch inspect <handle-or-invocation-id>` | Observe one invocation without waiting. |
+| `al dispatch output <handle-or-invocation-id>` | Read bounded final or partial output. |
 | `al dispatch continue <handle>` | Start another invocation in a terminal conversation. |
 | `al dispatch cancel <handle>` | Cancel a running invocation. |
 | `al skills add <repository> <selector>... [--yes]` | Import skills from a Git repository and project them. |
@@ -806,16 +808,19 @@ Agent Dispatch is a fully asynchronous, stateful interface with two ways to use
 the same backend: MCP tools for agents and `al dispatch` commands for humans and scripts.
 The MCP tools are served by the built-in `agent-layer` MCP server, which `al sync`
 projects into every enabled client. It exposes `dispatch_options`,
-`dispatch_start`, `dispatch_wait`, `dispatch_continue`, and `dispatch_cancel`.
+`dispatch_start`, `dispatch_wait`, `dispatch_continue`, `dispatch_cancel`,
+`dispatch_inspect`, and `dispatch_output`.
 Valid dispatch targets are `codex`, `claude`, `antigravity`, and `grok`; VS Code
 and Copilot CLI can call the MCP tools but are not dispatch targets.
 
 ```bash
 al dispatch options
 al dispatch start --agent codex --prompt-file prompt.md
-al dispatch wait <handle>
+al dispatch wait <handle-or-invocation-id>
+al dispatch inspect <handle-or-invocation-id>
+al dispatch output <handle-or-invocation-id> --artifact final_answer
 al dispatch continue <handle> --prompt "Review the revision."
-al dispatch cancel <handle>
+al dispatch cancel <handle-or-invocation-id>
 ```
 
 `options` reports available agents, configured defaults, and supported model

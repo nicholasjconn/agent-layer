@@ -29,7 +29,9 @@ func TestProviderObservePollIntervalIsSlowerOnDarwin(t *testing.T) {
 
 func TestProviderTerminationAllowsGracefulProcessGroupExit(t *testing.T) {
 	readyPath := filepath.Join(t.TempDir(), "ready")
-	cmd := exec.Command("/bin/sh", "-c", `trap 'exit 0' TERM; touch "$1"; while :; do sleep 1; done`, "sh", readyPath) // #nosec G204 -- test-owned path passed as an argument.
+	// wait is interruptible by SIGTERM; a foreground sleep can swallow the trap
+	// until that sleep ends and miss a short CI grace period.
+	cmd := exec.Command("/bin/sh", "-c", `trap 'exit 0' TERM; touch "$1"; while :; do sleep 1 & wait "$!"; done`, "sh", readyPath) // #nosec G204 -- test-owned path passed as an argument.
 	prepareProviderProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start provider process group: %v", err)
@@ -43,7 +45,8 @@ func TestProviderTerminationAllowsGracefulProcessGroupExit(t *testing.T) {
 	})
 	waitForTestPath(t, readyPath)
 	record := RunRecord{PID: cmd.Process.Pid, ProcessGroupID: cmd.Process.Pid, ProcessStartIdentity: processStartIdentity(cmd.Process.Pid)}
-	termination, err := newStartedProviderTermination(cmd, record, 500*time.Millisecond)
+	grace := 2 * time.Second
+	termination, err := newStartedProviderTermination(cmd, record, grace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +61,7 @@ func TestProviderTerminationAllowsGracefulProcessGroupExit(t *testing.T) {
 	if err := termination.providerStopped(); err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(started); elapsed >= 500*time.Millisecond {
+	if elapsed := time.Since(started); elapsed >= grace {
 		t.Fatalf("graceful termination took %s, want less than escalation grace", elapsed)
 	}
 }

@@ -174,10 +174,13 @@ func TestDiscoveryUsesProjectLaunchContextWithoutSync(t *testing.T) {
 }
 
 func TestDiscoveryFailuresRemainExplicit(t *testing.T) {
-	for _, tc := range []struct{ agent, mode string }{
-		{"copilot_cli", "copilot-error"}, {"copilot_cli", "copilot-empty"}, {"copilot_cli", "copilot-malformed"}, {"copilot_cli", "copilot-oversized"},
-		{"claude", "claude-error"}, {"codex", "codex-error"}, {"codex", "codex-loop"},
-		{"grok", "unauthenticated"}, {"grok", "bad-output"}, {"grok", "exit-error"},
+	for _, tc := range []struct {
+		agent, mode, wantError string
+	}{
+		{"copilot_cli", "copilot-error", "-32603: Failed to list models"},
+		{"copilot_cli", "copilot-empty", ""}, {"copilot_cli", "copilot-malformed", ""}, {"copilot_cli", "copilot-oversized", ""},
+		{"claude", "claude-error", ""}, {"codex", "codex-error", ""}, {"codex", "codex-loop", ""},
+		{"grok", "unauthenticated", ""}, {"grok", "bad-output", ""}, {"grok", "exit-error", ""},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
 			req := harnessRequest(t, tc.mode)
@@ -185,6 +188,9 @@ func TestDiscoveryFailuresRemainExplicit(t *testing.T) {
 			option := Resolve(config.Config{}, tc.agent, KindModel, req)
 			if option.DiscoveryError == "" || option.Source != "unavailable" || len(option.Suggestions) != 0 {
 				t.Fatalf("false discovery success: %+v", option)
+			}
+			if tc.wantError != "" && !strings.Contains(option.DiscoveryError, tc.wantError) {
+				t.Fatalf("discovery error %q missing %q", option.DiscoveryError, tc.wantError)
 			}
 		})
 	}

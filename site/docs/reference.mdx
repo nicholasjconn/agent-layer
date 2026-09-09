@@ -178,19 +178,18 @@ Shared project instructions for Grok live in root `AGENTS.md`. The Claude instru
 Each agent has an `enabled` flag and an optional `model` value. Omit `model` and `reasoning_effort` to use the client defaults.
 
 Wizard, Doctor, and Dispatch options share live model discovery for Claude,
-Codex, Grok, and Antigravity. Discovery uses the project's normal provider
+Codex, Grok, Antigravity, and Copilot CLI. Discovery uses the project's normal provider
 configuration without sync or inference, runs concurrently across harnesses,
-and allows ten seconds per lookup. Wizard starts queries for all supported
-harnesses
-before its first configuration screen, waits only when a model picker needs its
-result, and reuses results during navigation. Failed discovery displays an error and
-keeps the client default and custom model choices available; it supplies no
-model suggestions. Scripted answers do not
-trigger discovery; explicit custom values remain accepted. Wizard and Doctor
-also discover Copilot CLI models through its headless SDK protocol without
-creating a conversation. Doctor queries only enabled agents with configured
-model overrides and warns when discovery fails or a configured model is absent from the harness list; absence alone does
-not prove that a custom model or alias is invalid.
+and allows ten seconds per lookup. Wizard starts queries for all harnesses with
+a model-discovery adapter before its first configuration screen, waits only when
+a model picker needs its result, and reuses results during navigation. Failed
+discovery displays an error and keeps the client default and custom model choices
+available; it supplies no model suggestions. Scripted answers do not trigger
+discovery; explicit custom values remain accepted. Copilot CLI uses its headless
+SDK protocol to list models without creating a conversation. Doctor queries only
+enabled agents with configured model overrides and warns when discovery fails or
+a configured model is absent from the harness list; absence alone does not prove
+that a custom model or alias is invalid.
 
 Dispatch options obtain fresh lists on each explicit request, with provider
 version checks also concurrent. Launch, sync, and dispatch start/continue do not

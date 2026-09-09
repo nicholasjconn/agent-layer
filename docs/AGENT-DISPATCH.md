@@ -114,8 +114,9 @@ al dispatch cancel <handle-or-invocation-id>
 `options` returns the known dispatch agents, their current availability, configured
 defaults, and supported model and reasoning-effort overrides.
 
-Model suggestions are discovered from the installed Claude, Codex, Grok, and
-Antigravity harnesses, concurrently and without sync or an inference prompt.
+Model suggestions are discovered from the installed Claude, Codex, Grok,
+Antigravity, and Copilot CLI harnesses, concurrently and without sync or an
+inference prompt.
 Discovery uses the same project environment and provider configuration helpers
 as launching an agent. Each lookup has a ten-second timeout. Model fields report
 `source: "harness"` on success; when discovery fails, they report
@@ -127,7 +128,7 @@ and aliases remain accepted. Starting or continuing a dispatch does not repeat
 model discovery. `AL_NO_NETWORK` disables live model discovery.
 
 Wizard starts concurrent discovery before its first configuration screen for
-all supported harnesses, including Copilot CLI, and waits for each result only
+all harnesses with a model-discovery adapter, and waits for each result only
 when its model picker needs it. Results are reused through back navigation.
 A discovery error is displayed before the picker, which still allows the client
 default or an explicit custom model without supplying model suggestions.

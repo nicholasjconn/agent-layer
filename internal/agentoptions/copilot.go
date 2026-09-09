@@ -56,7 +56,10 @@ func copilotRequest(reader *bufio.Reader, output io.Writer, id int, method strin
 		var response struct {
 			ID     *int            `json:"id"`
 			Result json.RawMessage `json:"result"`
-			Error  json.RawMessage `json:"error"`
+			Error  *struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
 		}
 		if err := json.Unmarshal(body, &response); err != nil {
 			return fmt.Errorf("decode %s response: %w", method, err)
@@ -64,8 +67,9 @@ func copilotRequest(reader *bufio.Reader, output io.Writer, id int, method strin
 		if response.ID == nil || *response.ID != id {
 			continue
 		}
-		if len(response.Error) > 0 && string(response.Error) != "null" {
-			return fmt.Errorf("copilot rejected %s; check CLI version, authentication, and connectivity", method)
+		if response.Error != nil {
+			return fmt.Errorf("copilot rejected %s (%d: %s); check CLI version, authentication, and connectivity",
+				method, response.Error.Code, response.Error.Message)
 		}
 		return json.Unmarshal(response.Result, result)
 	}

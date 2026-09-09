@@ -177,12 +177,31 @@ Shared project instructions for Grok live in root `AGENTS.md`. The Claude instru
 
 Each agent has an `enabled` flag and an optional `model` value. Omit `model` and `reasoning_effort` to use the client defaults.
 
+Wizard, Doctor, and Dispatch options share live model discovery for Claude,
+Codex, Grok, and Antigravity. Discovery uses the project's normal provider
+configuration without sync or inference, runs concurrently across harnesses,
+and allows ten seconds per lookup. Wizard starts queries at model selection
+and reuses results during navigation. Failed discovery stops the interactive
+picker: there are no bundled model lists or fallbacks. Scripted answers do not
+trigger discovery; explicit custom values remain accepted. Copilot CLI has
+manual model entry only. Doctor queries only enabled agents with configured
+model overrides and warns when discovery
+fails or a configured model is absent from the harness list; absence alone does
+not prove that a custom model or alias is invalid.
+
+Dispatch options obtains fresh lists on each explicit request, with provider
+version checks also concurrent. Launch, sync, and dispatch start/continue do not
+query models. Model defaults are delegated to the harness, never hard-coded by
+Agent Layer. Antigravity suggestions retain both native slugs and display names.
+Discovery may create the normal repo-local `.agy` and `.grok-config` directories
+when absent; it does not sync configuration or create dispatch runs.
+
 **Reasoning effort**
 
 - Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`). Agent Layer passes the value through to Claude Code regardless of the selected model, including when `model` is unset. Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag; it is not written to `settings.json`. Custom values outside the catalog pass through with a sync-time warning so new effort levels work before Agent Layer is updated.
 - Codex supports `reasoning_effort` with its own set of options.
 - Copilot CLI supports `model` but not `reasoning_effort`.
-- Grok supports `model` (`grok-4.6`, `grok-4.5`) and `reasoning_effort` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`).
+- Grok supports `model` (discovered using `grok models`) and `reasoning_effort` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`).
 
 **Repo-local isolation**
 

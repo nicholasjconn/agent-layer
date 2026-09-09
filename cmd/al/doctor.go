@@ -11,6 +11,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/conn-castle/agent-layer/internal/agentoptions"
 	"github.com/conn-castle/agent-layer/internal/config"
 	"github.com/conn-castle/agent-layer/internal/doctor"
 	"github.com/conn-castle/agent-layer/internal/messages"
@@ -25,6 +26,7 @@ var (
 	measureInstructions = warnings.MeasureInstructions
 	checkMCPServers     = warnings.CheckMCPServers
 	checkPolicy         = warnings.CheckPolicy
+	checkModels         = doctor.CheckModels
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -50,6 +52,15 @@ func newDoctorCmd() *cobra.Command {
 			// 2. Check Config
 			configResults, cfg := doctor.CheckConfig(root)
 			allResults = append(allResults, configResults...)
+			// Start discovery alongside the remaining checks; no sync is needed.
+			modelsDone := make(chan []doctor.Result, 1)
+			if cfg != nil {
+				go func() {
+					req := agentoptions.DefaultDiscoveryRequest()
+					req.Context = cmd.Context()
+					modelsDone <- checkModels(cfg, req)
+				}()
+			}
 
 			updateResult := doctor.Result{CheckName: messages.DoctorCheckNameUpdate}
 			if strings.TrimSpace(os.Getenv(versiondispatch.EnvNoNetwork)) != "" {
@@ -109,6 +120,7 @@ func newDoctorCmd() *cobra.Command {
 
 				// 7. Check CLI Skills (catalog-installed skills' binaries on PATH).
 				allResults = append(allResults, doctor.CheckCLISkills(cfg)...)
+				allResults = append(allResults, <-modelsDone...)
 			}
 
 			hasFail := false

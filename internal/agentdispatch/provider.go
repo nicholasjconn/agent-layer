@@ -170,10 +170,18 @@ func claudeLineageSupported(providerVersion string) (bool, error) {
 }
 
 func providerVersion(path string, agent string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), providerVersionTimeout)
+	return providerVersionWithContext(context.Background(), path, agent)
+}
+
+func providerVersionWithContext(parent context.Context, path string, agent string) (string, error) {
+	ctx, cancel := context.WithTimeout(parent, providerVersionTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, "--version") // #nosec G204 -- path is resolved from the static provider registry.
+	cmd.WaitDelay = time.Second
 	output, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return "", fmt.Errorf("read %s version: %w", agent, ctx.Err())
+	}
 	if err != nil {
 		return "", fmt.Errorf("read %s version: %w", agent, err)
 	}

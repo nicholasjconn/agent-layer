@@ -209,6 +209,8 @@ type CancelRequest struct {
 
 // OptionsRequest configures an Agent Dispatch options response.
 type OptionsRequest struct {
+	// Lookup callbacks may be invoked concurrently across providers.
+	Context       context.Context
 	Root          string
 	Env           []string
 	Stdout        io.Writer

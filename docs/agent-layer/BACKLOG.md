@@ -33,29 +33,23 @@ Unscheduled user-visible features and tasks (distinct from issues; not refactors
     Acceptance criteria: Dispatch cleanup removes stale zero-byte `.lock` files without affecting active work, retains a documented useful window of completed results/history, and automatically caps or archives older records so `.agent-layer/state/dispatch` and related state/log storage cannot grow without bound.
     Notes: Observed cleanup found 212 JSON dispatch records paired with 212 zero-byte `.lock` files under `.agent-layer/state/dispatch`, plus dispatch capability-cache state; make retention recoverable and safe for in-flight dispatches. Confirmed evidence expiry exists; lock-file unlinking while flocked is unsafe and is not part of that policy.
 
-- Backlog 2026-08-17 grok-live-models: Use `grok models` for wizard and dispatch suggestions
-    Priority: Medium. Area: providers / grok / dispatch / wizard
-    Description: Replace the hardcoded Grok model catalog (`grok-4.6`, `grok-4.5`) with live `grok models` output so wizard and dispatch suggestions stay current.
-    Acceptance criteria: Wizard discovery and `al dispatch start` validation share one provider-backed Grok model path with catalog fallback; custom values remain allowed.
-    Notes: Fits the existing `shared-live-options` backlog; Grok is the remaining live-source gap after Antigravity.
-
 - Backlog 2026-08-17 grok-dispatch-usage: Keep Grok dispatch usage/cost events
     Priority: Low. Area: providers / grok / dispatch
     Description: Record Grok streaming `usage` events instead of dropping them in `reduceGrokEvent`, so dispatch results can report cost like Claude/Codex.
     Acceptance criteria: A completed Grok dispatch retains observed usage when the stream includes it; missing usage stays explicitly absent rather than inferred.
     Notes: Current reducer returns nil for `usage` events.
 
-- Backlog 2026-07-09 copilot-cli-gpt-5.6-models: Advertise GPT-5.6 models for GitHub Copilot CLI
-    Priority: Medium. Area: providers / copilot-cli / dispatch / wizard
-    Description: Add Sol, Terra, and Luna to the separate Copilot CLI model catalog after verifying the exact provider-native identifiers, so wizard and dispatch users do not need custom values.
-    Acceptance criteria: Provider-specific CLI evidence confirms the identifiers; the shared Copilot CLI catalog, exact catalog test, wizard, and dispatch validation accept all three models while preserving custom values.
-    Notes: GitHub's 2026-07-09 changelog confirms gradual Copilot CLI availability; deferred from PR #135 because that reviewed plan is scoped to the Codex provider catalog.
+- Backlog 2026-07-09 copilot-cli-model-discovery: Discover GitHub Copilot CLI models
+    Priority: Medium. Area: providers / copilot-cli / wizard
+    Description: Add a verified native discovery adapter for Copilot CLI to replace manual-only model entry.
+    Acceptance criteria: Suggestions come exclusively from the installed harness through the shared Go discovery boundary; no static catalog or fallback is introduced.
+    Notes: Static Copilot model suggestions were removed. Explicit model values remain supported; Copilot CLI is not a dispatch provider.
 
-- Backlog 2026-06-30 shared-live-options: Use shared live option providers for wizard and dispatch validation
+- Backlog 2026-06-30 shared-live-options: Discover reasoning-effort suggestions from harnesses
     Priority: Medium. Area: providers / dispatch / wizard
-    Description: Replace hard-coded model/reasoning suggestions with provider-backed discovery where a client exposes an authoritative source: Codex model and reasoning suggestions from `codex debug models`, Claude reasoning-effort choices from CLI help where available, and Antigravity models from `agy models`.
-    Acceptance criteria: Wizard discovery and `al dispatch start` validation share one provider-backed option path with catalog fallbacks; no agent gets a one-off wizard or dispatch special case; Codex models/efforts come from the local CLI catalog; Antigravity models come from `agy models`; Claude efforts come from local help; Claude model suggestions remain catalog-backed or custom-only unless Claude exposes an authoritative model list.
-    Notes: Wizard and dispatch now share `internal/agentoptions` for provider-backed options; remaining work is adding Codex/Claude live sources. Keep custom overrides allowed, and do not parse Claude model examples as a complete catalog.
+    Description: Replace hard-coded reasoning-effort suggestions with provider-backed discovery where an authoritative source is available.
+    Acceptance criteria: Wizard and dispatch share reasoning metadata from harness discovery, retain explicit fallback diagnostics, and preserve custom overrides.
+    Notes: Model discovery is implemented for Claude, Codex, Grok, and Antigravity. Remaining work is reasoning metadata and its model-dependent presentation; Claude initialization and Codex model/list already expose candidate capability fields.
 
 - Backlog 2026-06-15 interactive-html-review-skill: Skill to make any HTML output file browser-commentable
     Priority: High. Area: skills / UX

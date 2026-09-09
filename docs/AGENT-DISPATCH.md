@@ -126,10 +126,14 @@ Suggestions are not an exhaustive account-access guarantee: custom model IDs
 and aliases remain accepted. Starting or continuing a dispatch does not repeat
 model discovery. `AL_NO_NETWORK` disables live model discovery.
 
-Wizard starts concurrent discovery only on entering model selection and reuses
-results through back navigation. A discovery error stops the interactive picker.
+Wizard starts concurrent discovery before its first configuration screen for
+all supported harnesses, including Copilot CLI, and waits for each result only
+when its model picker needs it. Results are reused through back navigation.
+A discovery error is displayed before the picker, which still allows the client
+default or an explicit custom model without supplying model suggestions.
 Scripted model answers are explicit inputs and do not trigger discovery. Copilot
-CLI offers manual entry, not static suggestions. Doctor checks only enabled
+CLI uses its headless SDK protocol to list models without creating a session.
+Doctor checks only enabled
 harnesses with configured model overrides and reports discovery
 failures or configured models absent from their lists as warnings. Neither
 operation syncs as part of model discovery. Discovery may create the normal

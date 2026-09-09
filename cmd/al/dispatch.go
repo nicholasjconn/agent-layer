@@ -83,7 +83,7 @@ func newDispatchOptionsCmd() *cobra.Command {
 				return err
 			}
 			return dispatchCommandError(cmd, agentdispatch.WriteOptions(agentdispatch.OptionsRequest{
-				Root: root, Env: os.Environ(), Stdout: cmd.OutOrStdout(),
+				Context: cmd.Context(), Root: root, Env: os.Environ(), Stdout: cmd.OutOrStdout(),
 			}))
 		},
 	}

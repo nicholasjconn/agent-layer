@@ -114,6 +114,33 @@ al dispatch cancel <handle-or-invocation-id>
 `options` returns the known dispatch agents, their current availability, configured
 defaults, and supported model and reasoning-effort overrides.
 
+Model suggestions are discovered from the installed Claude, Codex, Grok, and
+Antigravity harnesses, concurrently and without sync or an inference prompt.
+Discovery uses the same project environment and provider configuration helpers
+as launching an agent. Each lookup has a ten-second timeout. Model fields report
+`source: "harness"` on success; when discovery fails, they report
+`source: "unavailable"`, `discovery_error`, and an empty suggestions list.
+Skipped lookups report `source: "not_requested"`. No model catalog or fallback
+is shipped. The `catalog` source is reserved for non-model option metadata.
+Suggestions are not an exhaustive account-access guarantee: custom model IDs
+and aliases remain accepted. Starting or continuing a dispatch does not repeat
+model discovery. `AL_NO_NETWORK` disables live model discovery.
+
+Wizard starts concurrent discovery only on entering model selection and reuses
+results through back navigation. A discovery error stops the interactive picker.
+Scripted model answers are explicit inputs and do not trigger discovery. Copilot
+CLI offers manual entry, not static suggestions. Doctor checks only enabled
+harnesses with configured model overrides and reports discovery
+failures or configured models absent from their lists as warnings. Neither
+operation syncs as part of model discovery. Discovery may create the normal
+repo-local `.agy` and `.grok-config` directories when absent; it does not sync
+configuration or create dispatch runs.
+
+Each explicit dispatch-options request obtains fresh results; no persistent
+model cache is used. Provider-version queries also run concurrently. Launch,
+sync, and dispatch start/continue do not run model queries just to pass through
+an explicit configuration value or use the harness default.
+
 `start` requires an agent and exactly one prompt source. Model and reasoning
 effort are optional overrides. When omitted, Agent Layer uses its configured
 value; when that is also empty, it omits the provider flag so the provider uses

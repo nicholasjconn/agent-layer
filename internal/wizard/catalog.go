@@ -1,7 +1,9 @@
 package wizard
 
 import (
-	"sync"
+	"context"
+	"fmt"
+	"io"
 
 	"github.com/conn-castle/agent-layer/internal/agentoptions"
 	"github.com/conn-castle/agent-layer/internal/config"
@@ -67,62 +69,76 @@ func ApprovalModeFieldOptions() []config.FieldOption {
 var wizardOptionDiscoveryRequestFunc = agentoptions.DefaultDiscoveryRequest
 
 type wizardOptionDiscoveryCache struct {
-	mu                       sync.Mutex
-	antigravityModelValues   []string
-	antigravityModelsReady   bool
-	antigravityModelsStarted bool
-	antigravityModelsDone    chan struct{}
+	project *config.ProjectConfig
+	out     io.Writer
+	ctx     context.Context
+	entries map[string]*wizardModelDiscovery
 }
 
-func (c *wizardOptionDiscoveryCache) prefetchAntigravityModels() {
-	c.mu.Lock()
-	if c.antigravityModelsStarted {
-		c.mu.Unlock()
-		return
-	}
-	c.antigravityModelsStarted = true
-	done := make(chan struct{})
-	c.antigravityModelsDone = done
-	c.mu.Unlock()
+type wizardModelDiscovery struct {
+	done   chan struct{}
+	option agentoptions.OptionSet
+}
 
+// The UI goroutine owns the map. Workers publish results by closing done.
+func (c *wizardOptionDiscoveryCache) prefetch(agent string) *wizardModelDiscovery {
+	if c.entries == nil {
+		c.entries = make(map[string]*wizardModelDiscovery)
+	}
+	if entry := c.entries[agent]; entry != nil {
+		return entry
+	}
+	entry := &wizardModelDiscovery{done: make(chan struct{})}
+	c.entries[agent] = entry
 	req := wizardOptionDiscoveryRequestFunc()
+	req.Project = c.project
+	req.Context = c.ctx
+	if !req.Live || !agentoptions.HasModelDiscovery(agent) {
+		entry.option = agentoptions.Resolve(config.Config{}, agent, agentoptions.KindModel, req)
+		close(entry.done)
+		return entry
+	}
 	go func() {
-		values := agentoptions.Values(AgentAntigravity, agentoptions.KindModel, req)
-		c.mu.Lock()
-		c.antigravityModelValues = values
-		c.antigravityModelsReady = true
-		close(done)
-		c.mu.Unlock()
+		entry.option = agentoptions.Resolve(config.Config{}, agent, agentoptions.KindModel, req)
+		close(entry.done)
 	}()
+	return entry
 }
 
-func (c *wizardOptionDiscoveryCache) antigravityModelOptions(waitForPrefetch bool) []string {
-	c.mu.Lock()
-	if c.antigravityModelsReady {
-		values := append([]string(nil), c.antigravityModelValues...)
-		c.mu.Unlock()
-		return values
-	}
-	done := c.antigravityModelsDone
-	started := c.antigravityModelsStarted
-	c.mu.Unlock()
-
-	if waitForPrefetch {
-		if started {
-			<-done
-			c.mu.Lock()
-			values := append([]string(nil), c.antigravityModelValues...)
-			c.mu.Unlock()
-			return values
+func (c *wizardOptionDiscoveryCache) prefetchEnabled(choices *Choices) {
+	for _, agent := range SupportedAgents() {
+		if choices.EnabledAgents[agent] && agentoptions.HasModelDiscovery(agent) {
+			c.prefetch(agent)
 		}
-		return agentoptions.Values(AgentAntigravity, agentoptions.KindModel, wizardOptionDiscoveryRequestFunc())
 	}
-
-	return agentoptions.Values(AgentAntigravity, agentoptions.KindModel, agentoptions.DiscoveryRequest{})
 }
 
-func modelOptions(agent string) []string {
-	return agentoptions.Values(agent, agentoptions.KindModel, wizardOptionDiscoveryRequestFunc())
+func (c *wizardOptionDiscoveryCache) selectModel(ui UI, agent, title string, value *string) error {
+	// Scripted answers are explicit configuration, not a request for suggestions.
+	if scripted, ok := ui.(*ScriptedUI); ok {
+		answer, _, found := lookupStringScriptedAnswer(scripted.answers.Select, title)
+		if !found {
+			return missingScriptedAnswer("select", title)
+		}
+		return selectOptionalValue(ui, title, []string{answer}, value)
+	}
+	if !agentoptions.HasModelDiscovery(agent) {
+		// Copilot CLI has no discovery adapter. Offer explicit input only.
+		return selectOptionalValue(ui, title, nil, value)
+	}
+	entry := c.prefetch(agent)
+	select {
+	case <-entry.done:
+	default:
+		if c.out != nil {
+			_, _ = fmt.Fprintf(c.out, "Discovering %s models…\n", agent)
+		}
+		<-entry.done
+	}
+	if entry.option.DiscoveryError != "" {
+		return fmt.Errorf("cannot select %s model: %s; check harness installation, authentication, and connectivity", agent, entry.option.DiscoveryError)
+	}
+	return selectOptionalValue(ui, title, entry.option.Suggestions, value)
 }
 
 func reasoningEffortOptions(agent string) []string {

@@ -300,7 +300,7 @@ func (s *dispatchToolServer) handleOptions(ctx context.Context, _ *mcp.CallToolR
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	options, err := BuildOptions(OptionsRequest{Root: s.root, Env: s.env})
+	options, err := BuildOptions(OptionsRequest{Context: ctx, Root: s.root, Env: s.env})
 	if err != nil {
 		return nil, nil, toolError(err)
 	}
